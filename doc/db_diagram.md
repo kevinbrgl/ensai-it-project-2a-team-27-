@@ -1,30 +1,33 @@
 # Diagramme de Classes - Ex-Libris
 
 ```mermaid
+%%{init: {'theme': 'neutral'}}%%
 classDiagram
+    direction TB
+
     class User {
-        +int id_user
-        +String username
-        +String name
-        +String lastname
-        +String email
-        +String password_hash
-        +String google_id
-        +String bio
-        +String profile_picture
-        +Boolean is_private
-        +Boolean dark_mode
-        +Timestamp created_at
+        -id_user : Integer
+        -username : String
+        -name : String
+        -lastname : String
+        -email : String
+        -password_hash : String
+        -google_id : String
+        -bio : String
+        -profile_picture : String
+        -is_private : Boolean
+        -dark_mode : Boolean
+        -created_at : DateTime
     }
 
     class Book {
-        +int id_book
-        +String title
-        +String author
-        +String category
-        +Date publish_date
-        +String description
-        +String cover_image
+        -id_book : Integer
+        -title : String
+        -author : String
+        -category : String
+        -publish_date : Date
+        -description : String
+        -cover_image : String
     }
 
     class ReadingState {
@@ -35,35 +38,35 @@ classDiagram
         ABANDONNE
     }
 
-    class User_Book_Activity {
-        +ReadingState state
-        +Boolean is_liked
-        +Boolean is_favorite
-        +Timestamp updated_at
+    class UserBookActivity {
+        -state : ReadingState
+        -is_liked : Boolean
+        -is_favorite : Boolean
+        -updated_at : DateTime
     }
 
     class Review {
-        +int id_review
-        +int rating
-        +String comment
-        +Timestamp created_at
+        -id_review : Integer
+        -rating : Integer
+        -comment : String
+        -created_at : DateTime
     }
 
     class Playlist {
-        +int id_playlist
-        +String name
-        +Boolean is_public
+        -id_playlist : Integer
+        -name : String
+        -is_public : Boolean
     }
 
     %% Relations
-    User "1" -- "*" User_Book_Activity : gère >
-    Book "1" -- "*" User_Book_Activity : est suivi dans >
+    User "1" --> "0..*" UserBookActivity : gère
+    Book "1" --> "0..*" UserBookActivity : est suivi dans
     
-    User "1" -- "*" Review : écrit >
-    Book "1" -- "*" Review : reçoit >
+    User "1" --> "0..*" Review : écrit
+    Book "1" --> "0..*" Review : reçoit
     
-    User "1" -- "*" Playlist : crée >
-    Playlist "*" -- "*" Book : contient >
+    User "1" --> "0..*" Playlist : crée
+    Playlist "0..*" --> "0..*" Book : contient
     
-    User "*" -- "*" User : s'abonne à >
+    User "0..*" --> "0..*" User : suit
 ```
