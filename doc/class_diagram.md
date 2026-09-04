@@ -1,4 +1,4 @@
-# Diagramme de Classes - Ex-Libris
+# Diagramme de Classes Métier (POO) - Ex-Libris
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
@@ -18,6 +18,11 @@ classDiagram
         -is_private : Boolean
         -dark_mode : Boolean
         -created_at : DateTime
+        +updateProfile(name : String, bio : String, profile_picture : String) void
+        +toggleDarkMode() void
+        +follow(user : User) void
+        +unfollow(user : User) void
+        +createPlaylist(name : String, is_public : Boolean) Playlist
     }
 
     class Book {
@@ -28,6 +33,8 @@ classDiagram
         -publish_date : Date
         -description : String
         -cover_image : String
+        +getAverageRating() Float
+        +getReviews() List~Review~
     }
 
     class ReadingState {
@@ -43,6 +50,9 @@ classDiagram
         -is_liked : Boolean
         -is_favorite : Boolean
         -updated_at : DateTime
+        +updateState(newState : ReadingState) void
+        +toggleLike() void
+        +toggleFavorite() void
     }
 
     class Review {
@@ -50,12 +60,16 @@ classDiagram
         -rating : Integer
         -comment : String
         -created_at : DateTime
+        +editComment(newComment : String, newRating : Integer) void
     }
 
     class Playlist {
         -id_playlist : Integer
         -name : String
         -is_public : Boolean
+        +addBook(book : Book) void
+        +removeBook(book : Book) void
+        +toggleVisibility() void
     }
 
     %% Relations
