@@ -32,10 +32,10 @@ classDiagram
 
     class ReadingState {
         <<enumeration>>
-        A_LIRE
-        EN_COURS
-        LU
-        ABANDONNE
+        TO_READ
+        CURRENTLY_READING
+        READ
+        ABANDONED
     }
 
     class UserBookActivity {
