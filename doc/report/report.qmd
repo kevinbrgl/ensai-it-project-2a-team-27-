@@ -1,65 +1,72 @@
 ---
-bibliography: refs.bib
-citeproc: false
-nocite: "@*"
+title: "RAPPORT INTERMÉDIAIRE"
+subtitle: "Projet Informatique — Ex-Libris"
+author: |
+  **SONI ALAMI Hazem** \
+  **GUERIMAND Matthieu** \
+  **BRUGAL Kévin** \
+  **ABIDELLI Mohamed Yazid**\
+  **Tahri Nassim**
 format:
-  html:
-    code-tools: true
-  typst:
+  pdf:
+    toc: true
+    toc-depth: 3
+    toc-title: "Sommaire"
+    number-sections: true
+    colorlinks: true
+    documentclass: article
     papersize: a4
-    margin:
-      x: 1.5cm
-      y: 2.0cm
-    section-numbering: 1.1.a
-    mainfont: "Libertinus Serif"
-    fontsize: 11pt
+    header-includes: |
+      \usepackage{titling}
+      \usepackage{graphicx}
+      \pretitle{\begin{center}\includegraphics[width=12.5cm]{img/ensai_logo.png}\\[2cm]\LARGE}
+      \posttitle{\end{center}\vspace{2cm}
+      \begin{minipage}[t]{0.60\textwidth}
+      \raggedright
+      \textbf{Étudiants :} \\[0.2cm]
+      ONI ALAMI Hazem \\
+      GUERIMAND Matthieu \\
+      BRUGAL Kévin \\
+      ABIDELLI Mohamed Yazid \\
+      TAHRI Nassim
+      \end{minipage}
+      \hfill
+      \begin{minipage}[t]{0.48\textwidth}
+      \raggedleft
+      \textbf{Encadrement :} \\[0.8cm]
+      Tuteur : Elwenn JOUBREL \\
+      Responsable : DENEUVILLE Ludovic
+      \end{minipage}\vspace{3.5cm}
+      \centerline{\large \textit{Année 2026-2027}}
+      \vspace{0.2cm}}
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
 ---
 
+# Description des fonctionnalités de l'application
 
-```{=typst}
-#import "model.typ": project_template
+## Présentation d’ensemble du projet
 
-#show: body => project_template(
-  title: [Créer un rapport de projet\ avec Quarto et Typst],
-  team: [Équipe 8],
-  authors: ([Jean-Guy Badiane], [Serena Williams], [François Pignon], [Anne Hathaway]),
-  tutor: [Philippe Lucas],
-  project: [Projet Statistique de 1ère année - Année 2025-2026],
-  body
-)
-```
+## Utilisateurs de l’application
 
-## Introduction {.unnumbered}
+## Fonctionnalités de base
 
-```{=typst} 
-#lorem(100)
-```
+## Fonctionnalités avancées
 
-{{< pagebreak >}}
+# Planning et Organisation
 
-## Section 1
+# Diagrammes de la phase d'analyse
 
-### Subsection 1.1
+## Diagramme des cas d'utilisation
 
-### Subsection 1.2
+## Diagramme de classes
 
-{{< pagebreak >}}
+## Modèle de Base de Données
 
-## Section 2
-
-{{< pagebreak >}}
-
-## Bibliography
-
-
-{{< pagebreak >}}
-
-## Conclusion {.unnumbered}
-
-
-{{< pagebreak >}}
-
-## Annexes {.unnumbered}
-
-
-{{< pagebreak >}}
+## Diagrammes de séquence
