@@ -1,83 +1,72 @@
-
-# Diagramme de classes des objets métiers
-
-Ce diagramme est codé avec [mermaid](https://mermaid.js.org/syntax/classDiagram.html) :
-
-* avantage : facile à coder
-* inconvénient : on ne maîtrise pas bien l'affichage
-
-Pour afficher ce diagramme dans VScode :
-
-* à gauche aller dans **Extensions** (ou CTRL + SHIFT + X)
-* rechercher `mermaid`
-  * installer l'extension **Markdown Preview Mermaid Support**
-* revenir sur ce fichier
-  * faire **CTRL + K**, puis **V**
+# Diagramme de Classes - Ex-Libris
 
 ```mermaid
+%%{init: {'theme': 'neutral'}}%%
 classDiagram
-    %% Business objects
-    class Player {
-        +id_player: int
-        +username: string
-        +password: string
-        +elo: int
-        +email: string
-        +pokemon_fan: bool
+    direction TB
+
+    class User {
+        -id_user : Integer
+        -username : String
+        -name : String
+        -lastname : String
+        -email : String
+        -password_hash : String
+        -google_id : String
+        -bio : String
+        -profile_picture : String
+        -is_private : Boolean
+        -dark_mode : Boolean
+        -created_at : DateTime
     }
+
+    class Book {
+        -id_book : Integer
+        -title : String
+        -author : String
+        -category : String
+        -publish_date : Date
+        -description : String
+        -cover_image : String
+    }
+
+    class ReadingState {
+        <<enumeration>>
+        TO_READ
+        CURRENTLY_READING
+        READ
+        ABANDONED
+    }
+
+    class UserBookActivity {
+        -state : ReadingState
+        -is_liked : Boolean
+        -is_favorite : Boolean
+        -updated_at : DateTime
+    }
+
+    class Review {
+        -id_review : Integer
+        -rating : Integer
+        -comment : String
+        -created_at : DateTime
+    }
+
+    class Playlist {
+        -id_playlist : Integer
+        -name : String
+        -is_public : Boolean
+    }
+
+    %% Relations
+    User "1" --> "0..*" UserBookActivity : manages
+    Book "1" --> "0..*" UserBookActivity : is tracked in
     
-    %% Data Access Objects
-    class PlayerDao {
-        +create(Player): bool
-        +find_by_id(int): Player
-        +list_all(): list[Player]
-        +delete(Player): bool
-        +update(Player): bool
-        +login(str,str): Player
-    }
+    User "1" --> "0..*" Review : writes
+    Book "1" --> "0..*" Review : receives
     
-    %% Service layer
-    class PlayerService {
-        +create(str,str,int,str,bool): Player
-        +find_by_id(int): Player
-        +list_all(bool=False): list[Player]
-        +delete(Player): bool
-        +update(Player): Player
-        +login(str,str): Player
-        +username_already_used(str): bool
-    }
-
-    class GameService {
-        +play(id_player:int, id_opponent:int, choice:str): dict
-        +expected_score(elo1:int, elo2:int): float
-        +compute_elo(elo1:int, elo2:int, win1:bool): tuple[int,int]
-        +update_elo(j1:Player, j2:Player, winner:Player)
-    }
+    User "1" --> "0..*" Playlist : creates
+    Playlist "0..*" --> "0..*" Book : contains
     
-    %% Controllers
-    class PlayerController {
-        +list_all_players(): list[Player]
-        +player_by_id(int): Player
-        +create_player(PlayerModel): Player
-        +update_player(int, PlayerModel): str
-        +delete_player(int): str
-    }
-
-    class AuthController {
-        +login(ConnexionRequest): dict
-    }
-
-    class GameController {
-        +play_game(GameRequest): dict
-    }
-
-    %% Relationships
-    PlayerService ..> PlayerDao : calls
-    PlayerService ..> Player : uses
-    PlayerDao ..> Player : uses
-    GameService ..> PlayerDao : calls
-    GameService ..> Player : uses
-    PlayerController ..> PlayerService : calls
-    AuthController ..> PlayerService : calls
-    GameController ..> GameService : calls
+    User "0..*" --> "0..*" User : follows
 ```
