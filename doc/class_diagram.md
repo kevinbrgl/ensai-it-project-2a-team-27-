@@ -59,14 +59,14 @@ classDiagram
     }
 
     %% Relations
-    User "1" --> "0..*" UserBookActivity : gère
-    Book "1" --> "0..*" UserBookActivity : est suivi dans
+    User "1" --> "0..*" UserBookActivity : manages
+    Book "1" --> "0..*" UserBookActivity : is tracked in
     
-    User "1" --> "0..*" Review : écrit
-    Book "1" --> "0..*" Review : reçoit
+    User "1" --> "0..*" Review : writes
+    Book "1" --> "0..*" Review : receives
     
-    User "1" --> "0..*" Playlist : crée
-    Playlist "0..*" --> "0..*" Book : contient
+    User "1" --> "0..*" Playlist : creates
+    Playlist "0..*" --> "0..*" Book : contains
     
-    User "0..*" --> "0..*" User : suit
+    User "0..*" --> "0..*" User : follows
 ```
