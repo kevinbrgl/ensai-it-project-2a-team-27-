@@ -64,7 +64,7 @@ classDiagram
         +removeBookFromPlaylist(playlistId: int, bookId: int)
     }
 
-    %% Models <-> Services Links (Placés en premier pour forcer l'alignement)
+    %% Models <-> Services Links 
     UserService ..> User : uses
     BookActivityService ..> UserBookActivity : uses
     ReviewService ..> Review : uses
