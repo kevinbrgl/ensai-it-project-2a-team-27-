@@ -1,4 +1,4 @@
-# Diagramme de Classes Métier (POO) - Ex-Libris
+# Class Diagram - Ex-Libris
 
 ```mermaid
 %%{init: {"class": {"defaultRenderer": "elk"}} }%%
