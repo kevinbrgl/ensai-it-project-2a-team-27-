@@ -53,19 +53,64 @@ execute:
 
 ## Présentation d’ensemble du projet
 
+Ex-libus est une application qui s'associe en même temps à un réseau social et à une bibliothèque de gestion de livres. Elle s'adresse d'un côté à des lecteurs occasionnels, souhaitant seulement suivre l'avancement de leurs lectures et découvrir de nouveaux ouvrages. D'un autre côté, c'est une application interactive qui cible aussi les passionnés souhaitant débattre de leurs lectures, partager leurs avis, créer des playlists pour différentes thématiques et suivre les activités de leurs amis. Afin de garantir le confort de tous, l'application utilise une interface (jsp quel type d'interface).\
+
+Elle utilise les livres issus de l'API externe Open Library. Cette API open source nous permettra d'aller chercher toutes les données nécessaires sur les livres comme l'auteur, le nombre de pages ou encore l'illustration. En addition, notre application profitera de sa propre base de données qui servira à stocker les livres, les playlists, les avis, les mentions « j'aime » ainsi que plusieurs autres fonctionnalités.
+
 ## Utilisateurs de l’application
 
 ## Fonctionnalités de base
 
+Les fonctionnalités de base présentes dans Ex-Librus sont les suivantes:
+
+[Gestion du compte utilisateur]{.underline} :
+
+- Inscription
+- Connexion 
+- Modification du profil (nom d'utilisateur, adresse email, mot de passe, biographie et photo de profil)
+
+[Catalogue des livres]{.underline}:
+
+- Affichage des détails d'un livre (titre, auteur, genre/catégorie, description, date de publication et illustration de couverture)
+- Suivi de l'état de lecture, mise à jour du statut de lecture d'un livre (en cours, terminé, à lire, etc.)
+- Marquage d'ouvrages : Gestion des mentions "j'aime" et ajout aux favoris
+
 ## Fonctionnalités avancées
+
+Les fonctionnalités avancées de l'application sont:
+
+[Un système d'évaluation et de critiques]{.underline} : 
+
+- Rédaction de commentaires
+- Ajout d'une note chiffrée
+
+[Playlists]{.underline} : 
+
+- Création de listes personnalisées, ajout et retrait de livres dans ces listes
+- Ajout d'un nom pour la liste
+
+[Réseau social et interactions]{.underline} :
+
+- Système d'abonnements entre membres pour suivre d'autres utilisateurs
+- , permet à chaque lecteur ai son identité en fonction de ses gouts
+
+[Connexion avec une API]{.underline}:
+
+- Intégration et synchronisation des données avec Open Library via un identifiant dédié
 
 # Planning et Organisation
 
 # Diagrammes de la phase d'analyse
 
+![Figure n° - Diagramme de GANTT](img/gantt.png)
+
 ## Diagramme des cas d'utilisation
 
+![Figure n° - Diagramme de cas d'utilisation](img/cas_dutilisation.png)
+
 ## Diagramme de classes
+
+![Figure n° - Diagramme de classe](img/classe.jpg)
 
 Le diagramme de classes de notre projet illustre une architecture orientée services, caractérisée par une séparation rigoureuse entre les objets de données et la logique métier. Cette approche modulaire a été choisie pour garantir la maintenabilité du code et faciliter l'évolution de notre plateforme de suivi et de critique littéraire. Au cœur de ce système, l'entité Book est conçue pour interagir avec l'API Open Library. Afin d'assurer des temps de réponse rapides et de ne pas dépendre exclusivement de requêtes externes à chaque affichage, nous avons pris le parti de stocker localement les informations essentielles de l'œuvre, telles que le titre, l'auteur, la description et la couverture. Le choix architectural majeur réside dans l'attribut id_book_api, qui agit comme une référence unique permettant de synchroniser et d'enrichir nos données locales à la demande via l'API externe. En parallèle, l'entité User centralise les informations de profil de manière classique, en assurant la sécurité des accès grâce au hachage du mot de passe.
 
@@ -76,6 +121,9 @@ Afin de respecter le principe de responsabilité unique, l'ensemble des actions 
 ## Diagramme de classes DAO
 
 ## Diagramme de Base de Données
+
+![Figure n° - Diagramme de base de donnée](img/base_de_donnee.pdf)
+
 
 Le schéma de la base de données s'articule autour de deux entités fondamentales : les membres et les œuvres littéraires. La table `USERS` est conçue pour garantir l'intégrité des données d'identification, notamment par l'application de contraintes d'unicité sur le pseudonyme et l'adresse électronique, tout en prévoyant le stockage du mot de passe haché et des éléments de profil. En parallèle, la table `BOOKS` agit comme le référentiel central des œuvres, répertoriant les métadonnées indispensables à l'application telles que le titre, l'auteur, la catégorie et la date de publication.
 
