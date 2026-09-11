@@ -42,11 +42,13 @@ erDiagram
         int id_book FK
         int rating "CHECK (1-5)"
         text comment
+        timestamp created_at
     }
     PLAYLISTS {
         int id_playlist PK
         int id_user FK
         varchar name
+        timestamp updated_at
     }
     PLAYLIST_BOOKS {
         int id_playlist PK, FK
