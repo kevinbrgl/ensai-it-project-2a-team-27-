@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     actor User
     participant UI as Interface
@@ -31,3 +32,4 @@ sequenceDiagram
         API-->>UI: 200 OK - book list
         UI-->>User: displays results
     end
+```
