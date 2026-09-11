@@ -1,4 +1,4 @@
-# Diagramme de Base de Données (ERD / Modèle Relationnel) - Ex-Libris
+# Database Diagram - Ex-Libris
 
 ```mermaid
 erDiagram
