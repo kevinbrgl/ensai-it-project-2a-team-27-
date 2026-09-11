@@ -1,10 +1,11 @@
 # Diagramme de Classes Métier (POO) - Ex-Libris
 
 ```mermaid
+%%{init: {"class": {"defaultRenderer": "elk"}} }%%
 classDiagram
-    direction TB
+    direction LR
 
-    %% Data Models (Pydantic / SQLAlchemy)
+    %% Data Models
     class User {
         +int id_user
         +String username
@@ -44,7 +45,7 @@ classDiagram
         +String name
     }
 
-    %% Service Classes (Business Logic)
+    %% Service Classes
     class UserService {
         +followUser(followerId: int, followingId: int)
         +unfollowUser(followerId: int, followingId: int)
@@ -63,6 +64,12 @@ classDiagram
         +removeBookFromPlaylist(playlistId: int, bookId: int)
     }
 
+    %% Models <-> Services Links (Placés en premier pour forcer l'alignement)
+    UserService ..> User : uses
+    BookActivityService ..> UserBookActivity : uses
+    ReviewService ..> Review : uses
+    PlaylistService ..> Playlist : uses
+
     %% Model Relations
     User "1" --> "0..*" UserBookActivity
     Book "1" --> "0..*" UserBookActivity
@@ -70,9 +77,3 @@ classDiagram
     Book "1" --> "0..*" Review
     User "1" --> "0..*" Playlist
     Playlist "0..*" --> "0..*" Book
-
-    %% Models <-> Services Links
-    UserService ..> User : uses
-    BookActivityService ..> UserBookActivity : uses
-    ReviewService ..> Review : uses
-    PlaylistService ..> Playlist : uses
