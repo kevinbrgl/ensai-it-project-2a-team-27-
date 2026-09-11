@@ -16,6 +16,7 @@ classDiagram
     }
     class Book {
         +int id_book
+        +int id_book_api
         +String title
         +String author
         +String category
@@ -39,10 +40,12 @@ classDiagram
         +int id_review
         +int rating
         +String comment
+        +Timestamp created_at
     }
     class Playlist {
         +int id_playlist
         +String name
+        +Timestamp updated_at
     }
 
     %% Service Classes
