@@ -1,4 +1,4 @@
-
+```mermaid
 sequenceDiagram
     actor User
 
@@ -37,4 +37,4 @@ sequenceDiagram
         API-->>Interface: 201 Created
         Interface-->>User: Display success confirmation
     end
-
+```
