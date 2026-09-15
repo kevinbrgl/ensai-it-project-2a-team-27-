@@ -59,6 +59,13 @@ Elle utilise les livres issus de l'API externe Open Library. Cette API open sour
 
 ## Utilisateur de l’application
 
+L'accès aux fonctionnalités repose sur un unique profil d'utilisateur :
+
+Pour accéder à Ex-Libris, il est obligatoire de créer un compte utilisateur et de se connecter pour accéder à l'application et bénéficier de ses services.
+Dans une application destinée à être déployée à grande échelle, d'autres profils auraient été envisagés, notamment avec un statut d'utilisateur non connecté (pour explorer le catalogue simplement en consultation) et un statut d'administrateur (pour la modération des contenus, la gestion des signalements et l'administration des comptes). Cependant, dans le cadre de ce projet, nous avons décidé de focaliser l'architecture et la base de données sur les fonctionnalités de base de l'application et les liens entre lecteurs, sans complexifier avec la gestion d'admin.
+
+Ainsi, chaque utilisateur disposant d'un compte possède une expérience personnalisée d'Ex-Libris.
+
 ## Fonctionnalités de base
 
 Les fonctionnalités de base présentes dans Ex-Librus sont les suivantes:
