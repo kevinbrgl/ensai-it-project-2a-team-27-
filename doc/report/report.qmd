@@ -108,10 +108,31 @@ Les fonctionnalités avancées de l'application sont:
 # Planning et Organisation
 
 
-![ Diagramme de GANTT](img/gantt.png){width=120%}
+\begin{figure}[H]
+  \centering
+  \makebox[\textwidth][c]{\includegraphics[width=1.5\textwidth]{img/gantt.png}}
+  \caption{Diagramme de GANTT}
+\end{figure}
 
 
-#Modélisation UML
+
+Le déroulement du projet s'organise selon un découpage temporel structuré en trois grandes phases, formalisé dans le diagramme de Gantt ci-dessus :
+
+[Phase 1 — Analyse et modélisation]{.underline} (du 28/08/26 au 17/09/26) : 
+
+Cette première étape est consacrée à la spécification des besoins, à la conception des diagrammes UML ainsi qu'à la rédaction du dossier d'analyse. Concrètement elle permet de structurer temporellement et techniquement l'ensemble du projet. Cette phase s'achève avec la livraison de cette première version intermédiaire (V0).
+
+[Phase 2 — Développement]{.underline} (du 18/09/26 au 21/11/26) : 
+
+Cette phase concentre la réalisation technique de l'application, allant de la création des objets métier au développement des différentes couches d'architecture et à la mise en place des tests unitaires. Les tâches représentées en violet clair (résolution de bugs avancée, optimisation globale et interface frontend) constituent des éléments supplémentaires venant enrichir le socle fonctionnel principal.
+
+[Phase 3 — Fin de projet]{.underline} (du 18/09/26 au 09/12/26) : 
+
+Menée en partie en parallèle de la phase de développement pour la rédaction du rapport, elle regroupe la finalisation du rapport complet, de la restitution du code source jusqu'à la préparation à la soutenance orale.
+Les blocs identifiés par la couleur rouge correspondent aux échéances majeures du calendrier (rendus de rapports, livraison du code et soutenance finale), ce sont les moments clés où l'état d'avancement du projet est transmis à l'équipe encadrante. Les repères en vert indiquent quant à eux les réunions de suivi planifiées avec le tuteur.
+
+# Modélisation UML
+
 ## Diagramme des cas d'utilisation
 
 ![ Diagramme de cas d'utilisation](img/cas_dutilisation.png)
@@ -139,3 +160,11 @@ Pour traduire la richesse des interactions possibles entre les lecteurs et les �
 Enfin, le modèle de données soutient activement les fonctionnalités de curation et l'aspect communautaire de la plateforme. Le système de listes de lecture personnalisées est structuré autour de la table `PLAYLISTS`, liée à son créateur, et de la table d'association `PLAYLIST_BOOKS`. Cette dernière emploie une clé primaire composite pour associer une multitude de livres à une même liste de manière claire et sans redondance. La dimension sociale est quant à elle assurée par la table `USER_FOLLOWS`. Il s'agit d'une table de liaison réflexive qui pointe vers l'entité des utilisateurs, ce qui permet de modéliser avec précision le système d'abonnement en distinguant clairement l'abonné de la personne suivie par le biais de deux clés étrangères distinctes.
 
 ## Diagrammes de séquence
+
+![ Diagramme de base de donnée](img/sequence_diagram_f2.png)
+
+
+![ Diagramme de base de donnée](img/sequence_diagram_f3.png)
+
+
+![ Diagramme de base de donnée](img/diagseqf5b.png)
