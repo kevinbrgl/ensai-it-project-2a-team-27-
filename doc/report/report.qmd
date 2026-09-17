@@ -183,6 +183,11 @@ Pour traduire les interactions possibles entre les lecteurs et les œuvres, l'ar
 
 Le système de listes de lecture personnalisées est structuré autour de la table `PLAYLISTS`, liée à son créateur, et de la table d'association `PLAYLIST_BOOKS`. Cette dernière emploie une clé primaire composite pour associer une multitude de livres à une même liste de manière claire et sans doublon. La dimension sociale est quant à elle assurée par la table `USER_FOLLOWS`. Il s'agit d'une table de liaison qui pointe vers l'entité des utilisateurs, ce qui permet de modéliser le système d'abonnement en distinguant l'abonné de la personne suivie par le biais de deux clés étrangères distinctes.
 
+## Diagrammes d'activité
+
+![Diagramme d'activité f1](img/activity_diagram_f1.png)
+![Diagramme d'activité f4](img/activity_diagram_f4.png)
+
 ## Diagrammes de séquence
 
 ![Diagramme de séquence f2](img/sequence_diagram_f2.png)
