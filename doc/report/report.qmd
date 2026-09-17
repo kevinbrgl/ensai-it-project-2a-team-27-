@@ -185,10 +185,20 @@ Le système de listes de lecture personnalisées est structuré autour de la tab
 
 ## Diagrammes d'activité
 
-![Diagramme d'activité f1](img/activity_diagram_f1.png)
+\begin{figure}[H]
+  \centering
+  \makebox[\textwidth][c]{\includegraphics[width=0.5\textwidth]{img/activity_diagram_f1.png}}
+  \caption{Diagramme d'activité f1}
+\end{figure}
+
 Ce diagramme d'activité décrit le parcours d'authentification d'Ex-Libris (fonctionnalité F1). À son arrivée, le visiteur indique s'il possède déjà un compte. S'il n'en a pas, il renseigne un nom d'utilisateur, un email et un mot de passe ; en cas d'informations invalides, une erreur s'affiche et l'utilisateur peut corriger sa saisie jusqu'à validation, ce qui déclenche la création du compte. Qu'il vienne de créer son compte ou qu'il en possède déjà un, l'utilisateur saisit ensuite ses identifiants de connexion. Si les identifiants sont incorrects, un message d'erreur invite à réessayer ; sinon, l'accès à l'application est accordé.
 
-![Diagramme d'activité f4](img/activity_diagram_f4.png)
+\begin{figure}[H]
+  \centering
+  \makebox[\textwidth][c]{\includegraphics[width=0.7\textwidth]{img/activity_diagram_f4.png}}
+  \caption{Diagramme d'activité f4}
+\end{figure}
+
 Ce diagramme d'activité décrit la gestion des critiques d'un livre (fonctionnalité F4). L'utilisateur choisit d'abord une action parmi quatre possibilités : rédiger, modifier, supprimer ou consulter les critiques d'un livre. Pour les trois premières actions (rédaction, modification, suppression), une vérification des droits est effectuée : si l'action n'est pas autorisée, une erreur s'affiche ; sinon, les modifications sont enregistrées. La consultation des critiques, quant à elle, ne nécessite pas de vérification et mène directement à la fin du parcours, tout comme les deux autres issues.
 
 ## Diagrammes de séquence
