@@ -62,6 +62,8 @@ Elle utilise les livres issus de l'API externe Open Library. Cette API open sour
 
 ## Utilisateur de l’application
 
+\label{sec:utilisateur}
+
 L'accès aux fonctionnalités repose sur un unique profil d'utilisateur :
 
 Pour accéder à Ex-Libris, il est obligatoire de créer un compte utilisateur et de se connecter pour accéder à l'application et bénéficier de ses services.
@@ -100,6 +102,8 @@ Les fonctionnalités avancées de l'application sont:
 - Ajout d'un nom pour la liste
 
 [Réseau social et interactions]{.underline} :
+
+\label{sec:reseau-social}
 
 - Système d'abonnements entre membres pour suivre d'autres utilisateurs
 - , permet à chaque lecteur ai son identité en fonction de ses gouts
@@ -198,3 +202,23 @@ Ce second diagramme détaille le processus d'ajout d'un livre à la bibliothèqu
 ![ Diagramme de base de donnée](img/diagseqf5b.png)
 
 Ce dernier diagramme correspond à la fonctionnalité de recommandation, que nous avons choisie comme fonctionnalité avancée du projet. Après récupération du profil de l'utilisateur (notes attribuées, genres favoris, contenu de sa bibliothèque), deux scénarios sont distingués. Si l'utilisateur ne dispose d'aucun historique de lecture, l'application lui propose les livres les mieux notés et les plus commentés parmi l'ensemble des utilisateurs. S'il possède déjà un historique, la recherche est affinée en interrogeant Open Library sur ses genres favoris, puis en croisant ces résultats avec les notes locales déjà disponibles pour ces ouvrages. Dans les deux cas, les livres déjà présents dans la bibliothèque de l'utilisateur sont exclus des suggestions, un score est calculé en priorisant la note locale lorsqu'elle existe, et seuls les meilleurs résultats sont conservés avant d'être retournés à l'utilisateur.
+
+
+
+\newpage
+
+# Fonctionnalités optionnelles
+
+Au-delà du socle fonctionnel décrit précédemment, nous avons identifié plusieurs pistes d'amélioration qui ne sont pas indispensables au bon fonctionnement de l'application, mais qui nous semblent pertinentes pour enrichir l'expérience utilisateur si le temps du projet nous le permet. Ces fonctionnalités ne conditionnent pas la livraison du projet ; elles représentent plutôt ce que nous ajouterions si Ex-Libris devait réellement être proposée à des utilisateurs.
+
+## Personnalisation du profil (affichage et confidentialité)
+
+Un onglet Paramètres permettrait à chaque utilisateur de personnaliser son expérience et de contrôler la visibilité de son profil. Deux réglages nous semblent particulièrement utiles : un mode jour/nuit, pour adapter l'affichage de l'application aux préférences visuelles de chacun, et un réglage de confidentialité permettant de rendre son profil public ou privé, selon que l'utilisateur souhaite ou non que sa bibliothèque et son activité soient visibles par les autres membres.
+
+## Cercle chromatique des préférences de lecture
+
+Nous avons imaginé un indicateur visuel affiché autour de la photo de profil de chaque utilisateur, prenant la forme d'un cercle chromatique dont les couleurs représenteraient la proportion des différents genres lus. Un lecteur principalement tourné vers la fantasy et occasionnellement vers le polar verrait ainsi son cercle dominé par la couleur associée à la fantasy, avec une portion plus réduite pour le polar. Cette fonctionnalité viendrait concrétiser visuellement l'identité de lecteur évoquée en section~\ref{sec:reseau-social}, et offrirait aux autres utilisateurs un moyen rapide de repérer des profils aux goûts proches des leurs, en complément du système d'abonnement déjà prévu.
+
+## Compte administrateur
+
+Comme indiqué en section~\ref{sec:utilisateur}, nous avons volontairement écarté la gestion d'un compte administrateur du périmètre de base, afin de nous concentrer sur les fonctionnalités liées aux lecteurs. Si le temps du projet le permet, nous souhaiterions néanmoins introduire ce profil, avec la capacité de suspendre temporairement ou de bannir définitivement un compte utilisateur en cas de comportement problématique (contenu inapproprié, harcèlement, etc.). Cette fonctionnalité, bien que non essentielle à la démonstration du concept, nous paraît indispensable dans l'optique d'un déploiement réel de l'application auprès d'une communauté de lecteurs.
