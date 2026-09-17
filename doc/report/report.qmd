@@ -136,6 +136,12 @@ Les blocs identifiés par la couleur rouge correspondent aux échéances majeure
 ## Diagramme des cas d'utilisation
 
 ![ Diagramme de cas d'utilisation](img/cas_dutilisation.png)
+Deux niveaux d'usage sont accessibles au sein d'Ex-Libris, une fois l'utilisateur connecté à son compte. En effet, contrairement à d'autres projets où l'application reste consultable sans identification, notre sujet impose qu'aucune fonctionnalité ne soit accessible de manière anonyme : la création d'un compte est donc un prérequis à toute interaction avec l'application, y compris pour une simple recherche.
+
+Le premier niveau regroupe les fonctionnalités de base liées à la recherche et à la découverte de livres. L'utilisateur peut ainsi rechercher un ouvrage, consulter sa fiche détaillée (couverture, auteur, année de parution, nombre de pages...), lire les avis et les notes déjà déposés par les autres utilisateurs, ainsi qu'accéder à des recommandations qu'il pourra filtrer par genre ou par note moyenne.
+
+Le second niveau vient enrichir cette expérience de base à mesure que l'utilisateur constitue sa propre bibliothèque. Il pourra alors rédiger ses propres avis sur les livres lus, créer des playlists organisées par thème, et suivre ses statistiques de lecture (répartition par genre, nombre de pages lues, etc.). Nous avons également souhaité donner une dimension ludique au suivi de lecture, à travers un système de quêtes et de succès qui doit inciter l'utilisateur à lire davantage, un peu à la manière d'un jeu. Enfin, l'utilisateur peut suivre d'autres lecteurs afin de consulter leurs statistiques et de recevoir des suggestions de livres basées sur leurs propres lectures
+
 
 ## Diagramme de classes
 
