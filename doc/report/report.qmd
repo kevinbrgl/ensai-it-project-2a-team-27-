@@ -16,6 +16,8 @@ format:
     colorlinks: true
     documentclass: article
     papersize: a4
+    geometry:
+      - margin=2.5cm
     header-includes: |
       \usepackage{titling}
       \usepackage{graphicx}
@@ -111,7 +113,7 @@ Les fonctionnalités avancées de l'application sont:
 
 \begin{figure}[H]
   \centering
-  \makebox[\textwidth][c]{\includegraphics[width=1.5\textwidth]{img/gantt.png}}
+  \includegraphics[width=\textwidth]{img/gantt.png}
   \caption{Diagramme de GANTT}
 \end{figure}
 
