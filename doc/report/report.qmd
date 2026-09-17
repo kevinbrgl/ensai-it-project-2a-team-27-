@@ -24,7 +24,7 @@ format:
       \begin{minipage}[t]{0.60\textwidth}
       \raggedright
       \textbf{Étudiants :} \\[0.2cm]
-      ONI ALAMI Hazem \\
+      SONI ALAMI Hazem \\
       GUERIMAND Matthieu \\
       BRUGAL Kévin \\
       ABIDELLI Mohamed Yazid \\
@@ -110,7 +110,7 @@ Les fonctionnalités avancées de l'application sont:
 
 \begin{figure}[H]
   \centering
-  \makebox[\textwidth][c]{\includegraphics[width=1.5\textwidth]{img/gantt.png}}
+  \makebox[\textwidth][c]{\includegraphics[width=1.2\textwidth]{img/gantt.png}}
   \caption{Diagramme de GANTT}
 \end{figure}
 
@@ -135,7 +135,13 @@ Les blocs identifiés par la couleur rouge correspondent aux échéances majeure
 
 ## Diagramme des cas d'utilisation
 
-![ Diagramme de cas d'utilisation](img/cas_dutilisation.png)
+\begin{figure}[H]
+  \centering
+  \makebox[\textwidth][c]{\includegraphics[width=1\textwidth]{img/cas_dutilisation.png}}
+  \caption{Diagramme de GANTT}
+\end{figure}
+
+
 Deux niveaux d'usage sont accessibles au sein d'Ex-Libris, une fois l'utilisateur connecté à son compte. En effet, contrairement à d'autres projets où l'application reste consultable sans identification, notre sujet impose qu'aucune fonctionnalité ne soit accessible de manière anonyme : la création d'un compte est donc un prérequis à toute interaction avec l'application, y compris pour une simple recherche.
 
 Le premier niveau regroupe les fonctionnalités de base liées à la recherche et à la découverte de livres. L'utilisateur peut ainsi rechercher un ouvrage, consulter sa fiche détaillée (couverture, auteur, année de parution, nombre de pages...), lire les avis et les notes déjà déposés par les autres utilisateurs, ainsi qu'accéder à des recommandations qu'il pourra filtrer par genre ou par note moyenne.
@@ -147,11 +153,11 @@ Le second niveau vient enrichir cette expérience de base à mesure que l'utilis
 
 ![ Diagramme de classe](img/classe.jpg)
 
-Le diagramme de classes de notre projet illustre une architecture orientée services, caractérisée par une séparation rigoureuse entre les objets de données et la logique métier. Cette approche modulaire a été choisie pour garantir la maintenabilité du code et faciliter l'évolution de notre plateforme de suivi et de critique littéraire. Au cœur de ce système, l'entité Book est conçue pour interagir avec l'API Open Library. Afin d'assurer des temps de réponse rapides et de ne pas dépendre exclusivement de requêtes externes à chaque affichage, nous avons pris le parti de stocker localement les informations essentielles de l'œuvre, telles que le titre, l'auteur, la description et la couverture. Le choix architectural majeur réside dans l'attribut id_book_api, qui agit comme une référence unique permettant de synchroniser et d'enrichir nos données locales à la demande via l'API externe. En parallèle, l'entité User centralise les informations de profil de manière classique, en assurant la sécurité des accès grâce au hachage du mot de passe.
+Le diagramme de classes de notre projet illustre une architecture orientée vers les services. Il est caractérisée par une séparation entre les objets de données et la logique métier. Ce découpage en plusieurs modules a été choisie pour garantir la maintenabilité du code et faciliter l'évolution de notre application. Au cœur de ce système, l'entité Book est conçue pour interagir avec l'API Open Library. Afin d'assurer des temps de réponse rapides et de ne pas dépendre exclusivement de requêtes externes à chaque affichage, nous avons pris le parti de stocker localement les informations essentielles de l'œuvre, telles que le titre, l'auteur, la description et la couverture. Le choix architectural majeur réside dans l'attribut id_book_api, qui agit comme une référence unique permettant de synchroniser et d'enrichir nos données locales à la demande via l'API externe. En même temps, User centralise les informations de profil et assure la sécurité des accès grâce au hachage du mot de passe.
 
-Pour offrir une expérience riche et nuancée, nous avons fragmenté les interactions entre les utilisateurs et les œuvres à travers trois modèles relationnels distincts. L'entité UserBookActivity sert de table d'association liant directement un utilisateur à un livre pour suivre son état de lecture, ses mentions "j'aime" et ses favoris. Isoler cette activité permet d'enregistrer des interactions rapides sans obliger l'utilisateur à formuler un avis détaillé. Lorsqu'une évaluation plus poussée est souhaitée, l'entité Review prend le relais. Totalement indépendante de l'activité de base, elle permet d'associer une note quantitative et un commentaire textuel à une œuvre, le tout précisément horodaté lors de sa création. Enfin, l'entité Playlist apporte une dimension de curation au projet, offrant aux membres la possibilité de regrouper et d'organiser les livres selon leurs propres critères de pertinence.
+Pour offrir la meilleure expérience possible de notre application, nous avons fragmenté les interactions entre les utilisateurs et les œuvres à travers trois modèles relationnels distincts. L'entité UserBookActivity sert de table d'association liant directement un utilisateur à un livre pour suivre son état de lecture, ses mentions "j'aime" et ses favoris. En isolant cette activité, nous allons pouvoir enregistrer des interactions rapides sans obliger l'utilisateur à formuler un avis détaillé. Lorsqu'une évaluation plus poussée est souhaitée, l'entité Review prend le relais. Elle est indépendante de l'activité de base et elle permet d'associer une note sur 5 et un commentaire à une œuvre. L'heure et la date de la note et du commentaire sont aussi enregistré. Enfin, l'entité Playlist apporte une dimension de curation au projet. Elle offre aux membres la possibilité de regrouper et d'organiser les livres selon leurs propres critères de pertinence.
 
-Afin de respecter le principe de responsabilité unique, l'ensemble des actions et de la logique applicative est encapsulé au sein d'une couche de services dédiée. Les classes comme BookActivityService, ReviewService ou PlaylistService concentrent les méthodes d'interaction complexes, évitant ainsi de surcharger les modèles de données avec des traitements lourds. De plus, l'intégration des méthodes permettant de s'abonner à d'autres membres (comme followUser et unfollowUser) au sein du UserService prépare techniquement le terrain pour les fonctionnalités sociales de l'application. Cette séparation assure que les entités de données restent légères et strictement centrées sur leur structure, tandis que les services orchestrent les flux d'informations.
+Afin de respecter le principe de responsabilité unique, l'ensemble de la logique de l'application et des actions est encapsulé au sein d'une couche de services dédiée. Les classes comme BookActivityService, ReviewService ou PlaylistService concentrent les méthodes d'interaction complexes, évitant ainsi de surcharger les modèles de données avec des traitements lourds. De plus, l'intégration des méthodes permettant de s'abonner à d'autres membres (comme followUser et unfollowUser) au sein du UserService prépare techniquement le terrain pour les fonctionnalités sociales de l'application. Cette séparation assure que les entités de données restent légères et strictement centrées sur leur structure, tandis que les services orchestrent les flux d'informations.
 
 ## Diagramme de classes DAO
 
