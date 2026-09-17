@@ -36,7 +36,7 @@ format:
       \begin{minipage}[t]{0.48\textwidth}
       \raggedleft
       \textbf{Encadrement :} \\[0.8cm]
-      Tuteur : Elwenn JOUBREL \\
+      Tuteur : JOUBREL Elwenn \\
       Responsable : DENEUVILLE Ludovic
       \end{minipage}\vspace{3.5cm}
       \centerline{\large \textit{Année 2026-2027}}
