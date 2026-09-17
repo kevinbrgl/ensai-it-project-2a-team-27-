@@ -16,6 +16,8 @@ format:
     colorlinks: true
     documentclass: article
     papersize: a4
+    geometry:
+      - margin=2.5cm
     header-includes: |
       \usepackage{titling}
       \usepackage{graphicx}
@@ -48,6 +50,7 @@ execute:
   echo: false
   warning: false
 ---
+\newpage
 
 # Description des fonctionnalités de l'application
 
@@ -160,6 +163,15 @@ Pour offrir la meilleure expérience possible de notre application, nous avons f
 Afin de respecter le principe de responsabilité unique, l'ensemble de la logique de l'application et des actions est encapsulé au sein d'une couche de services dédiée. Les classes comme BookActivityService, ReviewService ou PlaylistService concentrent les méthodes d'interaction complexes, évitant ainsi de surcharger les modèles de données avec des traitements lourds. De plus, l'intégration des méthodes permettant de s'abonner à d'autres membres (comme followUser et unfollowUser) au sein du UserService prépare techniquement le terrain pour les fonctionnalités sociales de l'application. Cette séparation assure que les entités de données restent légères et strictement centrées sur leur structure, tandis que les services orchestrent les flux d'informations.
 
 ## Diagramme de classes DAO
+![ Diagramme de classes DAO](img/class_diagram_dao.jpg)
+
+Dans le cadre de l'architecture logicielle de notre application, nous avons fait le choix méthodologique d'isoler la couche d'accès aux données dans un diagramme de classes dédié, distinct du diagramme de domaine principal. Le diagramme de classes métier a pour vocation exclusive de représenter les entités du domaine, leurs attributs intrinsèques ainsi que la logique applicative orchestrée par les services. Si nous avions fusionné l'ensemble des interfaces et des classes d'accès aux données au sein de ce même schéma, nous aurions surchargé visuellement la modélisation en mêlant des responsabilités conceptuelles très différentes. Cette séparation explicite respecte le principe de responsabilité unique ainsi que les bonnes pratiques de découplage en couches, en délimitant rigoureusement ce qui relève du traitement métier d'un côté et ce qui dépend des contraintes d'infrastructure et de persistance SQL de l'autre.
+
+L'organisation de ce diagramme repose sur le patron de conception Data Access Object, structuré selon une hiérarchie en trois niveaux complémentaires. Au sommet de cette architecture se trouve l'interface générique `GenericDAO<T, ID>`, qui capture et factorise l'ensemble des opérations de persistance élémentaires communes à toutes les tables, à savoir la création, la lecture par identifiant, la mise à jour, la suppression et la récupération exhaustive. L'usage des types paramétrés permet d'éviter toute redondance de signatures de code pour les requêtes basiques, garantissant ainsi le respect strict du principe de non-répétition.
+
+Au niveau intermédiaire, nous retrouvons les interfaces spécialisées propres à chaque entité du système, telles que `UserDAO`, `BookDAO`, `ReviewDAO`, `PlaylistDAO` et `UserBookActivityDAO`. Ces entités héritent directement de `GenericDAO` par une relation d'héritage d'interface en UML, symbolisée par des traits pleins terminés par un triangle vide. Cette relation signifie que chaque sous-interface hérite automatiquement de toutes les méthodes fondamentales sans avoir à les redéclarer, tout en enrichissant le contrat avec des opérations spécifiques indispensables aux besoins métier, comme la recherche d'un utilisateur par son adresse électronique ou le filtrage des ouvrages par catégorie. La couche de service n'interagit qu'avec ces interfaces abstraites, ce qui garantit une indépendance totale vis-à-vis des détails techniques de stockage.
+
+Enfin, le niveau inférieur rassemble les classes d'implémentation concrètes suffixées par `Impl`, connectées aux interfaces par une relation de réalisation en UML, représentée par des flèches en pointillés munies du même triangle vide. Ce sont exclusivement ces classes qui portent la responsabilité technique de la persistance, intégrant la gestion des connexions de base de données, l'exécution des requêtes SQL et la conversion des résultats relationnels en objets exploitables par l'application. En orientant les dépendances de haut niveau vers des abstractions plutôt que vers des implémentations concrètes, cette conception applique scrupuleusement le principe d'inversion des dépendances, assurant ainsi une maintenabilité accrue et permettant de changer de moteur de persistance à l'avenir sans impacter la logique applicative existante.
 
 ## Diagramme de Base de Données
 
@@ -175,8 +187,14 @@ Enfin, le modèle de données soutient activement les fonctionnalités de curati
 
 ![ Diagramme de base de donnée](img/sequence_diagram_f2.png)
 
+Ce premier diagramme illustre le cheminement d'une recherche de livre, depuis la saisie du titre ou de l'auteur jusqu'à l'affichage des résultats. La requête transite par l'API (`GET /books/search`), qui délègue à la couche métier la validation et l'assainissement de la saisie avant d'interroger Open Library. Nous avons porté une attention particulière à la gestion de la disponibilité de cette API externe : en cas d'indisponibilité ou de délai dépassé, une exception dédiée (`ExternalServiceException`) est levée et l'utilisateur reçoit un message explicite plutôt qu'une erreur brute. Lorsque la requête aboutit, les résultats sont normalisés puis mis en cache par la DAO avant d'être renvoyés à l'utilisateur, ce qui doit permettre à terme de limiter les appels répétés à Open Library pour des recherches identiques ou fréquentes.
+
 
 ![ Diagramme de base de donnée](img/sequence_diagram_f3.png)
 
+Ce second diagramme détaille le processus d'ajout d'un livre à la bibliothèque de l'utilisateur, avec le statut de lecture associé. La couche métier commence par vérifier, via la DAO, si ce livre figure déjà dans la bibliothèque de l'utilisateur concerné : le cas échéant, une erreur 409 est renvoyée pour éviter tout doublon. Dans le cas contraire, l'application va chercher les métadonnées du livre directement auprès d'Open Library (`GET /works/{bookId}.json`) afin de les stocker localement, avant de créer l'entrée correspondante en base et de confirmer l'opération par une réponse 201. Ce fonctionnement traduit concrètement le choix d'architecture décrit dans le diagramme de classes : les données d'un livre ne sont rapatriées et persistées localement qu'au moment où un utilisateur interagit réellement avec cette œuvre, plutôt que d'être importées en masse depuis l'API.
+
 
 ![ Diagramme de base de donnée](img/diagseqf5b.png)
+
+Ce dernier diagramme correspond à la fonctionnalité de recommandation, que nous avons choisie comme fonctionnalité avancée du projet. Après récupération du profil de l'utilisateur (notes attribuées, genres favoris, contenu de sa bibliothèque), deux scénarios sont distingués. Si l'utilisateur ne dispose d'aucun historique de lecture, l'application lui propose les livres les mieux notés et les plus commentés parmi l'ensemble des utilisateurs. S'il possède déjà un historique, la recherche est affinée en interrogeant Open Library sur ses genres favoris, puis en croisant ces résultats avec les notes locales déjà disponibles pour ces ouvrages. Dans les deux cas, les livres déjà présents dans la bibliothèque de l'utilisateur sont exclus des suggestions, un score est calculé en priorisant la note locale lorsqu'elle existe, et seuls les meilleurs résultats sont conservés avant d'être retournés à l'utilisateur.
