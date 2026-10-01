@@ -1,0 +1,11 @@
+import pytest
+from pytest_mock import MockerFixture
+from unittest.mock import Mock
+
+from src.dao.users import UserDAO
+
+@pytest.fixture
+def mock_user_dao(mocker: MockerFixture) -> Mock:
+    """Return a generic mock DAO that can be customized per test."""
+    dao_mock = mocker.Mock(spec=UserDAO)
+    return dao_mock

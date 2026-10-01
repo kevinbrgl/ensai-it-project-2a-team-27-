@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  test_postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
