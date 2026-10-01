@@ -8,10 +8,10 @@ import pytest
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
 
-PGUSER = "test_user"
-PGPASSWORD = "test_pass"
-PGHOST = "localhost"
-PGPORT = 5433
+POSTGRES_USER = "test_user"
+POSTGRES_PASSWORD = "test_pass"
+POSTGRES_HOST = "localhost"
+POSTGRES_PORT = 5433
 DBNAME = "test_db"
 SCHEMA_PATH = "data/init.sql"
 TABLES_LIST = "users, items"
@@ -21,10 +21,10 @@ TABLES_LIST = "users, items"
 def db_conn() -> Generator[connection, Any, Any]:
     conn = psycopg2.connect(
         dbname=DBNAME,
-        user=PGUSER,
-        password=PGPASSWORD,
-        host=PGHOST,
-        port=PGPORT,
+        user=POSTGRES_USER,
+        password=POSTGRES_PASSWORD,
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT,
     )
     yield conn
     with conn.cursor() as cur:

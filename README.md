@@ -67,7 +67,7 @@ ELO_K_FACTOR=32
 
 Open two terminals:
 
-- Backend FastApi: `uv run --project backend python backend/src/main.py`
+- Backend FastApi: `uv run src/main.py`
 - Frontend Streamlit: `cd frontend` and `uv run --project . streamlit run src/app.py`
 
 :bulb: First Launch: Click on **Reset Database** to initialize it.
