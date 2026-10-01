@@ -62,6 +62,7 @@ jobs:
           POSTGRES_USER: postgres_user
           POSTGRES_PASSWORD: postgres_pwd
           POSTGRES_SCHEMA: project
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: |
           uv run coverage run -m pytest
           uv run coverage report
