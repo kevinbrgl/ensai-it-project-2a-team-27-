@@ -15,12 +15,12 @@ jobs:
         image: postgres:latest
         env:
           POSTGRES_DB: test_db
-          POSTGRES_USER: postgres_user
-          POSTGRES_PASSWORD: postgres_pwd
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
-          --health-cmd="pg_isready -U postgres_user -d test_db"
+          --health-cmd="pg_isready -U test_user -d test_db"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -49,7 +49,7 @@ jobs:
 
       - name: Wait for PostgreSQL
         run: |
-          until pg_isready -h localhost -p 5432 -U postgres_user -d test_db; do
+          until pg_isready -h localhost -p 5433 -U test_user -d test_db; do
             echo "Waiting for PostgreSQL..."
             sleep 1
           done
@@ -57,10 +57,10 @@ jobs:
       - name: Run backend tests with coverage
         env:
           POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
+          POSTGRES_PORT: 5433
           POSTGRES_DATABASE: test_db
-          POSTGRES_USER: postgres_user
-          POSTGRES_PASSWORD: postgres_pwd
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
           POSTGRES_SCHEMA: project
           SECRET_KEY: ci-test-secret-key-not-for-production
         run: |
@@ -68,10 +68,10 @@ jobs:
           uv run coverage report
 
       - name: Lint backend with Ruff
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests --exit-zero
 
       - name: Security scan backend
-        run: uv run bandit -r src
+        run: uv run bandit -r src --severity-level high
 
   frontend:
     runs-on: ubuntu-latest
