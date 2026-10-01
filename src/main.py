@@ -18,6 +18,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(root_dir))
 
 from src.api.main import api_router
+from src.core.config import settings
 from src.core.db import init_pool
 
 if TYPE_CHECKING:
@@ -52,7 +53,14 @@ async def lifespan(  # noqa: RUF029
     pool.closeall()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="API Ex-libris",
+    description="API REST pour gérer une bibliothèque de films",
+    version="1.0.0",
+    docs_url="/",  # Swagger UI accessible directement à la racine
+    root_path=settings.ROOT_PATH,
+    redoc_url=None,  # Désactive ReDoc
+)
 
 app.include_router(api_router)
 

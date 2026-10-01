@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Python Template"
     API_STR: str = "/api"
+    ROOT_PATH: str = "/proxy/8000"
 
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
