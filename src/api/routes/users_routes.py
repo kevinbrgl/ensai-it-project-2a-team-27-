@@ -6,7 +6,7 @@ Provides endpoints for user registration, profile reading, and updates.
 from fastapi import APIRouter, HTTPException, status
 
 from src.api.deps import CurrentUser, CursorDep
-from src.dao.users import UserDAO
+from src.dao.users_dao import UserDAO
 from src.models import (
     User,
     UserRead,
@@ -14,7 +14,7 @@ from src.models import (
     UserUpdate,
     UserUpdatePassword,
 )
-from src.services.users import UserService
+from src.services.users_service import UserService
 from src.utils.exceptions import (
     DAOError,
     IncorrectPasswordError,

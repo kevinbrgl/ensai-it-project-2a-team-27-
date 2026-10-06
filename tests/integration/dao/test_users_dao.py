@@ -9,7 +9,7 @@ from psycopg2.extras import RealDictCursor
 from pytest_mock import MockerFixture
 
 from src.core.security import get_password_hash
-from src.dao.users import UserDAO
+from src.dao.users_dao import UserDAO
 from src.models import User, UserCreate, UserUpdateFull
 from src.utils.exceptions import UserAlreadyExistsError, DAOError
 

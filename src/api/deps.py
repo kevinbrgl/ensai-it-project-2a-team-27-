@@ -15,9 +15,9 @@ from pydantic import ValidationError
 
 from src.core import security
 from src.core.config import settings
-from src.dao.users import UserDAO
+from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
-from src.services.users import UserService
+from src.services.users_service import UserService
 from src.utils.exceptions import UserNotFoundError
 
 if TYPE_CHECKING:

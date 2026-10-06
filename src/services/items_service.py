@@ -4,7 +4,7 @@ This module provides business logic for items.
 Exceptions are raised for not found or unauthorized access.
 """
 
-from src.dao.items import ItemDAO
+from src.dao.items_dao import ItemDAO
 from src.models import Item, ItemCreate, ItemRegister, ItemUpdate
 from src.utils.exceptions import (
     ItemNotFoundError,

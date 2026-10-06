@@ -6,9 +6,9 @@ All endpoints require authentication and interact with the ItemService layer.
 from fastapi import APIRouter, HTTPException, status
 
 from src.api.deps import CurrentUser, CursorDep
-from src.dao.items import ItemDAO
+from src.dao.items_dao import ItemDAO
 from src.models import Item, ItemRegister, ItemUpdate
-from src.services.items import ItemService
+from src.services.items_service import ItemService
 from src.utils.exceptions import (
     DAOError,
     ItemNotFoundError,

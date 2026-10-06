@@ -4,7 +4,7 @@ This module provides business logic for user-related operations.
 Exceptions are raised for not found, authentication, or password errors.
 """
 from src.core.security import get_password_hash, verify_password
-from src.dao.users import UserDAO
+from src.dao.users_dao import UserDAO
 from src.models import (
     User,
     UserCreate,

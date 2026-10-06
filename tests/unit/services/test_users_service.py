@@ -7,9 +7,9 @@ from unittest.mock import Mock
 import importlib
 
 from src.core.security import get_password_hash, verify_password
-from src.dao.users import UserDAO
+from src.dao.users_dao import UserDAO
 from src.models import User, UserRegister, UserCreate, UserRead, UserUpdate, UserUpdatePassword
-from src.services.users import UserService
+from src.services.users_service import UserService
 from src.utils.exceptions import UserNotFoundError, SamePasswordError, IncorrectPasswordError, UserAlreadyExistsError, AuthError
 from tests.mocks import mock_user_dao as mock_dao
 
