@@ -128,3 +128,18 @@ class UserAlreadyExistsError(Exception):
         :return: None
         """
         super().__init__(f"Username {username} already exists")
+
+
+class EmailAlreadyExistsError(Exception):
+    """Raised when attempting to create a user with an existing email.
+
+    :param email: Email that already exists
+    """
+
+    def __init__(self, email: str) -> None:
+        """Initialize EmailAlreadyExistsError.
+
+        :param email: Email that already exists
+        :return: None
+        """
+        super().__init__(f"Email {email} already exists")

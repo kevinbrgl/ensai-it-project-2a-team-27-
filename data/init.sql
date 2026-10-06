@@ -1,13 +1,9 @@
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    first_name VARCHAR(50),
-    last_name VARCHAR(50),
-    hashed_password VARCHAR(255) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS items (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+DROP TABLE IF EXISTS users CASCADE;
+CREATE TABLE users (
+    id_user         SERIAL PRIMARY KEY,
+    username        VARCHAR(30)  NOT NULL UNIQUE,
+    email           VARCHAR(100) NOT NULL UNIQUE,
+    password_hash   VARCHAR(255) NOT NULL,
+    bio             TEXT,
+    profile_picture VARCHAR(255)
 );
