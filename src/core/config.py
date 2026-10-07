@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    TOKEN_TYPE: str = "bearer"  # noqa: S105
+    TOKEN_TYPE: str = "bearer"  # ruff: ignore[hardcoded-password-string]
 
     POSTGRES_HOST: str
     POSTGRES_DATABASE: str

@@ -1,6 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
-Provides endpoints for user registration, profile reading, and updates.
+Provides endpoints for profile reading and updates.
+Registration is handled in auth_routes.py.
 """
 
 from fastapi import APIRouter, HTTPException, status
@@ -10,46 +11,17 @@ from src.dao.users_dao import UserDAO
 from src.models import (
     User,
     UserRead,
-    UserRegister,
     UserUpdate,
     UserUpdatePassword,
 )
 from src.services.users_service import UserService
 from src.utils.exceptions import (
-    DAOError,
     IncorrectPasswordError,
     SamePasswordError,
-    UserAlreadyExistsError,
     UserNotFoundError,
 )
 
 router = APIRouter(prefix="/users", tags=["Users"])
-
-
-@router.post("/signup",
-             response_model=UserRead,
-             status_code=status.HTTP_201_CREATED)
-def register(cursor: CursorDep, user_in: UserRegister) -> User:
-    """Register a new user.
-
-    :param cursor: Database cursor dependency
-    :param user_in: User registration data
-    :raises HTTPException: Raised if user already exists or registration fails
-    :return: The created User object
-    """
-    service = UserService(UserDAO(cursor))
-    try:
-        return service.register(user_in)
-    except UserAlreadyExistsError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered",
-        ) from None
-    except DAOError:  # Ok faudra vraiment faire un truc c'est éclaté
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not register user.",
-        ) from None
 
 
 @router.get("/me", response_model=UserRead)
@@ -75,7 +47,9 @@ def update_self(
     :return: The updated User object
     """
     try:
-        return UserService(UserDAO(cursor)).update(current_user.id, user_in)
+        return UserService(UserDAO(cursor)).update(
+            current_user.id_user, user_in,
+        )
 
     except UserNotFoundError:
         raise HTTPException(

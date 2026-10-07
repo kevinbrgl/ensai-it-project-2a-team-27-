@@ -152,7 +152,7 @@ class UserDAO:
                 SET {set_clause}
                 WHERE id_user = %s
                 RETURNING *
-                """,  # noqa: S608
+                """,  # ruff: ignore[hardcoded-sql-expression]
                 values,
             )
             row = self.cur.fetchone()

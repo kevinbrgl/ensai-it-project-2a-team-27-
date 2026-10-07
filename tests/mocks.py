@@ -1,8 +1,10 @@
-import pytest
-from pytest_mock import MockerFixture
 from unittest.mock import Mock
 
+import pytest
+from pytest_mock import MockerFixture
+
 from src.dao.users_dao import UserDAO
+
 
 @pytest.fixture
 def mock_user_dao(mocker: MockerFixture) -> Mock:

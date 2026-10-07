@@ -35,7 +35,7 @@ def login_access_token(
             password=form_data.password,
         )
         access_token_expires = timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
         )
         access_token = security.create_access_token(
             user.id,

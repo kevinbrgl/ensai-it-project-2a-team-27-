@@ -1,165 +1,135 @@
-"""Integration tests for UserDAO.
+"""Integration tests for UserDAO, run against the real database.
 
-Covers user creation, reading, updating, duplicate handling, SQL injection, and DB errors.
+Each test is rolled back (see tests/integration/conftest.py),
+so the database is left unchanged.
 """
 
 import pytest
-from psycopg2.errors import Error as DBError
-from psycopg2.extras import RealDictCursor
-from pytest_mock import MockerFixture
 
-from src.core.security import get_password_hash
 from src.dao.users_dao import UserDAO
 from src.models import User, UserCreate, UserUpdateFull
-from src.utils.exceptions import UserAlreadyExistsError, DAOError
+from src.utils.exceptions import (
+    EmailAlreadyExistsError,
+    UserAlreadyExistsError,
+)
+
+USERNAME = "it_alice"
+EMAIL = "it_alice@ensai.fr"
+PASSWORD_HASH = "$2b$12$fakehashfakehashfakehash"
+UNKNOWN_ID = 999_999_999
 
 
 @pytest.fixture
-def sample_user():
-    """Fixture for a sample user creation object."""
-    return UserCreate(
-        username="testuser",
-        first_name="Test",
-        last_name="User",
-        hashed_password="hashed_pw"
+def alice(user_dao: UserDAO) -> User:
+    """Insert a test user in the database and return it."""
+    return user_dao.create(
+        UserCreate(
+            username=USERNAME,
+            email=EMAIL,
+            password_hash=PASSWORD_HASH,
+        ),
     )
 
-@pytest.fixture
-def dao(db_cursor: RealDictCursor):
-    """Fixture for UserDAO instance."""
-    return UserDAO(db_cursor)
 
 class TestCreate:
     """Tests for UserDAO.create."""
 
-    def test_valid(self, dao: UserDAO, sample_user: UserCreate):
-        """Test creating a valid user."""
-        user = dao.create(sample_user)
-        assert isinstance(user, User)
-        assert isinstance(user.id, int)
-        assert user.username == sample_user.username
-        assert user.first_name == sample_user.first_name
-        assert user.last_name == sample_user.last_name
-        assert user.hashed_password == sample_user.hashed_password
-
-
-    def test_duplicate(self, dao: UserDAO, sample_user: UserCreate):
-        """Test creating a duplicate user raises UserAlreadyExistsError."""
-        dao.create(sample_user)
-        with pytest.raises(UserAlreadyExistsError):
-            dao.create(sample_user)
-    
-    def test_db_error(self,
-                      dao: UserDAO,
-                      mocker: MockerFixture,
-                      sample_user: UserCreate):
-        mocker.patch.object(
-            dao.cur, "execute", side_effect=DBError("Simulated DB failure")
+    def test_ok(self, user_dao: UserDAO) -> None:
+        """The user is inserted and returned with its generated id."""
+        user = user_dao.create(
+            UserCreate(
+                username=USERNAME,
+                email=EMAIL,
+                password_hash=PASSWORD_HASH,
+            ),
         )
-        with pytest.raises(DAOError):
-            dao.create(sample_user)
+
+        assert isinstance(user.id_user, int)
+        assert user.username == USERNAME
+        assert user.email == EMAIL
+        assert user.password_hash == PASSWORD_HASH
+        assert user.bio is None
+        assert user.profile_picture is None
+
+    def test_duplicate_username(self, user_dao: UserDAO, alice: User) -> None:
+        """Same username: UNIQUE constraint -> UserAlreadyExistsError."""
+        with pytest.raises(UserAlreadyExistsError):
+            user_dao.create(
+                UserCreate(
+                    username=alice.username,
+                    email="other@ensai.fr",
+                    password_hash=PASSWORD_HASH,
+                ),
+            )
+
+    def test_duplicate_email(self, user_dao: UserDAO, alice: User) -> None:
+        """Same email: UNIQUE constraint -> EmailAlreadyExistsError."""
+        with pytest.raises(EmailAlreadyExistsError):
+            user_dao.create(
+                UserCreate(
+                    username="it_bob",
+                    email=alice.email,
+                    password_hash=PASSWORD_HASH,
+                ),
+            )
+
 
 class TestRead:
-    """Tests for UserDAO.read."""
+    """Tests for UserDAO.read (by id)."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self, dao: UserDAO, sample_user: UserCreate):
-        """Create a sample user before each test."""
-        self.user = dao.create(sample_user)
+    def test_found(self, user_dao: UserDAO, alice: User) -> None:
+        """An existing id returns the user."""
+        assert user_dao.read(alice.id_user) == alice
 
-    def test_existing(self, dao: UserDAO):
-        """Test reading an existing user by ID."""
-        user = dao.read(self.user.id)
-        assert isinstance(user, User)
-        assert user.id == self.user.id
-        assert user.username == self.user.username
-        assert user.first_name == self.user.first_name
-        assert user.last_name == self.user.last_name
-        assert user.hashed_password == self.user.hashed_password
+    def test_not_found(self, user_dao: UserDAO) -> None:
+        """An unknown id returns None."""
+        assert user_dao.read(UNKNOWN_ID) is None
 
-    def test_nonexistent(self, dao: UserDAO):
-        """Test reading a non-existent user returns None."""
-        user = dao.read(99999)
-        assert user is None
-    
-    def test_db_error(self, dao: UserDAO, mocker: MockerFixture):
-        """Test database error during user reading raises DAOError."""
-        mocker.patch.object(
-            dao.cur, "execute", side_effect=DBError("Simulated DB failure")
-        )
-        with pytest.raises(DAOError):
-            dao.read(self.user.id)
-        
 
 class TestReadByUsername:
     """Tests for UserDAO.read_by_username."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self, dao: UserDAO, sample_user: UserCreate):
-        """Create a sample user before each test"""
-        self.user = dao.create(sample_user)
+    def test_found(self, user_dao: UserDAO, alice: User) -> None:
+        """An existing username returns the user."""
+        assert user_dao.read_by_username(USERNAME) == alice
 
-    def test_existing(self, dao: UserDAO):
-        """Test reading an existing user by username."""
-        user = dao.read_by_username(self.user.username)
-        assert isinstance(user, User)
-        assert user.id == self.user.id
-        assert user.username == self.user.username
-        assert user.first_name == self.user.first_name
-        assert user.last_name == self.user.last_name
-        assert user.hashed_password == self.user.hashed_password
+    def test_not_found(self, user_dao: UserDAO) -> None:
+        """An unknown username returns None."""
+        assert user_dao.read_by_username("it_nobody") is None
 
-    def test_nonexistent(self, dao: UserDAO):
-        """Test reading a non-existent user by username returns None."""
-        user = dao.read_by_username("jackblack")
-        assert user is None
-    
-    def test_db_error(self, dao: UserDAO, mocker: MockerFixture):
-        """Test database error during user reading raises DAOError."""
-        mocker.patch.object(
-            dao.cur, "execute", side_effect=DBError("Simulated DB failure")
-        )
-        with pytest.raises(DAOError):
-            dao.read(self.user.username)
+
+class TestReadByEmail:
+    """Tests for UserDAO.read_by_email."""
+
+    def test_found(self, user_dao: UserDAO, alice: User) -> None:
+        """An existing email returns the user."""
+        assert user_dao.read_by_email(EMAIL) == alice
+
+    def test_not_found(self, user_dao: UserDAO) -> None:
+        """An unknown email returns None."""
+        assert user_dao.read_by_email("nobody@ensai.fr") is None
 
 
 class TestUpdate:
     """Tests for UserDAO.update."""
 
-    @pytest.fixture(autouse=True)
-    def setup(self, dao: UserDAO, sample_user: UserCreate):
-        """Create a sample user before each test."""
-        self.user = dao.create(sample_user)
-
-    def test_valid(self, dao: UserDAO):
-        """Test updating an existing user."""
-        update = UserUpdateFull(first_name="Updated", last_name="User")
-        updated = dao.update(self.user.id, update)
-        assert isinstance(updated, User)
-        assert updated.id == self.user.id
-        assert updated.username == self.user.username
-        assert updated.first_name == update.first_name
-        assert updated.last_name == update.last_name
-        assert updated.hashed_password == self.user.hashed_password
-
-
-    def test_nothing(self, dao: UserDAO):
-        """Test updating with no changes raises ValueError."""
-        update = UserUpdateFull()
-        with pytest.raises(ValueError):
-            dao.update(self.user.id, update)
-
-    def test_nonexistent(self, dao: UserDAO):
-        """Test updating a non-existent user returns None."""
-        update = UserUpdateFull(first_name="Ghost")
-        result = dao.update(99999, update)
-        assert result is None
-
-    def test_db_error(self, dao: UserDAO, mocker: MockerFixture):
-        """Test database error during update raises DAOError."""
-        update = UserUpdateFull(first_name="Error")
-        mocker.patch.object(
-            dao.cur, "execute", side_effect=DBError("Simulated DB failure")
+    def test_ok(self, user_dao: UserDAO, alice: User) -> None:
+        """Only the given field changes."""
+        updated = user_dao.update(
+            alice.id_user,
+            UserUpdateFull(bio="J'aime la SF"),
         )
-        with pytest.raises(DAOError):
-            dao.update(self.user.id, update)
+
+        assert updated is not None
+        assert updated.bio == "J'aime la SF"
+        assert updated.username == alice.username
+        assert updated.email == alice.email
+
+    def test_unknown_id(self, user_dao: UserDAO) -> None:
+        """An unknown id returns None."""
+        assert user_dao.update(UNKNOWN_ID, UserUpdateFull(bio="x")) is None
+
+    def test_nothing_to_update(self, user_dao: UserDAO, alice: User) -> None:
+        """An empty update raises ValueError."""
+        with pytest.raises(ValueError, match="Nothing to update"):
+            user_dao.update(alice.id_user, UserUpdateFull())

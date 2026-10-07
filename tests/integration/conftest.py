@@ -1,47 +1,46 @@
+"""Fixtures for integration tests, run against the real database (.env).
+
+Every test runs inside a transaction that is rolled back at the end,
+so nothing a test writes is ever saved in the database.
+"""
 
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any
 
 import psycopg2
 import pytest
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
 
-POSTGRES_USER = "test_user"
-POSTGRES_PASSWORD = "test_pass"
-POSTGRES_HOST = "localhost"
-POSTGRES_PORT = 5433
-DBNAME = "test_db"
-SCHEMA_PATH = "data/init.sql"
-TABLES_LIST = "users, items"
+from src.core.config import settings
+from src.dao.users_dao import UserDAO
+
+INIT_SQL = Path(__file__).resolve().parents[2] / "data" / "init.sql"
 
 
 @pytest.fixture(scope="session")
-def db_conn() -> Generator[connection, Any, Any]:
-    conn = psycopg2.connect(
-        dbname=DBNAME,
-        user=POSTGRES_USER,
-        password=POSTGRES_PASSWORD,
-        host=POSTGRES_HOST,
-        port=POSTGRES_PORT,
-    )
+def db_conn() -> Generator[connection]:
+    """Open one connection to the database for the whole test session.
+
+    Missing tables are created first. init.sql only uses
+    CREATE TABLE IF NOT EXISTS, so no existing data is erased.
+    """
+    conn = psycopg2.connect(settings.postgres_dsn.unicode_string())
+    with conn, conn.cursor() as cur:
+        cur.execute(INIT_SQL.read_text(encoding="utf-8"))
     yield conn
-    with conn.cursor() as cur:
-        cur.execute(f"DROP TABLE IF EXISTS {TABLES_LIST};")
-    conn.commit()
     conn.close()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_schema(db_conn: connection) -> None:
-    with db_conn.cursor() as cur, Path(SCHEMA_PATH).open(encoding="utf8") as f:
-        cur.execute(f.read())
-    db_conn.commit()
-
-
 @pytest.fixture
-def db_cursor(db_conn: connection) -> Generator[RealDictCursor, Any, Any]:
+def cursor(db_conn: connection) -> Generator[RealDictCursor]:
+    """Yield a cursor, then roll back everything the test did."""
     with db_conn.cursor(cursor_factory=RealDictCursor) as cur:
         yield cur
     db_conn.rollback()
+
+
+@pytest.fixture
+def user_dao(cursor: RealDictCursor) -> UserDAO:
+    """Return a UserDAO bound to the test cursor."""
+    return UserDAO(cursor)
