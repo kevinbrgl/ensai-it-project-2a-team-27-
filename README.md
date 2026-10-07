@@ -1,183 +1,266 @@
-# ENSAI-2A-projet-info-template
+# Ex-Libris — Reading Tracker API
 
-![CI](https://github.com/ludo2ne/ENSAI-2A-projet-info-template/actions/workflows/ci.yml/badge.svg)
+ENSAI 2nd-year IT project — team 27.
 
-Template for the ENSAI 2nd year IT project.
+Ex-Libris is a REST API (FastAPI + PostgreSQL) that lets users find books
+(through Open Library), add them to their library, track their reading,
+and rate and review them.
 
-This very simple application includes a few elements that may help with the info 2A project:
+---
 
-- Creating a webservice with FastAPI
-- Layer programming (DAO, service, view, business_object)
-- Connection to a database
-- Calling a Webservice
-- Interface with Streamlit
+## 1. Install uv
 
-## :arrow_forward: Quick launch with SSP Cloud
+[uv](https://docs.astral.sh/uv/) installs Python and all the project's dependencies.
 
-Needed: [SSP Cloud](https://datalab.sspcloud.fr/) account.
+Windows (PowerShell):
 
-### Start a service and import the project
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-- [ ] Launch a **VSCode-python** service (including Visual Studio Code, Python 3.13, Git)
-  - Open ports 5000 and 8000 (Otherwise, you won't be able to access your application from the web)
-- [ ] Open a terminal
-- [ ] Clone the repository
-  - `git clone https://github.com/ludo2ne/ENSAI-2A-projet-info-template.git`
-- [ ] Open Folder of the repository
-  - `code-server ENSAI-2A-projet-info-template` or File > Open Folder
-  - *ENSAI-2A-projet-info-template* should be the root directory of your Explorer
-  - :warning: if not the application will not launch. Retry open folder
-
-### Install required packages
-
-Install and manage all dependencies with [uv](https://docs.astral.sh/uv/):
+Mac / Linux (Terminal):
 
 ```bash
-# curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync --project backend
-uv sync --project frontend
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Environment variables
+Close and reopen the terminal, then check:
 
-Define environment variables to declare the database and webservice to which you are going to connect your python application.
+```bash
+uv --version
+```
 
-- [ ] Launch a [PostreSQL](https://www.postgresql.org/) database
-- [ ] Create a file called `.env` in the project's root directory
-- [ ] Paste in and complete the elements below
+---
 
-```default
-POSTGRES_HOST=postgresql-cnpg-<suffixe>
+## 2. Install the dependencies
+
+From the project root:
+
+```bash
+uv sync
+```
+
+`uv sync` creates the `.venv` folder and installs Python 3.13 and every dependency
+listed in `pyproject.toml`. Run it again after any `git pull` that changes
+`pyproject.toml` or `uv.lock`.
+
+---
+
+## 3. Create the `.env` file
+
+The `.env` file holds settings and passwords. It is **ignored by Git**:
+never commit it. It is read by `src/core/config.py`.
+
+Create it from the template.
+
+Windows (PowerShell):
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Mac / Linux:
+
+```bash
+cp .env.example .env
+```
+
+Then fill it in with your PostgreSQL database details:
+
+```ini
+POSTGRES_HOST=<database host>
 POSTGRES_PORT=5432
 POSTGRES_DATABASE=defaultdb
-POSTGRES_USER=user-<username>
+POSTGRES_USER=<user>
 POSTGRES_PASSWORD=<password>
-POSTGRES_SCHEMA=project
 
-UVICORN_HOST=0.0.0.0
-UVICORN_PORT=5000
-
-BACKEND_URL=http://localhost:5000
-BACKEND_TIMEOUT=5
-
-ELO_K_FACTOR=32
+SECRET_KEY=<a long random string>
 ```
 
-### Launch applications
+**Generate a `SECRET_KEY`** (same command everywhere):
 
-Open two terminals:
+```bash
+uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
 
-- Backend FastApi: `uv run src/main.py`
-- Frontend Streamlit: `cd frontend` and `uv run --project . streamlit run src/app.py`
+---
 
-:bulb: First Launch: Click on **Reset Database** to initialize it.
+## 4. Run the API and open the documentation
 
-:warning: **After launching, do not click on the link in the pop-up!**
+From the project root (same command everywhere):
+
+```bash
+uv run src/main.py
+```
+
+On startup, the API automatically creates any missing tables from
+`data/init.sql`. It restarts by itself every time you save a file.
+Stop it with `Ctrl+C`.
+
+:warning: On Onyxia, don't click the `127.0.0.1` link that VSCode suggests: use
+your VSCode URL followed by `/proxy/8000/`.
+
+---
+
+## 5. Available endpoints
+
+All routes are prefixed with `/api`. For overall progress, see the
+`ex_libris_endpoints.xlsx` spreadsheet in the drive.
+
+| Method | Route | Auth | Status |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | no | :white_check_mark: done and tested |
+
+### `POST /api/auth/register` — create an account
+
+**Request body**
+
+```json
+{
+  "username": "yazid",
+  "email": "yazid@ensai.fr",
+  "password": "motdepasse123"
+}
+```
+
+| Field | Rule |
+|---|---|
+| `username` | 3 to 30 characters, unique |
+| `email` | valid email format, unique |
+| `password` | 8 to 72 characters (72 is bcrypt's limit) |
+
+**Responses**
+
+| Code | When | Body |
+|---|---|---|
+| `201` | account created | `{"id_user": 1, "username": "yazid", "email": "yazid@ensai.fr", "bio": null, "profile_picture": null}` |
+| `409` | username already taken | `{"detail": "Username already used."}` |
+| `409` | email already used | `{"detail": "Email already used."}` |
+| `422` | invalid data (email, length…) | Pydantic error details |
+| `500` | database error | `{"detail": "Could not register user."}` (full cause in the terminal) |
+
+The password is hashed with **bcrypt** before being stored, and **neither the password
+nor its hash is ever returned** (filtered by `response_model=UserRead`).
+
+---
+
+## 6. Tests
+
+| Folder | Type | Database | Count |
+|---|---|---|---|
+| `tests/unit/` | **service** tests, the DAO is replaced by a mock | no | 7 |
+| `tests/integration/` | **DAO** tests on a real database | yes (the one in `.env`) | 12 |
+
+Commands (same everywhere):
+
+```bash
+uv run pytest tests/unit -v          # fast, no database needed
+uv run pytest tests/integration -v   # needs a running PostgreSQL database
+uv run pytest -v                     # everything
+```
+
+**Integration tests leave no trace**: each test runs inside a transaction
+that is rolled back at the end (see `tests/integration/conftest.py`).
+
+**From the VSCode interface**: *Testing* panel (flask icon) → ↻ button, then ▶.
+
+---
+
+## 7. Code quality (ruff, mypy)
+
+```bash
+uv run ruff check src tests          # analyse
+uv run ruff check src tests --fix    # fix what can be fixed automatically
+uv run mypy src                      # type checking
+```
+
+---
+
+## 8. Adding a new endpoint: the recipe
+
+### Before you start: create your own branch
+
+Never work directly on `main`. Each endpoint gets its own branch, so your work
+doesn't break anyone else's and can be reviewed in a Pull Request.
+
+Same commands on Windows, Mac and Linux:
+
+```bash
+git checkout main                    # go back to the main branch
+git pull                             # get the latest version of the project
+git checkout -b feature/books-search # create your branch and switch to it
+```
+
+Name the branch after what you build: `feature/<short-description>`,
+for example `feature/auth-login` or `feature/library-add-book`.
+
+Check which branch you are on at any time with `git branch`
+(the current one has a `*`).
+
+### The steps
+
+Example with books. Work in this order, from the bottom layer up:
+
+1. **Table**: add `CREATE TABLE IF NOT EXISTS books (...)` at the end of `data/init.sql`.
+   :warning: **Never use `DROP TABLE`**: this file runs every time the API starts.
+2. **Models**: `src/models/books.py` (input, output, database row).
+3. **Exceptions**: add yours to `src/utils/exceptions.py`.
+4. **DAO**: `src/dao/books_dao.py`, class `BookDAO(cursor)`.
+   Always use `%s` parameters, **never f-strings** with user-provided values.
+5. **Service**: `src/services/books_service.py`, class `BookService(dao)`.
+6. **Unit tests**: `tests/unit/services/test_books_service.py` (mocked DAO).
+7. **Dependency**: at the end of `src/api/deps.py`:
+
+```python
+   def get_book_service(cursor: CursorDep) -> BookService:
+       """Build a BookService bound to the request cursor."""
+       return BookService(BookDAO(cursor))
 
 
-### Accessing the application from the web
+   BookServiceDep = Annotated[BookService, Depends(get_book_service)]
+```
 
-Since the application runs inside a cloud container, the services are not directly accessible via *localhost* from your local browser. You must use the public URLs provided by Onyxia.
+8. **Route**: `src/api/routes/books_routes.py`, then plug it into `src/api/main.py`
+   (`api_router.include_router(books_routes.router)`).
+9. **Protected route?** Just add the `current_user: CurrentUser` parameter.
+10. **Integration tests**: `tests/integration/dao/test_books_dao.py`
+    (the `cursor` fixture from the conftest is reusable).
+11. Test in `/docs`, run `ruff` and `pytest`.
 
-To get the public URL for your services (Frontend or Backend):
+`auth_routes.py`, `users_service.py`, `users_dao.py` and their tests are a complete example.
 
-- [ ] Go to your [Onyxia services](https://datalab.sspcloud.fr/my-services)
-- [ ] Click on the **"Open"** button, you will see links to access the api and/or the gui
+### When you're done: commit, push and open a Pull Request
 
+Commit regularly while you work, not only at the end:
 
-### Endpoints
+```bash
+git add -A
+git status                           # check that .env is NOT in the list
+git commit -m "feat(books): add GET /books/search endpoint"
+```
 
-Documentation : `/docs` or `/redoc`
+The first time, push your branch to GitHub:
 
-Examples of endpoints, assuming that the environment variable `$API_URL` (e.g. `export API_URL=http://localhost:5000`) contains the URL of the web service:
+```bash
+git push -u origin feature/books-search
+```
 
-- `curl -L -X GET $API_URL/player | jq .`
-- `curl -L -X GET $API_URL/player/3 | jq .`
-- ```
-  curl -L -X POST "$API_URL/player" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "username": "patapouf",
-      "password": "123456789abcdefghijklmnopqrstuvwxyz",
-      "elo": 1500,
-      "email": "patapouf@mail.fr",
-      "pokemon_fan": true
-    }' | jq .
-  ```
-- ```
-  curl -L -X PUT "$API_URL/player/3" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "username": "maurice_new",
-      "password": "123456789abcdefghijklmnopqrstuvwxyz",
-      "elo": 1400,
-      "email": "maurice@ensai.fr",
-      "pokemon_fan": true
-    }' | jq .
-  ```
-- `curl -L -X DELETE "$API_URL/player/5" | jq .`
+After that, a simple `git push` is enough.
 
+Then, on GitHub:
 
-## :arrow_forward: Project structure
+1. Click **Compare & pull request** (or go to *Pull requests* → *New pull request*).
+2. Choose your branch → `main`.
+3. In the description, explain what you did and write `Closes #<issue number>`
+   so the issue closes automatically when the PR is merged.
+4. Ask a teammate to review it before merging.
 
-### Folders
+**If `main` changed while you were working**, bring those changes into your branch
+before opening the PR:
 
-| Item                       | Description                                                              |
-| -------------------------- | ------------------------------------------------------------------------ |
-| `data`                     | SQL script to create the tables and insert some data                     |
-| `doc`                      | Report, tracking, UML diagrams, etc.                                     |
-| `backend`                  | API code organized using a layered architecture                          |
-| `frontend`                 | GUI code (graphical user interface)                                      |
-
-
-### Files
-
-| Item                       | Description                                                                          |
-| -------------------------- | -------------------------------------------------------------------------------------|
-| `README.md`                | Provides useful information to present, install, and use the application             |
-| `LICENSE`                  | Specifies the usage rights and licensing terms for the repository                    |
-| `.github/workflows/ci.yml` | Automated workflow that runs predefined tasks (like testing, linting, or deploying)  |
-| `.vscode/settings.json`    | VSCode settings specific to this project                                             |
-| `.gitignore`               | Lists files and folders that should not be tracked by Git                            |
-
-
-## :arrow_forward: Continuous integration (CI)
-
-The repository contains a `.github/workflow/main.yml` file.
-
-When you *push* on GitHub, it triggers a pipeline that will perform the following steps:
-
-- Creating a container from an Ubuntu (Linux) image
-  - In other words, it creates a virtual machine with just a Linux kernel.
-- Install Python
-- Install the required packages
-- Run the unit tests (only the service tests, as it's more complicated to run the dao tests)
-- Analyse the code with *pylint*
-  - If the score is less than 7.5, the step will fail
-
-You can check how this pipeline is progressing on your repository's GitHub page, *Actions* tab.
-
-
-## :arrow_forward: Quick launch with Docker
-
-Prerequisites: [Docker Desktop](https://docs.docker.com/desktop/).
-
-**Dockerfile**: A text document containing all the commands a user could call to assemble a specific image (the blueprint of your application and its environment).
-
-**Docker Compose**: A tool for defining and running multi-container applications, using a YAML file to configure how different services (like your backend, frontend, and database) interact and start together.
-
-- [ ] Build containers:  `docker compose up --build -d`
-- [ ] See running processes: `docker compose ps`
-
-To see logs:
-
-- `docker compose logs -f` for all containers
-- `docker compose logs -f backend` only for backend
-
-**Backend API:** http://localhost:5000
-**Frontend UI:** http://localhost:8000
-
-- [ ]  `docker compose down` to remove conainers
-  - `docker compose stop` to simply stop
-
-[How it works](https://github.com/olevitt/kubernetes)
+```bash
+git checkout main
+git pull
+git checkout feature/books-search
+git merge main
+```

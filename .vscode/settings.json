@@ -9,9 +9,9 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.wordWrap": "wordWrapColumn",
     "editor.wrappingIndent": "indent",
-    "editor.wordWrapColumn": 120,
+    "editor.wordWrapColumn": 79,
     "editor.rulers": [
-      120
+      79
     ],
     "editor.codeActionsOnSave": {
       "source.fixAll": "explicit",
@@ -35,5 +35,9 @@
     "strings": true
   },
   "python.languageServer": "Jedi",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": ["tests"],
   "terminal.integrated.defaultProfile.linux": "bash"
 }

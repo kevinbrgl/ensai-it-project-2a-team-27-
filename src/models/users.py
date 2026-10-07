@@ -1,58 +1,60 @@
 """Pydantic models for user entities.
 
-Defines schemas for user creation, registration, update, password change,
-and database representation.
+Defines schemas for user registration, reading, creation, update,
+password change, and database representation.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserBase(BaseModel):
-    """Base schema for user attributes."""
+    """Attributes shared by all user schemas."""
 
-    username: str
-    first_name: str | None = None
-    last_name: str | None = None
+    username: str = Field(min_length=3, max_length=30)
+    email: EmailStr
 
 
 class UserRegister(UserBase):
-    """Schema for registering a new user."""
+    """Body of POST /auth/register."""
 
-    password: str
+    password: str = Field(min_length=8, max_length=72)
 
 
 class UserRead(UserBase):
-    """Schema for reading user data."""
+    """User data returned by the API (never the password)."""
 
-    id: int
+    id_user: int
+    bio: str | None = None
+    profile_picture: str | None = None
 
 
 class UserCreate(UserBase):
-    """Schema for creating a user in the database."""
+    """Data needed to insert a user in the database."""
 
-    hashed_password: str
+    password_hash: str
 
 
 class UserUpdate(BaseModel):
-    """Schema for updating user attributes."""
+    """Body of PATCH /users/me (all fields optional)."""
 
-    username: str | None = None
-    first_name: str | None = None
-    last_name: str | None = None
+    username: str | None = Field(default=None, min_length=3, max_length=30)
+    email: EmailStr | None = None
+    bio: str | None = None
+    profile_picture: str | None = None
 
 
 class UserUpdateFull(UserUpdate):
-    """Schema for a full user update, including password."""
+    """Full user update, including the password hash."""
 
-    hashed_password: str | None = None
+    password_hash: str | None = None
 
 
 class UserUpdatePassword(BaseModel):
-    """Schema for updating a user's password."""
+    """Body of PUT /users/me/password."""
 
     current_password: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=72)
 
 
 class User(UserCreate, UserRead):
-    """Schema for a user as stored in the database."""
+    """User as stored in the database (includes password_hash)."""

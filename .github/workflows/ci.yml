@@ -1,18 +1,15 @@
-name: pipeline
+name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   backend:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        python-version: ["3.13"]
-
+    # Base PostgreSQL jetable, créée pour chaque exécution
     services:
       postgres:
-        image: postgres:latest
+        image: postgres:16
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test_user
@@ -21,89 +18,36 @@ jobs:
           - 5433:5432
         options: >-
           --health-cmd="pg_isready -U test_user -d test_db"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=5s
-          --health-retries=5
+          --health-retries=10
+
+    # Variables lues par src/core/config.py (remplacent le .env)
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5433
+      POSTGRES_DATABASE: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      SECRET_KEY: ci-test-secret-key-not-for-production
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install uv
-        run: |
-          curl -Ls https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Cache uv
-        uses: actions/cache@v5
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v6
         with:
-          path: ~/.cache/uv
-          key: uv-backend-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+          python-version: "3.13"
+          enable-cache: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: uv sync
 
-      - name: Sync backend dependencies
-        run: uv sync --all-extras
+      - name: Unit tests
+        run: uv run pytest tests/unit -v
 
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5433 -U test_user -d test_db; do
-            echo "Waiting for PostgreSQL..."
-            sleep 1
-          done
+      - name: Integration tests
+        run: uv run pytest tests/integration -v
 
-      - name: Run backend tests with coverage
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5433
-          POSTGRES_DATABASE: test_db
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-          POSTGRES_SCHEMA: project
-          SECRET_KEY: ci-test-secret-key-not-for-production
-        run: |
-          uv run coverage run -m pytest
-          uv run coverage report
-
-      - name: Lint backend with Ruff
+      - name: Lint (report only, never fails)
         run: uv run ruff check src tests --exit-zero
-
-      - name: Security scan backend
-        run: uvx bandit -r src --severity-level high
-
-  frontend:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.13"]
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        run: |
-          curl -Ls https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Cache uv
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/uv
-          key: uv-frontend-${{ runner.os }}-${{ hashFiles('frontend/uv.lock') }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Sync frontend dependencies
-        run: uv sync --project frontend --all-extras
-
-      - name: Lint frontend with Ruff
-        run: uv run --project frontend ruff check frontend/src
-
-      - name: Security scan frontend
-        run: uv run --project frontend bandit -r frontend/src

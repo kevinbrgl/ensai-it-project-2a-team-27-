@@ -29,31 +29,6 @@ class UserNotFoundError(Exception):
         super().__init__(msg)
 
 
-class ItemNotFoundError(Exception):
-    """Raised when an item is not found.
-
-    :param item_id: ID of the item (optional)
-    :param user_id: ID of the user (optional)
-    """
-
-    def __init__(self,
-                 item_id: int | None = None,
-                 user_id: int | None = None) -> None:
-        """Initialize ItemNotFoundError.
-
-        :param item_id: ID of the item (optional)
-        :param user_id: ID of the user (optional)
-        :return: None
-        """
-        if item_id:
-            msg = f"No item found for id={item_id}"
-        elif user_id:
-            msg = f"No item found for user_id={user_id}"
-        else:
-            msg = "No item found"
-        super().__init__(msg)
-
-
 class DAOError(Exception):
     """Raised for errors in the Data Access Object (DAO) layer.
 
@@ -104,17 +79,6 @@ class SamePasswordError(Exception):
         super().__init__("New password must be different from the old one.")
 
 
-class WrongUserItemError(Exception):
-    """Raised when an item does not belong to the current user."""
-
-    def __init__(self) -> None:
-        """Initialize WrongUserItemError.
-
-        :return: None
-        """
-        super().__init__("Item belongs to some other user")
-
-
 class UserAlreadyExistsError(Exception):
     """Raised when attempting to create a user with an existing username.
 
@@ -128,3 +92,18 @@ class UserAlreadyExistsError(Exception):
         :return: None
         """
         super().__init__(f"Username {username} already exists")
+
+
+class EmailAlreadyExistsError(Exception):
+    """Raised when attempting to create a user with an existing email.
+
+    :param email: Email that already exists
+    """
+
+    def __init__(self, email: str) -> None:
+        """Initialize EmailAlreadyExistsError.
+
+        :param email: Email that already exists
+        :return: None
+        """
+        super().__init__(f"Email {email} already exists")

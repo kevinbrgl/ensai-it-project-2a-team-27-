@@ -17,13 +17,13 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    PROJECT_NAME: str = "Python Template"
+    PROJECT_NAME: str = "Ex-libris"
     API_STR: str = "/api"
     ROOT_PATH: str = "/proxy/8000"
 
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-    TOKEN_TYPE: str = "bearer"  # noqa : S105
+    TOKEN_TYPE: str = "bearer"  # ruff: ignore[hardcoded-password-string]
 
     POSTGRES_HOST: str
     POSTGRES_DATABASE: str

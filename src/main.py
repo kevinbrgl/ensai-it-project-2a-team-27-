@@ -5,10 +5,9 @@ and includes API routers.
 """
 
 import sys
-# from collections.abc import AsyncGenerator
-# from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
-# from typing import TYPE_CHECKING, Any
 
 import uvicorn
 from fastapi import FastAPI
@@ -19,47 +18,34 @@ if __name__ == "__main__":
 
 from src.api.main import api_router
 from src.core.config import settings
-# from src.core.db import init_pool
+from src.core.db import close_pool, init_pool
 
-# if TYPE_CHECKING:
-#     from psycopg2.pool import SimpleConnectionPool
+INIT_SQL = Path(__file__).resolve().parent.parent / "data" / "init.sql"
 
 
-# @asynccontextmanager
-# async def lifespan(  # noqa: RUF029
-#     app: FastAPI,
-# ) -> AsyncGenerator[Any, Any]:
-#     """Application lifespan context manager.
-
-#     Initializes the database connection pool and executes the SQL init script.
-#     Cleans up connections on shutdown.
-
-#     :param app: FastAPI application instance
-#     :yields: Async generator for FastAPI lifespan
-#     """
-#     init_pool(app)
-#     pool: SimpleConnectionPool = app.state.db_pool
-#     conn = pool.getconn()
-#     try:
-#         with conn.cursor() as cur:
-#             content = Path("data/init.sql").read_text(encoding="utf8")
-#             cur.execute(content)
-#         conn.commit()
-#     finally:
-#         pool.putconn(conn)
-
-#     yield
-
-#     pool.closeall()
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
+    """Open the DB pool, create missing tables, close the pool at shutdown."""
+    init_pool(app)
+    pool = app.state.db_pool
+    conn = pool.getconn()
+    try:
+        with conn, conn.cursor() as cur:
+            cur.execute(INIT_SQL.read_text(encoding="utf-8"))
+    finally:
+        pool.putconn(conn)
+    yield
+    close_pool(app)
 
 
 app = FastAPI(
-    title="API Ex-libris",
-    description="API REST pour gérer une bibliothèque de films",
+    title="API Ex-Libris",
+    description="API REST de suivi de lecture",
     version="1.0.0",
     docs_url="/",  # Swagger UI accessible directement à la racine
-    root_path=settings.ROOT_PATH,
     redoc_url=None,  # Désactive ReDoc
+    root_path=settings.ROOT_PATH,
+    lifespan=lifespan,
 )
 
 app.include_router(api_router)
