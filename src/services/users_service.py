@@ -1,11 +1,13 @@
 """Service layer for user operations.
 
 This module provides business logic for user-related operations.
-Exceptions are raised for not found, authentication, or password errors.
+Exceptions are raised for not found, duplicates, authentication
+or password errors.
 """
+
 from src.core.security import get_password_hash, verify_password
 from src.dao.users_dao import UserDAO
-from src.models import (
+from src.models.users import (
     User,
     UserCreate,
     UserRegister,
@@ -15,8 +17,10 @@ from src.models import (
 )
 from src.utils.exceptions import (
     AuthError,
+    EmailAlreadyExistsError,
     IncorrectPasswordError,
     SamePasswordError,
+    UserAlreadyExistsError,
     UserNotFoundError,
 )
 
@@ -28,9 +32,9 @@ class UserService:
     """
 
     def __init__(self, user_dao: UserDAO) -> None:
-        """Initialize UserService with a database cursor.
+        """Initialize UserService with a UserDAO.
 
-        :param cursor: Database cursor
+        :param user_dao: DAO used to access users
         """
         self.dao = user_dao
 
@@ -46,7 +50,7 @@ class UserService:
         db_user = self.dao.read_by_username(username)
         if db_user is None:
             raise UserNotFoundError(username=username)
-        if not verify_password(password, db_user.hashed_password):
+        if not verify_password(password, db_user.password_hash):
             raise AuthError
         return db_user
 
@@ -54,14 +58,19 @@ class UserService:
         """Register a new user.
 
         :param user_in: User registration data
+        :raises UserAlreadyExistsError: Raised if the username is taken
+        :raises EmailAlreadyExistsError: Raised if the email is taken
         :return: The created User object
         """
-        user_create = UserCreate.model_validate(
-            {
-                **user_in.model_dump(),
-                "hashed_password": get_password_hash(user_in.password),
-            },
-            from_attributes=True,
+        if self.dao.read_by_username(user_in.username) is not None:
+            raise UserAlreadyExistsError(user_in.username)
+        if self.dao.read_by_email(user_in.email) is not None:
+            raise EmailAlreadyExistsError(user_in.email)
+
+        user_create = UserCreate(
+            username=user_in.username,
+            email=user_in.email,
+            password_hash=get_password_hash(user_in.password),
         )
         return self.dao.create(user_create)
 
@@ -94,28 +103,27 @@ class UserService:
                         body: UserUpdatePassword) -> User:
         """Update a user's password.
 
-        :param user: The user object
+        :param current_user: The logged-in user
         :param body: Password update data
-        :raises IncorrectPasswordError: Raised if current password is incorrect
-        :raises SamePasswordError: Raised if new password is the same as old
-        :raises UserNotFoundError: Raised if user is not found after update
+        :raises IncorrectPasswordError: If current password is incorrect
+        :raises SamePasswordError: If new password is the same as old
+        :raises UserNotFoundError: If user is not found after update
         :return: The updated User object
         """
         if not verify_password(body.current_password,
-                               current_user.hashed_password):
+                               current_user.password_hash):
             raise IncorrectPasswordError
         if body.current_password == body.new_password:
             raise SamePasswordError
 
         user = self.dao.update(
-            current_user.id,
+            current_user.id_user,
             UserUpdateFull(
-                hashed_password=get_password_hash(body.new_password),
+                password_hash=get_password_hash(body.new_password),
             ),
         )
-
         if user is None:
-            raise UserNotFoundError(user_id=current_user.id)
+            raise UserNotFoundError(user_id=current_user.id_user)
         return user
 
     def update(self, user_id: int, user_in: UserUpdate) -> User:
