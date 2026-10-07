@@ -35,19 +35,31 @@ select=[
     "ALL"
 ]
 ignore=[
-    "INP001",
+    "implicit-namespace-package",
     "CPY",
-    "DOC201",
-    "DOC501",
-    "DOC402"
+    "docstring-missing-returns",
+    "docstring-missing-exception",
+    "docstring-missing-yields",
+    "incorrect-blank-line-before-class",
+    "multi-line-summary-second-line"
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"src/models/__init__.py" = ["F401"]
-
+"src/models/__init__.py" = ["unused-import"]
+"tests/**" = [
+    "assert",
+    "no-self-use",
+    "hardcoded-password-string",
+    "hardcoded-password-func-arg",
+]
 
 [tool.mypy]
 plugins = ['pydantic.mypy']
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+]

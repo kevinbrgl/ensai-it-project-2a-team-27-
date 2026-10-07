@@ -4,9 +4,16 @@ This module provides business logic for user-related operations.
 Exceptions are raised for not found, duplicates, authentication
 or password errors.
 """
+from datetime import timedelta
 
-from src.core.security import get_password_hash, verify_password
+from src.core.config import settings
+from src.core.security import (
+    create_access_token,
+    get_password_hash,
+    verify_password,
+)
 from src.dao.users_dao import UserDAO
+from src.models.misc import Token
 from src.models.users import (
     User,
     UserCreate,
@@ -53,6 +60,27 @@ class UserService:
         if not verify_password(password, db_user.password_hash):
             raise AuthError
         return db_user
+
+    def login(self, username: str, password: str) -> Token:
+        """Authenticate a user and create an access token.
+
+        :param username: Username of the user
+        :param password: Plain password of the user
+        :raises UserNotFoundError: Raised if user is not found
+        :raises AuthError: Raised if password is incorrect
+        :return: Token containing the JWT and its type
+        """
+        user = self.authenticate(username, password)
+        access_token = create_access_token(
+            user.id_user,
+            expires_delta=timedelta(
+                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            ),
+        )
+        return Token(
+            access_token=access_token,
+            token_type=settings.TOKEN_TYPE,
+        )
 
     def register(self, user_in: UserRegister) -> User:
         """Register a new user.

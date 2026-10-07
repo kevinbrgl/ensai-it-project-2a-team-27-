@@ -3,14 +3,17 @@
 The UserDAO is replaced by a mock: no database is needed.
 """
 
+from datetime import timedelta
 from unittest.mock import Mock
 
+import jwt
 import pytest
 from pytest_mock import MockerFixture
 
-from src.core.security import verify_password
+from src.core.config import settings
+from src.core.security import ALGORITHM, verify_password
 from src.dao.users_dao import UserDAO
-from src.models import User, UserCreate, UserRegister
+from src.models import Token, User, UserCreate, UserRegister
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AuthError,
@@ -22,6 +25,7 @@ from src.utils.exceptions import (
 USERNAME = "johndoe"
 EMAIL = "john@ensai.fr"
 PASSWORD = "motdepasse123"
+FAKE_JWT = "fake.jwt.value"
 
 
 @pytest.fixture
@@ -48,7 +52,7 @@ def db_user() -> User:
 
 
 class TestAuthenticate:
-    """Tests for UserService.authenticate (used by /auth/login)."""
+    """Tests for UserService.authenticate (used by UserService.login)."""
 
     def test_valid(
         self,
@@ -98,6 +102,103 @@ class TestAuthenticate:
 
         with pytest.raises(AuthError):
             service.authenticate(USERNAME, "mauvaismdp")
+
+
+class TestLogin:
+    """Tests for UserService.login (POST /auth/login)."""
+
+    def test_valid(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+        mocker: MockerFixture,
+    ) -> None:
+        """Right credentials: a signed JWT for this user is returned."""
+        mock_dao.read_by_username.return_value = db_user
+        mocker.patch(
+            "src.services.users_service.verify_password",
+            return_value=True,
+        )
+
+        token = service.login(USERNAME, PASSWORD)
+
+        assert isinstance(token, Token)
+        assert token.token_type == settings.TOKEN_TYPE
+        payload = jwt.decode(
+            token.access_token,
+            settings.SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        assert payload["sub"] == str(db_user.id_user)
+        assert "exp" in payload
+
+    def test_token_lifetime(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+        mocker: MockerFixture,
+    ) -> None:
+        """The token is built for the user id with the configured lifetime."""
+        mock_dao.read_by_username.return_value = db_user
+        mocker.patch(
+            "src.services.users_service.verify_password",
+            return_value=True,
+        )
+        mock_create = mocker.patch(
+            "src.services.users_service.create_access_token",
+            return_value=FAKE_JWT,
+        )
+
+        token = service.login(USERNAME, PASSWORD)
+
+        assert token.access_token == FAKE_JWT
+        mock_create.assert_called_once_with(
+            db_user.id_user,
+            expires_delta=timedelta(
+                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES,
+            ),
+        )
+
+    def test_user_not_found(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        mocker: MockerFixture,
+    ) -> None:
+        """Unknown username: UserNotFoundError, no token created."""
+        mock_dao.read_by_username.return_value = None
+        mock_create = mocker.patch(
+            "src.services.users_service.create_access_token",
+        )
+
+        with pytest.raises(UserNotFoundError):
+            service.login(USERNAME, PASSWORD)
+
+        mock_create.assert_not_called()
+
+    def test_wrong_password(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+        mocker: MockerFixture,
+    ) -> None:
+        """Wrong password: AuthError, no token created."""
+        mock_dao.read_by_username.return_value = db_user
+        mocker.patch(
+            "src.services.users_service.verify_password",
+            return_value=False,
+        )
+        mock_create = mocker.patch(
+            "src.services.users_service.create_access_token",
+        )
+
+        with pytest.raises(AuthError):
+            service.login(USERNAME, "mauvaismdp")
+
+        mock_create.assert_not_called()
 
 
 class TestRegister:
