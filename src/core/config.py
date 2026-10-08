@@ -4,7 +4,6 @@ Defines environment variables and computed properties for database connection.
 """
 
 from pydantic import PostgresDsn, computed_field
-from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,13 +30,14 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str
     POSTGRES_PORT: int
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def postgres_dsn(self) -> PostgresDsn:
         """Compute postgres url from variables.
 
         :return: The postgres url as data source name
         """
-        return MultiHostUrl.build(
+        return PostgresDsn.build(
             scheme="postgresql",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,

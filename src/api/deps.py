@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from psycopg2.pool import ThreadedConnectionPool
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_STR}/login/access-token",
+    tokenUrl=f"{settings.ROOT_PATH}{settings.API_STR}/auth/login",
 )
 
 

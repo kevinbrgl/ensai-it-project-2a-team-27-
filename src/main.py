@@ -34,8 +34,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             cur.execute(INIT_SQL.read_text(encoding="utf-8"))
     finally:
         pool.putconn(conn)
-    yield
-    close_pool(app)
+    try:
+        yield
+    finally:
+        close_pool(app)
 
 
 app = FastAPI(
