@@ -13,6 +13,7 @@ from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
 
 from src.core.config import settings
+from src.dao.books_dao import BookDAO
 from src.dao.users_dao import UserDAO
 
 INIT_SQL = Path(__file__).resolve().parents[2] / "data" / "init.sql"
@@ -44,3 +45,9 @@ def cursor(db_conn: connection) -> Generator[RealDictCursor]:
 def user_dao(cursor: RealDictCursor) -> UserDAO:
     """Return a UserDAO bound to the test cursor."""
     return UserDAO(cursor)
+
+
+@pytest.fixture
+def book_dao(cursor: RealDictCursor) -> BookDAO:
+    """Return a BookDAO bound to the test cursor."""
+    return BookDAO(cursor)
