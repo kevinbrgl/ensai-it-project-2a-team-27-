@@ -9,11 +9,14 @@ from pathlib import Path
 
 import psycopg2
 import pytest
+from fastapi.testclient import TestClient
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
 
+from src.api.deps import get_cursor
 from src.core.config import settings
 from src.dao.users_dao import UserDAO
+from src.main import app
 
 INIT_SQL = Path(__file__).resolve().parents[2] / "data" / "init.sql"
 
@@ -44,3 +47,21 @@ def cursor(db_conn: connection) -> Generator[RealDictCursor]:
 def user_dao(cursor: RealDictCursor) -> UserDAO:
     """Return a UserDAO bound to the test cursor."""
     return UserDAO(cursor)
+
+
+@pytest.fixture
+def client(cursor: RealDictCursor) -> Generator[TestClient]:
+    """Return a TestClient that uses the rolled-back test cursor.
+
+    Shared by every route test file (auth, users...).
+    The TestClient is created without "with", so the lifespan (pool
+    opening and init.sql) is not run: get_cursor is overridden anyway.
+    """
+
+    def override_get_cursor() -> RealDictCursor:
+        """Give the test cursor to the routes instead of a pool cursor."""
+        return cursor
+
+    app.dependency_overrides[get_cursor] = override_get_cursor
+    yield TestClient(app)
+    app.dependency_overrides.clear()
