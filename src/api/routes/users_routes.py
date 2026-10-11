@@ -38,7 +38,9 @@ def read_self(current_user: CurrentUser) -> User:
 
 @router.patch("/me", response_model=UserRead)
 def update_self(
-    cursor: CursorDep, current_user: CurrentUser, user_in: UserUpdate,
+    cursor: CursorDep,
+    current_user: CurrentUser,
+    user_in: UserUpdate,
 ) -> User:
     """Update the current user's information.
 
@@ -52,7 +54,8 @@ def update_self(
     """
     try:
         return UserService(UserDAO(cursor)).update(
-            current_user.id_user, user_in,
+            current_user.id_user,
+            user_in,
         )
 
     except UserNotFoundError:
@@ -79,7 +82,9 @@ def update_self(
 
 @router.put("/me/password", response_model=UserRead)
 def update_self_password(
-    cursor: CursorDep, current_user: CurrentUser, user_in: UserUpdatePassword,
+    cursor: CursorDep,
+    current_user: CurrentUser,
+    user_in: UserUpdatePassword,
 ) -> User:
     """Update the current user's password.
 

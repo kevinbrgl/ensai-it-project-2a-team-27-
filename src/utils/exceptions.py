@@ -11,9 +11,9 @@ class UserNotFoundError(Exception):
     :param username: Username of the user (optional)
     """
 
-    def __init__(self,
-                 user_id: int | None = None,
-                 username: str | None = None) -> None:
+    def __init__(
+        self, user_id: int | None = None, username: str | None = None,
+    ) -> None:
         """Initialize UserNotFoundError.
 
         :param user_id: ID of the user (optional)
@@ -107,3 +107,42 @@ class EmailAlreadyExistsError(Exception):
         :return: None
         """
         super().__init__(f"Email {email} already exists")
+
+
+class ExternalServiceError(Exception):
+    """Raised when an external service is unavailable.
+
+    :param message: Error message (optional)
+    """
+
+    def __init__(self, message: str | None = None) -> None:
+        """Initialize ExternalServiceError.
+
+        :param message: Error message (optional)
+        :return: None
+        """
+        if message is None:
+            message = "External service is currently unavailable."
+        super().__init__(message)
+
+
+ExternalServiceException = ExternalServiceError
+
+
+class BookNotFoundError(Exception):
+    """Raised when a book is not found.
+
+    :param book_id: ID of the book (optional)
+    """
+
+    def __init__(self, book_id: int | str | None = None) -> None:
+        """Initialize BookNotFoundError.
+
+        :param book_id: ID of the book (optional)
+        :return: None
+        """
+        if book_id is not None:
+            msg = f"No book found for id={book_id}"
+        else:
+            msg = "No book found"
+        super().__init__(msg)

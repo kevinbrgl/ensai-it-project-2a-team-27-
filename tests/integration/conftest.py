@@ -15,6 +15,7 @@ from psycopg2.extras import RealDictCursor
 
 from src.api.deps import get_cursor
 from src.core.config import settings
+from src.dao.books_dao import BookDAO
 from src.dao.users_dao import UserDAO
 from src.main import app
 
@@ -50,6 +51,9 @@ def user_dao(cursor: RealDictCursor) -> UserDAO:
 
 
 @pytest.fixture
+def book_dao(cursor: RealDictCursor) -> BookDAO:
+    """Return a BookDAO bound to the test cursor."""
+    return BookDAO(cursor)
 def client(cursor: RealDictCursor) -> Generator[TestClient]:
     """Return a TestClient that uses the rolled-back test cursor.
 
