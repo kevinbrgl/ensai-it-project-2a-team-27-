@@ -133,6 +133,8 @@ class UserDAO:
         :param user_id: ID of the user to update
         :param user_in: Data for user update
         :raises ValueError: If there is nothing to update
+        :raises UserAlreadyExistsError: If the new username is already used
+        :raises EmailAlreadyExistsError: If the new email is already used
         :raises DAOError: If a DB error occurs
         :return: The updated User object or None if not found
         """
@@ -156,6 +158,10 @@ class UserDAO:
                 values,
             )
             row = self.cur.fetchone()
+        except UniqueViolation as exc:
+            if exc.diag.constraint_name == "users_email_key":
+                raise EmailAlreadyExistsError(str(user_in.email)) from exc
+            raise UserAlreadyExistsError(str(user_in.username)) from exc
         except DBError as exc:
             raise DAOError from exc
         return User(**row) if row else None
