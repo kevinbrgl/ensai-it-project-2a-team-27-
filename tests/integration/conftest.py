@@ -54,6 +54,9 @@ def user_dao(cursor: RealDictCursor) -> UserDAO:
 def book_dao(cursor: RealDictCursor) -> BookDAO:
     """Return a BookDAO bound to the test cursor."""
     return BookDAO(cursor)
+
+
+@pytest.fixture
 def client(cursor: RealDictCursor) -> Generator[TestClient]:
     """Return a TestClient that uses the rolled-back test cursor.
 
