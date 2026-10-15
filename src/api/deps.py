@@ -17,8 +17,10 @@ from pydantic import ValidationError
 from src.core import security
 from src.core.config import settings
 from src.dao.users_dao import UserDAO
+from src.dao.library_dao import LibraryDAO
 from src.models import TokenPayload, User
 from src.services.users_service import UserService
+from src.services.library_service import LibraryService
 from src.utils.exceptions import UserNotFoundError
 
 if TYPE_CHECKING:
@@ -105,3 +107,9 @@ def get_user(service: UserServiceDep, token: TokenDep) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_user)]
+
+def get_library_service(cursor: CursorDep) -> LibraryService:
+    """Build a LibraryService bound to the request cursor."""
+    return LibraryService(LibraryDAO(cursor))
+
+LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]

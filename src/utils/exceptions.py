@@ -107,3 +107,10 @@ class EmailAlreadyExistsError(Exception):
         :return: None
         """
         super().__init__(f"Email {email} already exists")
+
+
+class BookAlreadyInLibraryError(Exception):
+    """Raised when a user tries to add a book they already have."""
+    def __init__(self, book_id: int) -> None:
+        self.book_id = book_id
+        super().__init__(f"Book {book_id} is already in the library.")
