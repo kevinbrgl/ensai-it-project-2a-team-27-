@@ -4,6 +4,7 @@ This module provides business logic for user-related operations.
 Exceptions are raised for not found, duplicates, authentication
 or password errors.
 """
+
 from datetime import timedelta
 
 from src.core.config import settings
@@ -126,9 +127,9 @@ class UserService:
             raise UserNotFoundError(username=username)
         return user
 
-    def update_password(self,
-                        current_user: User,
-                        body: UserUpdatePassword) -> User:
+    def update_password(
+        self, current_user: User, body: UserUpdatePassword,
+    ) -> User:
         """Update a user's password.
 
         :param current_user: The logged-in user
@@ -138,8 +139,9 @@ class UserService:
         :raises UserNotFoundError: If user is not found after update
         :return: The updated User object
         """
-        if not verify_password(body.current_password,
-                               current_user.password_hash):
+        if not verify_password(
+            body.current_password, current_user.password_hash,
+        ):
             raise IncorrectPasswordError
         if body.current_password == body.new_password:
             raise SamePasswordError

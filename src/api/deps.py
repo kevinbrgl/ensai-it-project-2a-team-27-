@@ -16,9 +16,11 @@ from pydantic import ValidationError
 
 from src.core import security
 from src.core.config import settings
+from src.dao.books_dao import BookDAO
 from src.dao.users_dao import UserDAO
 from src.dao.library_dao import LibraryDAO
 from src.models import TokenPayload, User
+from src.services.books_service import BookService
 from src.services.users_service import UserService
 from src.services.library_service import LibraryService
 from src.utils.exceptions import UserNotFoundError
@@ -108,8 +110,22 @@ def get_user(service: UserServiceDep, token: TokenDep) -> User:
 
 CurrentUser = Annotated[User, Depends(get_user)]
 
+<<<<<<< HEAD
 def get_library_service(cursor: CursorDep) -> LibraryService:
     """Build a LibraryService bound to the request cursor."""
     return LibraryService(LibraryDAO(cursor))
 
 LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
+=======
+
+def get_book_service(cursor: CursorDep) -> BookService:
+    """Build a BookService bound to the request cursor.
+
+    :param cursor: Database cursor dependency
+    :return: A BookService instance
+    """
+    return BookService(BookDAO(cursor))
+
+
+BookServiceDep = Annotated[BookService, Depends(get_book_service)]
+>>>>>>> origin/main
