@@ -43,3 +43,16 @@ class LibraryService:
         :return: The updated library activity
         """
         return self.dao.toggle_like(id_user, id_book)
+
+    def toggle_favorite(
+        self,
+        id_user: int,
+        id_book: int,
+    ) -> LibraryBookRead:
+        """Add or remove a book from the user's favorites.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book
+        :return: The updated library activity
+        """
+        return self.dao.toggle_favorite(id_user, id_book)

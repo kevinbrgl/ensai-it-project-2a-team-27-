@@ -152,3 +152,35 @@ class TestToggleLike:
             service.toggle_like(ID_USER, ID_BOOK)
 
         mock_dao.toggle_like.assert_called_once_with(ID_USER, ID_BOOK)
+
+
+class TestToggleFavorite:
+    """Tests for LibraryService.toggle_favorite."""
+
+    def test_valid(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Valid request: returns the updated reading activity."""
+        favorite = book_read.model_copy(update={"is_favorite": True})
+        mock_dao.toggle_favorite.return_value = favorite
+
+        result = service.toggle_favorite(ID_USER, ID_BOOK)
+
+        assert result == favorite
+        mock_dao.toggle_favorite.assert_called_once_with(ID_USER, ID_BOOK)
+
+    def test_not_in_library(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """DAO raises BookNotInLibraryError: it is propagated."""
+        mock_dao.toggle_favorite.side_effect = BookNotInLibraryError(ID_BOOK)
+
+        with pytest.raises(BookNotInLibraryError):
+            service.toggle_favorite(ID_USER, ID_BOOK)
+
+        mock_dao.toggle_favorite.assert_called_once_with(ID_USER, ID_BOOK)
