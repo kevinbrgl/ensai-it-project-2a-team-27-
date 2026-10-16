@@ -134,3 +134,69 @@ class TestRemoveBook:
         """Removing a book the user does not have raises an error."""
         with pytest.raises(BookNotInLibraryError):
             library_dao.remove_book(id_user, id_book)
+
+
+class TestToggleLike:
+    """Tests for LibraryDAO.toggle_like."""
+
+    def test_like(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book that is not liked becomes liked."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        result = library_dao.toggle_like(id_user, id_book)
+
+        assert result.id_user == id_user
+        assert result.id_book == id_book
+        assert result.is_liked is True
+
+    def test_like_then_unlike(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A second toggle removes the like."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.toggle_like(id_user, id_book)
+
+        result = library_dao.toggle_like(id_user, id_book)
+
+        assert result.is_liked is False
+
+    def test_other_fields_unchanged(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Toggling the like does not change the state or the favorite."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="COMPLETED"),
+        )
+
+        result = library_dao.toggle_like(id_user, id_book)
+
+        assert result.state == "COMPLETED"
+        assert result.is_favorite is False
+
+    def test_not_in_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Liking a book the user does not have raises an error."""
+        with pytest.raises(BookNotInLibraryError):
+            library_dao.toggle_like(id_user, id_book)

@@ -84,3 +84,31 @@ class LibraryDAO:
 
         if row is None:
             raise BookNotInLibraryError(id_book)
+
+    def toggle_like(self, id_user: int, id_book: int) -> LibraryBookRead:
+        """Toggle the like on a book in a user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book to like or unlike
+        :raises BookNotInLibraryError: If the book is not in the library
+        :raises DAOError: If a DB error occurs
+        :return: The updated library activity
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE user_book_activities
+                SET is_liked = NOT is_liked
+                WHERE id_user = %s AND id_book = %s
+                RETURNING *
+                """,
+                (id_user, id_book),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise BookNotInLibraryError(id_book)
+        return LibraryBookRead(**row)
