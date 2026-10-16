@@ -9,6 +9,7 @@ from src.models.library import LibraryBookAdd, LibraryBookRead
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
+    BookNotInLibraryError,
     DAOError,
 )
 
@@ -57,4 +58,43 @@ def add_book(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not add book to library.",
+        ) from None
+
+
+@router.delete(
+    "/books/{id_book}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_book(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    id_book: int,
+) -> None:
+    """Remove a book from the authenticated user's library.
+
+    Returns 204 No Content with an empty body when the book is removed.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param id_book: ID of the book to remove
+    :raises HTTPException: 404 if not in library, 500 on database error
+    """
+    try:
+        service.remove_book_from_library(current_user.id_user, id_book)
+
+    except BookNotInLibraryError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book is not in the library.",
+        ) from None
+
+    except DAOError:
+        logger.exception(
+            "Failed to remove book %s from library of user %s",
+            id_book,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not remove book from library.",
         ) from None

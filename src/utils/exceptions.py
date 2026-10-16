@@ -157,3 +157,12 @@ class BookAlreadyInLibraryError(Exception):
         """Initialize the exception with the book ID."""
         self.book_id = book_id
         super().__init__(f"Book {book_id} is already in the library.")
+
+
+class BookNotInLibraryError(Exception):
+    """Raised when a user tries to remove a book they do not have."""
+
+    def __init__(self, book_id: int) -> None:
+        """Initialize the exception with the book ID."""
+        self.book_id = book_id
+        super().__init__(f"Book {book_id} is not in the library.")
