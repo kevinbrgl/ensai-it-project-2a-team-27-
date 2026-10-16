@@ -82,7 +82,9 @@ class TestAddBookRoute:
         """Valid request: returns 201 Created and the book data."""
         payload = {"id_book": id_book, "state": "READING"}
         response = client.post(
-            LIBRARY_BOOKS_URL, headers=auth_headers, json=payload,
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json=payload,
         )
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -106,7 +108,9 @@ class TestAddBookRoute:
         """Unknown book ID: Exception is mapped to 404 Not Found."""
         payload = {"id_book": 999_999_999, "state": "READING"}
         response = client.post(
-            LIBRARY_BOOKS_URL, headers=auth_headers, json=payload,
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json=payload,
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -123,7 +127,9 @@ class TestAddBookRoute:
         client.post(LIBRARY_BOOKS_URL, headers=auth_headers, json=payload)
 
         response = client.post(
-            LIBRARY_BOOKS_URL, headers=auth_headers, json=payload,
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json=payload,
         )
 
         assert response.status_code == status.HTTP_409_CONFLICT
@@ -137,7 +143,9 @@ class TestAddBookRoute:
         """Invalid state: 422 Unprocessable Content."""
         payload = {"id_book": id_book, "state": "EN_COURS"}
         response = client.post(
-            LIBRARY_BOOKS_URL, headers=auth_headers, json=payload,
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json=payload,
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

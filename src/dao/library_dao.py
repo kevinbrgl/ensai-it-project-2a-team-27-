@@ -23,7 +23,9 @@ class LibraryDAO:
         self.cur = cursor
 
     def add_book(
-        self, id_user: int, book_in: LibraryBookAdd,
+        self,
+        id_user: int,
+        book_in: LibraryBookAdd,
     ) -> LibraryBookRead:
         """Add a book to a user's library with a reading state.
 

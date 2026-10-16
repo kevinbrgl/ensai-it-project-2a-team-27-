@@ -15,7 +15,9 @@ class LibraryService:
         self.dao = dao
 
     def add_book_to_library(
-        self, id_user: int, book_in: LibraryBookAdd,
+        self,
+        id_user: int,
+        book_in: LibraryBookAdd,
     ) -> LibraryBookRead:
         """Add a book to the user's library.
 
