@@ -200,3 +200,69 @@ class TestToggleLike:
         """Liking a book the user does not have raises an error."""
         with pytest.raises(BookNotInLibraryError):
             library_dao.toggle_like(id_user, id_book)
+
+
+class TestToggleFavorite:
+    """Tests for LibraryDAO.toggle_favorite."""
+
+    def test_favorite(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book that is not a favorite becomes a favorite."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        result = library_dao.toggle_favorite(id_user, id_book)
+
+        assert result.id_user == id_user
+        assert result.id_book == id_book
+        assert result.is_favorite is True
+
+    def test_favorite_then_unfavorite(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A second toggle removes the favorite."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.toggle_favorite(id_user, id_book)
+
+        result = library_dao.toggle_favorite(id_user, id_book)
+
+        assert result.is_favorite is False
+
+    def test_other_fields_unchanged(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Toggling the favorite does not change the state or the like."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="COMPLETED"),
+        )
+
+        result = library_dao.toggle_favorite(id_user, id_book)
+
+        assert result.state == "COMPLETED"
+        assert result.is_liked is False
+
+    def test_not_in_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Adding to favorites a book the user does not have raises."""
+        with pytest.raises(BookNotInLibraryError):
+            library_dao.toggle_favorite(id_user, id_book)

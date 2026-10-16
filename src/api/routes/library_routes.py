@@ -133,3 +133,38 @@ def toggle_like(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not update the like.",
         ) from None
+
+
+@router.post("/books/{id_book}/favorite")
+def toggle_favorite(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    id_book: int,
+) -> LibraryBookRead:
+    """Toggle the favorite flag on a book in the user's library.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param id_book: ID of the book to add to or remove from favorites
+    :raises HTTPException: 404 if not in library, 500 on database error
+    :return: The updated reading activity
+    """
+    try:
+        return service.toggle_favorite(current_user.id_user, id_book)
+
+    except BookNotInLibraryError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book is not in the library.",
+        ) from None
+
+    except DAOError:
+        logger.exception(
+            "Failed to toggle favorite on book %s for user %s",
+            id_book,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update the favorite.",
+        ) from None

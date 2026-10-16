@@ -344,3 +344,121 @@ class TestToggleLikeRoute:
 
         mine = client.post(url, headers=auth_headers)
         assert mine.json()["is_liked"] is False
+
+
+class TestToggleFavoriteRoute:
+    """Integration tests for POST /api/library/books/{id_book}/favorite."""
+
+    def test_favorite(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book in library: returns 200 OK and the book is a favorite."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.post(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/favorite",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_book"] == id_book
+        assert data["is_favorite"] is True
+
+    def test_favorite_then_unfavorite(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Second call on the same book: the favorite is removed."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}/favorite"
+        client.post(url, headers=auth_headers)
+
+        response = client.post(url, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["is_favorite"] is False
+
+    def test_book_not_in_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book not in library: Exception is mapped to 404 Not Found."""
+        response = client.post(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/favorite",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_unauthorized(self, client: TestClient, id_book: int) -> None:
+        """Missing token: the authentication dependency rejects with 401."""
+        response = client.post(f"{LIBRARY_BOOKS_URL}/{id_book}/favorite")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_invalid_id(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Non-integer book ID: 422 Unprocessable Content."""
+        response = client.post(
+            f"{LIBRARY_BOOKS_URL}/abc/favorite",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_other_user_cannot_toggle(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Another user gets 404 and does not change my favorite."""
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}/favorite"
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        client.post(url, headers=auth_headers)
+
+        other = f"libuser_{uuid4().hex[:8]}"
+        client.post(
+            REGISTER_URL,
+            json={
+                "username": other,
+                "email": f"{other}@ensai.fr",
+                "password": PASSWORD,
+            },
+        )
+        login_resp = client.post(
+            LOGIN_URL,
+            data={"username": other, "password": PASSWORD},
+        )
+        other_token = login_resp.json()["access_token"]
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+
+        response = client.post(url, headers=other_headers)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        mine = client.post(url, headers=auth_headers)
+        assert mine.json()["is_favorite"] is False
