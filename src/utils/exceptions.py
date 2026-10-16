@@ -109,13 +109,6 @@ class EmailAlreadyExistsError(Exception):
         super().__init__(f"Email {email} already exists")
 
 
-<<<<<<< HEAD
-class BookAlreadyInLibraryError(Exception):
-    """Raised when a user tries to add a book they already have."""
-    def __init__(self, book_id: int) -> None:
-        self.book_id = book_id
-        super().__init__(f"Book {book_id} is already in the library.")
-=======
 class ExternalServiceError(Exception):
     """Raised when an external service is unavailable.
 
@@ -153,4 +146,10 @@ class BookNotFoundError(Exception):
         else:
             msg = "No book found"
         super().__init__(msg)
->>>>>>> origin/main
+
+
+class BookAlreadyInLibraryError(Exception):
+    """Raised when a user tries to add a book they already have."""
+    def __init__(self, book_id: int) -> None:
+        self.book_id = book_id
+        super().__init__(f"Book {book_id} is already in the library.")

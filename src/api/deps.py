@@ -110,13 +110,6 @@ def get_user(service: UserServiceDep, token: TokenDep) -> User:
 
 CurrentUser = Annotated[User, Depends(get_user)]
 
-<<<<<<< HEAD
-def get_library_service(cursor: CursorDep) -> LibraryService:
-    """Build a LibraryService bound to the request cursor."""
-    return LibraryService(LibraryDAO(cursor))
-
-LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
-=======
 
 def get_book_service(cursor: CursorDep) -> BookService:
     """Build a BookService bound to the request cursor.
@@ -128,4 +121,10 @@ def get_book_service(cursor: CursorDep) -> BookService:
 
 
 BookServiceDep = Annotated[BookService, Depends(get_book_service)]
->>>>>>> origin/main
+
+
+def get_library_service(cursor: CursorDep) -> LibraryService:
+    """Build a LibraryService bound to the request cursor."""
+    return LibraryService(LibraryDAO(cursor))
+
+LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
