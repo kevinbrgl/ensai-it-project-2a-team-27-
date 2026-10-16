@@ -26,3 +26,11 @@ class LibraryService:
         :return: The created library activity
         """
         return self.dao.add_book(id_user, book_in)
+
+    def remove_book_from_library(self, id_user: int, id_book: int) -> None:
+        """Remove a book from the user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book to remove
+        """
+        self.dao.remove_book(id_user, id_book)

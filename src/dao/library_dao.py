@@ -8,6 +8,7 @@ from src.models.library import LibraryBookAdd, LibraryBookRead
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
+    BookNotInLibraryError,
     DAOError,
 )
 
@@ -58,3 +59,28 @@ class LibraryDAO:
             msg = "Adding book to library failed"
             raise DAOError(msg)
         return LibraryBookRead(**row)
+
+    def remove_book(self, id_user: int, id_book: int) -> None:
+        """Remove a book from a user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book to remove
+        :raises BookNotInLibraryError: If the book is not in the library
+        :raises DAOError: If a DB error occurs
+        """
+        try:
+            self.cur.execute(
+                """
+                DELETE FROM user_book_activities
+                WHERE id_user = %s AND id_book = %s
+                RETURNING id_book
+                """,
+                (id_user, id_book),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise BookNotInLibraryError(id_book)

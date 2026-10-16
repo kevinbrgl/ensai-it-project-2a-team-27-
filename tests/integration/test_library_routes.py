@@ -149,3 +149,80 @@ class TestAddBookRoute:
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+class TestRemoveBookRoute:
+    """Integration tests for DELETE /api/library/books/{id_book}."""
+
+    def test_remove_book_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book in library: returns 204 No Content with an empty body."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.delete(
+            f"{LIBRARY_BOOKS_URL}/{id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
+
+    def test_book_not_in_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book not in library: Exception is mapped to 404 Not Found."""
+        response = client.delete(
+            f"{LIBRARY_BOOKS_URL}/{id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_remove_twice(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Second delete of the same book: 404, it is already gone."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}"
+        client.delete(url, headers=auth_headers)
+
+        response = client.delete(url, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_unauthorized(self, client: TestClient, id_book: int) -> None:
+        """Missing token: the authentication dependency rejects with 401."""
+        response = client.delete(f"{LIBRARY_BOOKS_URL}/{id_book}")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_invalid_id(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Non-integer book ID: 422 Unprocessable Content."""
+        response = client.delete(
+            f"{LIBRARY_BOOKS_URL}/abc",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

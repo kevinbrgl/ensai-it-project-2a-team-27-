@@ -14,6 +14,7 @@ from src.services.library_service import LibraryService
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
+    BookNotInLibraryError,
 )
 
 ID_USER = 1
@@ -96,3 +97,26 @@ class TestAddBookToLibrary:
             service.add_book_to_library(ID_USER, book_in)
 
         mock_dao.add_book.assert_called_once_with(ID_USER, book_in)
+
+
+class TestRemoveBookFromLibrary:
+    """Tests for LibraryService.remove_book_from_library."""
+
+    def test_valid(self, service: LibraryService, mock_dao: Mock) -> None:
+        """Valid request: the DAO is called with the right arguments."""
+        service.remove_book_from_library(ID_USER, ID_BOOK)
+
+        mock_dao.remove_book.assert_called_once_with(ID_USER, ID_BOOK)
+
+    def test_not_in_library(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """DAO raises BookNotInLibraryError: it is propagated."""
+        mock_dao.remove_book.side_effect = BookNotInLibraryError(ID_BOOK)
+
+        with pytest.raises(BookNotInLibraryError):
+            service.remove_book_from_library(ID_USER, ID_BOOK)
+
+        mock_dao.remove_book.assert_called_once_with(ID_USER, ID_BOOK)

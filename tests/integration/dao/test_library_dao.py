@@ -14,6 +14,7 @@ from src.models.users import UserCreate
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
+    BookNotInLibraryError,
 )
 
 
@@ -95,3 +96,41 @@ class TestAddBook:
 
         with pytest.raises(BookNotFoundError):
             library_dao.add_book(id_user, book_in)
+
+
+class TestRemoveBook:
+    """Tests for LibraryDAO.remove_book."""
+
+    def test_ok(
+        self,
+        cursor: RealDictCursor,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """The book is removed from the user's library."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        library_dao.remove_book(id_user, id_book)
+
+        cursor.execute(
+            """
+            SELECT * FROM user_book_activities
+            WHERE id_user = %s AND id_book = %s
+            """,
+            (id_user, id_book),
+        )
+        assert cursor.fetchone() is None
+
+    def test_not_in_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Removing a book the user does not have raises an error."""
+        with pytest.raises(BookNotInLibraryError):
+            library_dao.remove_book(id_user, id_book)
