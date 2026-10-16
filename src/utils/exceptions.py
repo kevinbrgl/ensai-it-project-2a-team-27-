@@ -12,7 +12,9 @@ class UserNotFoundError(Exception):
     """
 
     def __init__(
-        self, user_id: int | None = None, username: str | None = None,
+        self,
+        user_id: int | None = None,
+        username: str | None = None,
     ) -> None:
         """Initialize UserNotFoundError.
 
@@ -146,3 +148,12 @@ class BookNotFoundError(Exception):
         else:
             msg = "No book found"
         super().__init__(msg)
+
+
+class BookAlreadyInLibraryError(Exception):
+    """Raised when a user tries to add a book they already have."""
+
+    def __init__(self, book_id: int) -> None:
+        """Initialize the exception with the book ID."""
+        self.book_id = book_id
+        super().__init__(f"Book {book_id} is already in the library.")

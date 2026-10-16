@@ -17,3 +17,15 @@
        description     TEXT,
        cover_image     VARCHAR(255)
    );
+
+
+   CREATE TABLE IF NOT EXISTS user_book_activities (
+    id_user     INT REFERENCES users(id_user) ON DELETE CASCADE,
+    id_book     INT REFERENCES books(id_book) ON DELETE CASCADE,
+    state       VARCHAR(50) NOT NULL,
+    is_liked    BOOLEAN DEFAULT FALSE,
+    is_favorite BOOLEAN DEFAULT FALSE,
+    PRIMARY KEY (id_user, id_book)
+
+);
+ 

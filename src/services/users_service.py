@@ -128,7 +128,9 @@ class UserService:
         return user
 
     def update_password(
-        self, current_user: User, body: UserUpdatePassword,
+        self,
+        current_user: User,
+        body: UserUpdatePassword,
     ) -> User:
         """Update a user's password.
 
@@ -140,7 +142,8 @@ class UserService:
         :return: The updated User object
         """
         if not verify_password(
-            body.current_password, current_user.password_hash,
+            body.current_password,
+            current_user.password_hash,
         ):
             raise IncorrectPasswordError
         if body.current_password == body.new_password:
