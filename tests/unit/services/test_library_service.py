@@ -120,3 +120,35 @@ class TestRemoveBookFromLibrary:
             service.remove_book_from_library(ID_USER, ID_BOOK)
 
         mock_dao.remove_book.assert_called_once_with(ID_USER, ID_BOOK)
+
+
+class TestToggleLike:
+    """Tests for LibraryService.toggle_like."""
+
+    def test_valid(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Valid request: returns the updated reading activity."""
+        liked = book_read.model_copy(update={"is_liked": True})
+        mock_dao.toggle_like.return_value = liked
+
+        result = service.toggle_like(ID_USER, ID_BOOK)
+
+        assert result == liked
+        mock_dao.toggle_like.assert_called_once_with(ID_USER, ID_BOOK)
+
+    def test_not_in_library(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """DAO raises BookNotInLibraryError: it is propagated."""
+        mock_dao.toggle_like.side_effect = BookNotInLibraryError(ID_BOOK)
+
+        with pytest.raises(BookNotInLibraryError):
+            service.toggle_like(ID_USER, ID_BOOK)
+
+        mock_dao.toggle_like.assert_called_once_with(ID_USER, ID_BOOK)

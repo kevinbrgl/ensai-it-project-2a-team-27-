@@ -34,3 +34,12 @@ class LibraryService:
         :param id_book: ID of the book to remove
         """
         self.dao.remove_book(id_user, id_book)
+
+    def toggle_like(self, id_user: int, id_book: int) -> LibraryBookRead:
+        """Like or unlike a book in the user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book
+        :return: The updated library activity
+        """
+        return self.dao.toggle_like(id_user, id_book)

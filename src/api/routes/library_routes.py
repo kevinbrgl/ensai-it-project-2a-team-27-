@@ -98,3 +98,38 @@ def remove_book(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not remove book from library.",
         ) from None
+
+
+@router.post("/books/{id_book}/like")
+def toggle_like(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    id_book: int,
+) -> LibraryBookRead:
+    """Toggle the like on a book in the authenticated user's library.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param id_book: ID of the book to like or unlike
+    :raises HTTPException: 404 if not in library, 500 on database error
+    :return: The updated reading activity
+    """
+    try:
+        return service.toggle_like(current_user.id_user, id_book)
+
+    except BookNotInLibraryError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book is not in the library.",
+        ) from None
+
+    except DAOError:
+        logger.exception(
+            "Failed to toggle like on book %s for user %s",
+            id_book,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update the like.",
+        ) from None
