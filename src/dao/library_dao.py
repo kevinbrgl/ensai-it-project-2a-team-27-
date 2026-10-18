@@ -144,3 +144,30 @@ class LibraryDAO:
         if row is None:
             raise BookNotInLibraryError(id_book)
         return LibraryBookRead(**row)
+
+    def find_favorites_by_user_id(
+        self,
+        id_user: int,
+    ) -> list[LibraryBookRead]:
+        """List the favorite books of a user's library.
+
+        :param id_user: ID of the user
+        :raises DAOError: If a DB error occurs
+        :return: The favorite books, or an empty list if there are none
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT id_user, id_book, state, is_liked, is_favorite
+                FROM user_book_activities
+                WHERE id_user = %s AND is_favorite = TRUE
+                ORDER BY id_book
+                """,
+                (id_user,),
+            )
+            rows = self.cur.fetchall()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        return [LibraryBookRead(**row) for row in rows]

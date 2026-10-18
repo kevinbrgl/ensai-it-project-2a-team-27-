@@ -18,6 +18,7 @@ from src.core.config import settings
 from src.main import app
 
 LIBRARY_BOOKS_URL = f"{settings.API_STR}/library/books"
+FAVORITES_URL = f"{settings.API_STR}/library/favorites"
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 PASSWORD = "password123"
@@ -39,6 +40,26 @@ def client(cursor: RealDictCursor) -> Generator[TestClient]:
 def auth_headers(client: TestClient) -> dict[str, str]:
     """Register and log in a temporary test user and return auth headers."""
     uname = f"libuser_{uuid4().hex[:8]}"
+    client.post(
+        REGISTER_URL,
+        json={
+            "username": uname,
+            "email": f"{uname}@ensai.fr",
+            "password": PASSWORD,
+        },
+    )
+    login_resp = client.post(
+        LOGIN_URL,
+        data={"username": uname, "password": PASSWORD},
+    )
+    token = login_resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def other_auth_headers(client: TestClient) -> dict[str, str]:
+    """Register and log in a second test user and return auth headers."""
+    uname = f"libother_{uuid4().hex[:8]}"
     client.post(
         REGISTER_URL,
         json={
@@ -462,3 +483,110 @@ class TestToggleFavoriteRoute:
 
         mine = client.post(url, headers=auth_headers)
         assert mine.json()["is_favorite"] is False
+
+
+class TestListFavoritesRoute:
+    """Integration tests for GET /api/library/favorites."""
+
+    def test_no_favorites(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """No favorites: returns 200 OK and an empty list."""
+        response = client.get(FAVORITES_URL, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
+
+    def test_favorite_listed(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """A book added to favorites is listed."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        client.post(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/favorite",
+            headers=auth_headers,
+        )
+
+        response = client.get(FAVORITES_URL, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["id_book"] == id_book
+        assert data[0]["is_favorite"] is True
+
+    def test_unauthorized(self, client: TestClient) -> None:
+        """Missing token: the authentication dependency rejects with 401."""
+        response = client.get(FAVORITES_URL)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_not_favorite_not_listed(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """A book in the library but not in favorites is not listed."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.get(FAVORITES_URL, headers=auth_headers)
+
+        assert response.json() == []
+
+    def test_unfavorite_removes_from_list(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """A book removed from favorites is no longer listed."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}/favorite"
+        client.post(url, headers=auth_headers)
+        client.post(url, headers=auth_headers)
+
+        response = client.get(FAVORITES_URL, headers=auth_headers)
+
+        assert response.json() == []
+
+    def test_other_user_favorites_not_listed(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """The favorites of another user are never listed."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=other_auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        client.post(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/favorite",
+            headers=other_auth_headers,
+        )
+
+        mine = client.get(FAVORITES_URL, headers=auth_headers)
+        theirs = client.get(FAVORITES_URL, headers=other_auth_headers)
+
+        assert mine.json() == []
+        assert len(theirs.json()) == 1

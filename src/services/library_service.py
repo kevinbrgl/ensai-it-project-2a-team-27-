@@ -56,3 +56,11 @@ class LibraryService:
         :return: The updated library activity
         """
         return self.dao.toggle_favorite(id_user, id_book)
+
+    def list_favorites(self, id_user: int) -> list[LibraryBookRead]:
+        """List the favorite books of the user's library.
+
+        :param id_user: ID of the user
+        :return: The favorite books, or an empty list if there are none
+        """
+        return self.dao.find_favorites_by_user_id(id_user)

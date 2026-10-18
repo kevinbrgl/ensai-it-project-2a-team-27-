@@ -168,3 +168,31 @@ def toggle_favorite(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not update the favorite.",
         ) from None
+
+
+@router.get("/favorites")
+def list_favorites(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+) -> list[LibraryBookRead]:
+    """List the favorite books of the authenticated user's library.
+
+    Returns an empty list when the user has no favorites.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :raises HTTPException: 500 on database error
+    :return: The favorite books, sorted by book ID
+    """
+    try:
+        return service.list_favorites(current_user.id_user)
+
+    except DAOError:
+        logger.exception(
+            "Failed to list favorites of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not list the favorites.",
+        ) from None

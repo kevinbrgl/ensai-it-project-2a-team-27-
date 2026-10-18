@@ -52,6 +52,34 @@ def id_book(cursor: RealDictCursor) -> int:
     return row["id_book"]
 
 
+@pytest.fixture
+def id_other_book(cursor: RealDictCursor) -> int:
+    """Insert a second test book in the database and return its ID."""
+    cursor.execute(
+        """
+        INSERT INTO books (id_book_api, title)
+        VALUES ('openlib_456', 'Dune')
+        RETURNING id_book
+        """,
+    )
+    row = cursor.fetchone()
+    assert row is not None
+    return row["id_book"]
+
+
+@pytest.fixture
+def id_other_user(cursor: RealDictCursor) -> int:
+    """Insert a second test user in the database and return its ID."""
+    user = UserDAO(cursor).create(
+        UserCreate(
+            username="bibliophile",
+            email="bibliophile@ensai.fr",
+            password_hash="fakehash",
+        ),
+    )
+    return user.id_user
+
+
 class TestAddBook:
     """Tests for LibraryDAO.add_book."""
 
@@ -266,3 +294,109 @@ class TestToggleFavorite:
         """Adding to favorites a book the user does not have raises."""
         with pytest.raises(BookNotInLibraryError):
             library_dao.toggle_favorite(id_user, id_book)
+
+
+class TestFindFavoritesByUserId:
+    """Tests for LibraryDAO.find_favorites_by_user_id."""
+
+    def test_empty_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+    ) -> None:
+        """A user with no books has no favorites."""
+        assert library_dao.find_favorites_by_user_id(id_user) == []
+
+    def test_not_favorite(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book in the library but not in favorites is not listed."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        assert library_dao.find_favorites_by_user_id(id_user) == []
+
+    def test_favorite(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A favorite book is listed with its activity data."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.toggle_favorite(id_user, id_book)
+
+        result = library_dao.find_favorites_by_user_id(id_user)
+
+        assert len(result) == 1
+        assert result[0].id_user == id_user
+        assert result[0].id_book == id_book
+        assert result[0].state == "READING"
+        assert result[0].is_favorite is True
+
+    def test_only_favorites(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """Among several books, only the favorite one is listed."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_other_book, state="COMPLETED"),
+        )
+        library_dao.toggle_favorite(id_user, id_other_book)
+
+        result = library_dao.find_favorites_by_user_id(id_user)
+
+        assert [fav.id_book for fav in result] == [id_other_book]
+
+    def test_sorted_by_book(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """Several favorites are listed, sorted by book ID."""
+        for book in (id_other_book, id_book):
+            library_dao.add_book(
+                id_user,
+                LibraryBookAdd(id_book=book, state="READING"),
+            )
+            library_dao.toggle_favorite(id_user, book)
+
+        result = library_dao.find_favorites_by_user_id(id_user)
+
+        assert [fav.id_book for fav in result] == sorted(
+            [id_book, id_other_book],
+        )
+
+    def test_other_user_favorites_not_listed(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_other_user: int,
+        id_book: int,
+    ) -> None:
+        """The favorites of another user are never listed."""
+        library_dao.add_book(
+            id_other_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.toggle_favorite(id_other_user, id_book)
+
+        assert library_dao.find_favorites_by_user_id(id_user) == []

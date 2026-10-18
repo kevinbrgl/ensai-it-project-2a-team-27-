@@ -184,3 +184,35 @@ class TestToggleFavorite:
             service.toggle_favorite(ID_USER, ID_BOOK)
 
         mock_dao.toggle_favorite.assert_called_once_with(ID_USER, ID_BOOK)
+
+
+class TestListFavorites:
+    """Tests for LibraryService.list_favorites."""
+
+    def test_valid(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """The favorites returned by the DAO are returned as they are."""
+        favorite = book_read.model_copy(update={"is_favorite": True})
+        mock_dao.find_favorites_by_user_id.return_value = [favorite]
+
+        result = service.list_favorites(ID_USER)
+
+        assert result == [favorite]
+        mock_dao.find_favorites_by_user_id.assert_called_once_with(ID_USER)
+
+    def test_no_favorites(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """No favorites: returns an empty list, without error."""
+        mock_dao.find_favorites_by_user_id.return_value = []
+
+        result = service.list_favorites(ID_USER)
+
+        assert result == []
+        mock_dao.find_favorites_by_user_id.assert_called_once_with(ID_USER)
