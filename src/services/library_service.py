@@ -1,7 +1,11 @@
 """Service layer for library operations."""
 
 from src.dao.library_dao import LibraryDAO
-from src.models.library import LibraryBookAdd, LibraryBookRead
+from src.models.library import (
+    LibraryBookAdd,
+    LibraryBookDetails,
+    LibraryBookRead,
+)
 
 
 class LibraryService:
@@ -57,9 +61,8 @@ class LibraryService:
         """
         return self.dao.toggle_favorite(id_user, id_book)
 
-    def list_favorites(self, id_user: int) -> list[LibraryBookRead]:
+    def list_favorites(self, id_user: int) -> list[LibraryBookDetails]:
         """List the favorite books of the user's library.
-
         :param id_user: ID of the user
         :return: The favorite books, or an empty list if there are none
         """

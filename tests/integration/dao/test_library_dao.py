@@ -340,7 +340,7 @@ class TestFindFavoritesByUserId:
         assert result[0].id_user == id_user
         assert result[0].id_book == id_book
         assert result[0].state == "READING"
-        assert result[0].is_favorite is True
+        assert result[0].title == "The Hobbit"
 
     def test_only_favorites(
         self,

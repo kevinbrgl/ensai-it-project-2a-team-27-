@@ -5,7 +5,11 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from src.api.deps import CurrentUser, LibraryServiceDep
-from src.models.library import LibraryBookAdd, LibraryBookRead
+from src.models.library import (
+    LibraryBookAdd,
+    LibraryBookDetails,
+    LibraryBookRead,
+)
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
@@ -174,7 +178,7 @@ def toggle_favorite(
 def list_favorites(
     service: LibraryServiceDep,
     current_user: CurrentUser,
-) -> list[LibraryBookRead]:
+) -> list[LibraryBookDetails]:
     """List the favorite books of the authenticated user's library.
 
     Returns an empty list when the user has no favorites.

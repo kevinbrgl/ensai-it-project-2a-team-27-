@@ -523,6 +523,7 @@ class TestListFavoritesRoute:
         assert len(data) == 1
         assert data[0]["id_book"] == id_book
         assert data[0]["is_favorite"] is True
+        assert data[0]["title"] == "Test Book API"
 
     def test_unauthorized(self, client: TestClient) -> None:
         """Missing token: the authentication dependency rejects with 401."""

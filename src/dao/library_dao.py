@@ -4,7 +4,11 @@ from psycopg2 import Error as DBError
 from psycopg2.errors import ForeignKeyViolation, UniqueViolation
 from psycopg2.extras import RealDictCursor
 
-from src.models.library import LibraryBookAdd, LibraryBookRead
+from src.models.library import (
+    LibraryBookAdd,
+    LibraryBookDetails,
+    LibraryBookRead,
+)
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
@@ -148,8 +152,8 @@ class LibraryDAO:
     def find_favorites_by_user_id(
         self,
         id_user: int,
-    ) -> list[LibraryBookRead]:
-        """List the favorite books of a user's library.
+    ) -> list[LibraryBookDetails]:
+        """List a user's favorite books, with their details.
 
         :param id_user: ID of the user
         :raises DAOError: If a DB error occurs
@@ -158,10 +162,14 @@ class LibraryDAO:
         try:
             self.cur.execute(
                 """
-                SELECT id_user, id_book, state, is_liked, is_favorite
-                FROM user_book_activities
-                WHERE id_user = %s AND is_favorite = TRUE
-                ORDER BY id_book
+                SELECT uba.id_user, uba.id_book, uba.state,
+                       uba.is_liked, uba.is_favorite,
+                       b.title, b.author, b.category, b.publish_date,
+                       b.description, b.cover_image
+                FROM user_book_activities AS uba
+                JOIN books AS b ON b.id_book = uba.id_book
+                WHERE uba.id_user = %s AND uba.is_favorite = TRUE
+                ORDER BY uba.id_book
                 """,
                 (id_user,),
             )
@@ -170,4 +178,4 @@ class LibraryDAO:
         except DBError as exc:
             raise DAOError from exc
 
-        return [LibraryBookRead(**row) for row in rows]
+        return [LibraryBookDetails(**row) for row in rows]

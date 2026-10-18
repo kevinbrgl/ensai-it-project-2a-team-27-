@@ -1,5 +1,7 @@
 """Pydantic models for library and reading activity entities."""
 
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -18,3 +20,14 @@ class LibraryBookRead(BaseModel):
     state: str
     is_liked: bool
     is_favorite: bool
+
+
+class LibraryBookDetails(LibraryBookRead):
+    """Library activity data with the details of the book."""
+
+    title: str
+    author: str | None = None
+    category: str | None = None
+    publish_date: date | None = None
+    description: str | None = None
+    cover_image: str | None = None
