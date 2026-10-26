@@ -28,4 +28,10 @@
     PRIMARY KEY (id_user, id_book)
 
 );
+
+
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    expires_at TIMESTAMPTZ NOT NULL
+);
  

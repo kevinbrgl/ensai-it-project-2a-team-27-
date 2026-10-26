@@ -18,10 +18,12 @@ from src.core import security
 from src.core.config import settings
 from src.dao.books_dao import BookDAO
 from src.dao.library_dao import LibraryDAO
+from src.dao.tokens_dao import TokenDAO
 from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
 from src.services.books_service import BookService
 from src.services.library_service import LibraryService
+from src.services.tokens_service import TokenService
 from src.services.users_service import UserService
 from src.utils.exceptions import UserNotFoundError
 
@@ -71,14 +73,34 @@ def get_user_service(cursor: CursorDep) -> UserService:
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
-def get_user(service: UserServiceDep, token: TokenDep) -> User:
+def get_token_service(cursor: CursorDep) -> TokenService:
+    """Build a TokenService bound to the request cursor."""
+    return TokenService(TokenDAO(cursor))
+
+
+TokenServiceDep = Annotated[TokenService, Depends(get_token_service)]
+
+
+def get_user(
+    service: UserServiceDep,
+    tokens: TokenServiceDep,
+    token: TokenDep,
+) -> User:
     """Retrieve the current user from a JWT token.
 
     :param service: User service dependency
+    :param tokens: Token service dependency
     :param token: JWT token dependency
-    :raises HTTPException: Raised if credentials are invalid or user not found
+    :raises HTTPException: Raised if the token is revoked or invalid,
+        or if the user is not found
     :return: The authenticated User object
     """
+    if tokens.is_revoked(token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     try:
         payload = jwt.decode(
             token,

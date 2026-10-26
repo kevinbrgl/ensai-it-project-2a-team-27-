@@ -9,7 +9,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.api.deps import UserServiceDep
+from src.api.deps import (
+    CurrentUser,
+    TokenDep,
+    TokenServiceDep,
+    UserServiceDep,
+)
 from src.models import Token, User, UserRead, UserRegister
 from src.utils.exceptions import (
     AuthError,
@@ -88,4 +93,30 @@ def login(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not log in.",
+        ) from None
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    service: TokenServiceDep,
+    token: TokenDep,
+    _current_user: CurrentUser,
+) -> None:
+    """Log the current user out by revoking the token.
+
+    Returns 204 No Content with an empty body. Once revoked, the token
+    is rejected with 403 on every protected route.
+
+    :param service: Token service dependency
+    :param token: The token sent with the request
+    :param _current_user: The authenticated user (checks the token)
+    :raises HTTPException: 500 if the revocation fails
+    """
+    try:
+        service.revoke(token)
+    except DAOError:
+        logger.exception("Logout failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not log out.",
         ) from None
