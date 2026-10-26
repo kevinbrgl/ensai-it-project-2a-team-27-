@@ -22,6 +22,7 @@ REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 ME_URL = f"{settings.API_STR}/users/me"
 OLD_LOGIN_URL = f"{settings.API_STR}/login/access-token"
+LOGOUT_URL = f"{settings.API_STR}/auth/logout"
 
 PASSWORD = "motdepasse123"
 WRONG_PASSWORD = "mauvaismdp123"
@@ -154,3 +155,87 @@ class TestLogin:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestLogout:
+    """Integration tests for POST /api/auth/logout."""
+
+    def test_valid(self, client: TestClient, username: str) -> None:
+        """A logged-in user gets 204 and an empty body."""
+        token = login(client, username, PASSWORD).json()["access_token"]
+
+        response = client.post(
+            LOGOUT_URL,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
+
+    def test_token_revoked_after_logout(
+        self,
+        client: TestClient,
+        username: str,
+    ) -> None:
+        """After logout, the same token is rejected with 403."""
+        token = login(client, username, PASSWORD).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        client.post(LOGOUT_URL, headers=headers)
+
+        response = client.get(ME_URL, headers=headers)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_logout_twice(self, client: TestClient, username: str) -> None:
+        """A second logout with the same token is rejected with 403."""
+        token = login(client, username, PASSWORD).json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        client.post(LOGOUT_URL, headers=headers)
+
+        response = client.post(LOGOUT_URL, headers=headers)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_unauthorized(self, client: TestClient) -> None:
+        """Missing token: the authentication dependency rejects with 401."""
+        response = client.post(LOGOUT_URL)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_invalid_token(self, client: TestClient) -> None:
+        """A token that is not a valid JWT is rejected with 403."""
+        response = client.post(
+            LOGOUT_URL,
+            headers={"Authorization": "Bearer not.a.token"},
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_other_user_not_logged_out(
+        self,
+        client: TestClient,
+        username: str,
+    ) -> None:
+        """Logging out one user does not revoke another user's token."""
+        other = f"{username}_bis"
+        client.post(
+            REGISTER_URL,
+            json={
+                "username": other,
+                "email": f"{other}@ensai.fr",
+                "password": PASSWORD,
+            },
+        )
+        token = login(client, username, PASSWORD).json()["access_token"]
+        other_token = login(client, other, PASSWORD).json()["access_token"]
+        client.post(
+            LOGOUT_URL,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        response = client.get(
+            ME_URL,
+            headers={"Authorization": f"Bearer {other_token}"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
