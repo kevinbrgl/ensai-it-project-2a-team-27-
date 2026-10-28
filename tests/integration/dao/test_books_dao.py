@@ -130,3 +130,37 @@ class TestFind:
         results = book_dao.find_by_category("Science Fiction")
         assert len(results) >= 1
         assert any(b.id_book == created_book.id_book for b in results)
+
+    def test_find_all(
+        self,
+        book_dao: BookDAO,
+        created_book: Book,
+    ) -> None:
+        """Find all returns all books in database."""
+        results = book_dao.find_all()
+        assert len(results) >= 1
+        assert any(b.id_book == created_book.id_book for b in results)
+
+    def test_find_books_both_filters(
+        self,
+        book_dao: BookDAO,
+        created_book: Book,
+    ) -> None:
+        """Filter by both category and author."""
+        results = book_dao.find_books(
+            category="Science Fiction",
+            author="Herbert",
+        )
+        assert len(results) >= 1
+        assert any(b.id_book == created_book.id_book for b in results)
+
+    def test_find_books_no_match(
+        self,
+        book_dao: BookDAO,
+    ) -> None:
+        """Filtering with non-matching values returns an empty list."""
+        results = book_dao.find_books(
+            category="NonExistentCategory999",
+            author="NonExistentAuthor999",
+        )
+        assert results == []

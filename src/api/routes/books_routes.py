@@ -53,3 +53,40 @@ def search_books(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred during book search.",
         ) from None
+
+
+@router.get(
+    "",
+    status_code=status.HTTP_200_OK,
+)
+def get_books(
+    service: BookServiceDep,
+    _current_user: CurrentUser,
+    category: Annotated[
+        str | None,
+        Query(description="Filter books by category"),
+    ] = None,
+    author: Annotated[
+        str | None,
+        Query(description="Filter books by author"),
+    ] = None,
+) -> list[Book]:
+    """Filter locally stored books by category and/or author.
+
+    If neither parameter is supplied, returns the full local catalog.
+
+    :param service: Book service dependency
+    :param _current_user: Authenticated user dependency
+    :param category: Optional category filter
+    :param author: Optional author filter
+    :raises HTTPException: 500 if a database error occurs
+    :return: List of found books from the local catalog
+    """
+    try:
+        return service.get_books(category=category, author=author)
+    except DAOError:
+        logger.exception("Database error while retrieving books catalog")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred while retrieving books.",
+        ) from None

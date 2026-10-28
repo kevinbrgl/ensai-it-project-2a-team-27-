@@ -4,6 +4,7 @@ Uses FastAPI TestClient with the rolled-back test cursor.
 """
 
 from collections.abc import Generator
+from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -14,10 +15,13 @@ from pytest_mock import MockerFixture
 
 from src.api.deps import get_cursor
 from src.core.config import settings
+from src.dao.books_dao import BookDAO
 from src.main import app
+from src.models.books import BookCreate
 from src.services.books_service import BookService
 from src.utils.exceptions import ExternalServiceError
 
+BOOKS_URL = f"{settings.API_STR}/books"
 SEARCH_URL = f"{settings.API_STR}/books/search"
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
@@ -137,3 +141,117 @@ class TestSearchBooksRoute:
         assert response.status_code == status.HTTP_502_BAD_GATEWAY
         expected_msg = "Open Library service is unavailable."
         assert response.json()["detail"] == expected_msg
+
+
+class TestGetBooksCatalogueRoute:
+    """Integration tests for GET /api/books (catalogue and filters)."""
+
+    def test_get_books_unauthenticated(self, client: TestClient) -> None:
+        """Route requires authentication: 401 or 403 without token."""
+        response = client.get(BOOKS_URL)
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+    def test_get_books_success_no_filter(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+    ) -> None:
+        """Returns 200 and list of stored books."""
+        created = book_dao.create(
+            BookCreate(
+                title="Dune Messiah",
+                author="Frank Herbert",
+                category="Science Fiction",
+                publish_date=date(1969, 1, 1),
+                description="Sequel to Dune",
+            ),
+        )
+
+        response = client.get(BOOKS_URL, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert isinstance(data, list)
+        assert any(b["id_book"] == created.id_book for b in data)
+
+    def test_get_books_filter_by_category(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+    ) -> None:
+        """Filter by category returns matching books."""
+        created = book_dao.create(
+            BookCreate(
+                title="Hyperion",
+                author="Dan Simmons",
+                category="Space Opera",
+                publish_date=date(1989, 5, 1),
+            ),
+        )
+
+        response = client.get(
+            BOOKS_URL,
+            params={"category": "Space Opera"},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert any(b["id_book"] == created.id_book for b in data)
+
+    def test_get_books_filter_by_author(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+    ) -> None:
+        """Filter by author returns matching books."""
+        created = book_dao.create(
+            BookCreate(
+                title="Neuromancer",
+                author="William Gibson",
+                category="Cyberpunk",
+                publish_date=date(1984, 7, 1),
+            ),
+        )
+
+        response = client.get(
+            BOOKS_URL,
+            params={"author": "Gibson"},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert any(b["id_book"] == created.id_book for b in data)
+
+    def test_get_books_filter_by_both(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+    ) -> None:
+        """Filter by both author and category returns matching books."""
+        created = book_dao.create(
+            BookCreate(
+                title="Snow Crash",
+                author="Neal Stephenson",
+                category="Cyberpunk",
+                publish_date=date(1992, 6, 1),
+            ),
+        )
+
+        response = client.get(
+            BOOKS_URL,
+            params={"author": "Stephenson", "category": "Cyberpunk"},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert any(b["id_book"] == created.id_book for b in data)

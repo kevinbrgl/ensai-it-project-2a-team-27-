@@ -140,3 +140,58 @@ class BookService:
         if book is None:
             raise BookNotFoundError(book_id=book_id)
         return book
+
+    def get_book_details(self, book_id: int) -> Book:
+        """Retrieve details of a book by its internal ID.
+
+        :param book_id: ID of the book
+        :raises BookNotFoundError: Raised if the book does not exist
+        :return: The Book object
+        """
+        return self.get_book(book_id)
+
+    def get_books(
+        self,
+        category: str | None = None,
+        author: str | None = None,
+    ) -> list[Book]:
+        """Filter locally stored books by category and/or author.
+
+        :param category: Optional category filter string
+        :param author: Optional author filter string
+        :return: List of matching Book objects
+        """
+        clean_category = (
+            category.strip()
+            if category is not None and category.strip()
+            else None
+        )
+        clean_author = (
+            author.strip()
+            if author is not None and author.strip()
+            else None
+        )
+
+        if clean_category and clean_author:
+            return self.dao.find_books(
+                category=clean_category,
+                author=clean_author,
+            )
+        if clean_category:
+            return self.dao.find_by_category(clean_category)
+        if clean_author:
+            return self.dao.find_by_author(clean_author)
+        return self.dao.find_all()
+
+    def get_catalogue(
+        self,
+        category: str | None = None,
+        author: str | None = None,
+    ) -> list[Book]:
+        """Alias for get_books to retrieve the book catalogue.
+
+        :param category: Optional category filter string
+        :param author: Optional author filter string
+        :return: List of matching Book objects
+        """
+        return self.get_books(category=category, author=author)

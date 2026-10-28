@@ -143,3 +143,119 @@ class TestGetBook:
 
         with pytest.raises(BookNotFoundError):
             service.get_book(999)
+
+    def test_get_book_details(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """get_book_details delegates to get_book."""
+        mock_dao.read.return_value = fake_book
+
+        book = service.get_book_details(1)
+
+        assert book == fake_book
+        mock_dao.read.assert_called_once_with(1)
+
+
+class TestGetBooks:
+    """Tests for BookService.get_books and get_catalogue."""
+
+    def test_get_books_no_filter_calls_find_all(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """With no filters, find_all is called."""
+        mock_dao.find_all.return_value = [fake_book]
+
+        results = service.get_books()
+
+        assert results == [fake_book]
+        mock_dao.find_all.assert_called_once()
+        mock_dao.find_by_category.assert_not_called()
+        mock_dao.find_by_author.assert_not_called()
+        mock_dao.find_books.assert_not_called()
+
+    def test_get_books_by_category_only(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """With only category filter, find_by_category is called."""
+        mock_dao.find_by_category.return_value = [fake_book]
+
+        results = service.get_books(category="Fantasy")
+
+        assert results == [fake_book]
+        mock_dao.find_by_category.assert_called_once_with("Fantasy")
+        mock_dao.find_all.assert_not_called()
+        mock_dao.find_by_author.assert_not_called()
+
+    def test_get_books_by_author_only(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """With only author filter, find_by_author is called."""
+        mock_dao.find_by_author.return_value = [fake_book]
+
+        results = service.get_books(author="Tolkien")
+
+        assert results == [fake_book]
+        mock_dao.find_by_author.assert_called_once_with("Tolkien")
+        mock_dao.find_all.assert_not_called()
+        mock_dao.find_by_category.assert_not_called()
+
+    def test_get_books_by_both(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """With both filters, find_books is called."""
+        mock_dao.find_books.return_value = [fake_book]
+
+        results = service.get_books(
+            category="Fantasy",
+            author="Tolkien",
+        )
+
+        assert results == [fake_book]
+        mock_dao.find_books.assert_called_once_with(
+            category="Fantasy",
+            author="Tolkien",
+        )
+
+    def test_get_books_whitespace_ignored(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """Whitespace-only query parameters are treated as None."""
+        mock_dao.find_all.return_value = [fake_book]
+
+        results = service.get_books(category="   ", author="")
+
+        assert results == [fake_book]
+        mock_dao.find_all.assert_called_once()
+        mock_dao.find_books.assert_not_called()
+
+    def test_get_catalogue_alias(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """get_catalogue behaves identically to get_books."""
+        mock_dao.find_by_category.return_value = [fake_book]
+
+        results = service.get_catalogue(category="Fantasy")
+
+        assert results == [fake_book]
+        mock_dao.find_by_category.assert_called_once_with("Fantasy")
