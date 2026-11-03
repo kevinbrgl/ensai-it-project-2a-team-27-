@@ -18,11 +18,13 @@ from src.core import security
 from src.core.config import settings
 from src.dao.books_dao import BookDAO
 from src.dao.library_dao import LibraryDAO
+from src.dao.quests_dao import QuestDAO
 from src.dao.tokens_dao import TokenDAO
 from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
 from src.services.books_service import BookService
 from src.services.library_service import LibraryService
+from src.services.quests_service import QuestService
 from src.services.tokens_service import TokenService
 from src.services.users_service import UserService
 from src.utils.exceptions import UserNotFoundError
@@ -151,3 +153,11 @@ def get_library_service(cursor: CursorDep) -> LibraryService:
 
 
 LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
+
+
+def get_quest_service(cursor: CursorDep) -> QuestService:
+    """Build a QuestService bound to the request cursor."""
+    return QuestService(QuestDAO(cursor))
+
+
+QuestServiceDep = Annotated[QuestService, Depends(get_quest_service)]

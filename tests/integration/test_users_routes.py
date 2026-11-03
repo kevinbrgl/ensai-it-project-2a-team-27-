@@ -566,6 +566,58 @@ class TestGetFollowingRoute:
         }
 
 
+class TestGetMyQuestsRoute:
+    """Integration tests for GET /api/users/me/quests."""
+
+    def test_get_my_quests_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Retrieving my quests returns 200 with list of quests."""
+        response = client.get(
+            f"{USERS_URL}/me/quests",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        quests = response.json()
+        assert len(quests) >= 1
+        first = quests[0]
+        assert "id_quest" in first
+        assert "title" in first
+        assert "current" in first
+        assert "target" in first
+        assert "progress_percentage" in first
+        assert "is_completed" in first
+        assert "reward_xp" in first
+
+    def test_get_my_quests_filtered(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Filtering with status=active returns only non-completed quests."""
+        response = client.get(
+            f"{USERS_URL}/me/quests?status=active",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        quests = response.json()
+        for q in quests:
+            assert q["is_completed"] is False
+
+    def test_get_my_quests_unauthenticated(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Unauthenticated request returns 401."""
+        response = client.get(f"{USERS_URL}/me/quests")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+
 class TestUpdateSelf:
     """Integration tests for PATCH /api/users/me."""
 
