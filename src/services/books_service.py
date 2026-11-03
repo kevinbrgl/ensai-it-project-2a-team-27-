@@ -50,11 +50,9 @@ class BookService:
         :return: JSON payload returned by Open Library
         """
         headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
-        params: dict[str, str | int] = {
-            "q": query,
-            "limit": limit,
-            "fields": OPEN_LIBRARY_FIELDS,
-        }
+        params: dict[str, str | int] = {"q": query,
+                                        "limit": limit,
+                                        "fields": OPEN_LIBRARY_FIELDS}
 
         try:
             with httpx2.Client(timeout=self.timeout) as client:
@@ -156,3 +154,49 @@ class BookService:
         :return: The Book object
         """
         return self.get_book(book_id)
+
+    def get_books(
+        self,
+        category: str | None = None,
+        author: str | None = None,
+    ) -> list[Book]:
+        """Filter locally stored books by category and/or author.
+
+        :param category: Optional category filter string
+        :param author: Optional author filter string
+        :return: List of matching Book objects
+        """
+        clean_category = (
+            category.strip()
+            if category is not None and category.strip()
+            else None
+        )
+        clean_author = (
+            author.strip()
+            if author is not None and author.strip()
+            else None
+        )
+
+        if clean_category and clean_author:
+            return self.dao.find_books(
+                category=clean_category,
+                author=clean_author,
+            )
+        if clean_category:
+            return self.dao.find_by_category(clean_category)
+        if clean_author:
+            return self.dao.find_by_author(clean_author)
+        return self.dao.find_all()
+
+    def get_catalogue(
+        self,
+        category: str | None = None,
+        author: str | None = None,
+    ) -> list[Book]:
+        """Alias for get_books to retrieve the book catalogue.
+
+        :param category: Optional category filter string
+        :param author: Optional author filter string
+        :return: List of matching Book objects
+        """
+        return self.get_books(category=category, author=author)

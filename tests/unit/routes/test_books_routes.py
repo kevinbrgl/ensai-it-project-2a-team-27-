@@ -204,3 +204,139 @@ class TestSearchBooksUnitRoute:
         assert (
             response.json()["detail"] == "Open Library service is unavailable."
         )
+
+    def test_search_books_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError during search returns 500."""
+        mock_service.search_books.side_effect = DAOError("DB error")
+
+        response = client.get(f"{BOOKS_URL}/search", params={"q": "dune"})
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        expected = "Database error occurred during book search."
+        assert response.json()["detail"] == expected
+
+
+class TestGetBooksCatalogueRoute:
+    """Unit tests for GET /api/books (catalogue & filtering)."""
+
+    def test_get_books_unauthenticated(self, mock_service: Mock) -> None:
+        """Endpoint rejects requests without a valid token."""
+
+        def dummy_cursor() -> Generator[Mock]:
+            yield Mock()
+
+        app.dependency_overrides[get_cursor] = dummy_cursor
+        app.dependency_overrides[get_book_service] = lambda: mock_service
+        try:
+            unauth_client = TestClient(app)
+            response = unauth_client.get(BOOKS_URL)
+            assert response.status_code in {
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            }
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_get_books_no_filters_success(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_book: Book,
+    ) -> None:
+        """Calling GET /books without params returns all books."""
+        mock_service.get_books.return_value = [fake_book]
+
+        response = client.get(BOOKS_URL)
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["title"] == "Dune"
+        mock_service.get_books.assert_called_once_with(
+            category=None,
+            author=None,
+        )
+
+    def test_get_books_filter_by_category(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_book: Book,
+    ) -> None:
+        """Calling GET /books?category=... passes category to service."""
+        mock_service.get_books.return_value = [fake_book]
+
+        response = client.get(
+            BOOKS_URL,
+            params={"category": "Science Fiction"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data) == 1
+        mock_service.get_books.assert_called_once_with(
+            category="Science Fiction",
+            author=None,
+        )
+
+    def test_get_books_filter_by_author(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_book: Book,
+    ) -> None:
+        """Calling GET /books?author=... passes author to service."""
+        mock_service.get_books.return_value = [fake_book]
+
+        response = client.get(
+            BOOKS_URL,
+            params={"author": "Frank Herbert"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data) == 1
+        mock_service.get_books.assert_called_once_with(
+            category=None,
+            author="Frank Herbert",
+        )
+
+    def test_get_books_filter_by_both(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_book: Book,
+    ) -> None:
+        """Calling GET /books with both category and author filters."""
+        mock_service.get_books.return_value = [fake_book]
+
+        response = client.get(
+            BOOKS_URL,
+            params={"category": "Sci-Fi", "author": "Herbert"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data) == 1
+        mock_service.get_books.assert_called_once_with(
+            category="Sci-Fi",
+            author="Herbert",
+        )
+
+    def test_get_books_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError from database raises 500 Internal Server Error."""
+        mock_service.get_books.side_effect = DAOError("DB failed")
+
+        response = client.get(BOOKS_URL)
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        expected_detail = "Database error occurred while retrieving books."
+        assert response.json()["detail"] == expected_detail

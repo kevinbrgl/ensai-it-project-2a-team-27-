@@ -189,3 +189,65 @@ class BookDAO:
         except DBError as exc:
             raise DAOError from exc
         return [Book(**row) for row in rows]
+
+    def find_all(self) -> list[Book]:
+        """Find all books stored in the local database.
+
+        :raises DAOError: If a DB error occurs
+        :return: List of all stored books
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT id_book, id_book_api, title, author,
+                       category, publish_date, description, cover_image
+                FROM books
+                ORDER BY id_book ASC
+                """,
+            )
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+        return [Book(**row) for row in rows]
+
+    def find_books(
+        self,
+        category: str | None = None,
+        author: str | None = None,
+    ) -> list[Book]:
+        """Filter books by category and/or author.
+
+        If neither filter is specified, returns all books.
+
+        :param category: Optional category filter
+        :param author: Optional author filter
+        :raises DAOError: If a DB error occurs
+        :return: List of matching books
+        """
+        query = """
+            SELECT id_book, id_book_api, title, author,
+                   category, publish_date, description, cover_image
+            FROM books
+        """
+        conditions: list[str] = []
+        params: list[str] = []
+
+        if category is not None:
+            conditions.append("category ILIKE %s")
+            params.append(f"%{category}%")
+
+        if author is not None:
+            conditions.append("author ILIKE %s")
+            params.append(f"%{author}%")
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += " ORDER BY id_book ASC"
+
+        try:
+            self.cur.execute(query, tuple(params))
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+        return [Book(**row) for row in rows]
