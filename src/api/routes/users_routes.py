@@ -1,7 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
 Provides endpoints for profile reading, search, follow, unfollow,
-and updates.
+followers, and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -194,6 +194,42 @@ def unfollow_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not unfollow user.",
+        ) from None
+
+
+@router.get(
+    "/{user_id}/followers",
+    response_model=list[UserRead],
+    status_code=status.HTTP_200_OK,
+)
+def get_followers(
+    service: UserServiceDep,
+    _current_user: CurrentUser,
+    user_id: int,
+) -> list[User]:
+    """List a user's followers.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param _current_user: Authenticated user making the request
+    :param user_id: ID of the user whose followers to retrieve
+    :raises HTTPException: 404 if the user is not found,
+        500 on database error
+    :return: List of followers
+    """
+    try:
+        return service.get_followers(user_id)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Failed to get followers for user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve followers.",
         ) from None
 
 

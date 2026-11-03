@@ -251,6 +251,45 @@ class TestFollow:
         with pytest.raises(NotFollowingError):
             user_dao.remove_follow(alice.id_user, bob.id_user)
 
+    def test_get_followers_multiple(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_followers returns all users who follow the user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_follower_1",
+                email="it_bob_follower_1@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        charlie = user_dao.create(
+            UserCreate(
+                username="it_charlie_follower_2",
+                email="it_charlie_follower_2@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(bob.id_user, alice.id_user)
+        user_dao.add_follow(charlie.id_user, alice.id_user)
+
+        followers = user_dao.get_followers(alice.id_user)
+        follower_ids = [f.id_user for f in followers]
+
+        assert len(followers) == 2  # ruff: ignore[magic-value-comparison]
+        assert bob.id_user in follower_ids
+        assert charlie.id_user in follower_ids
+
+    def test_get_followers_empty(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_followers on a user with no followers returns empty list."""
+        followers = user_dao.get_followers(alice.id_user)
+        assert followers == []
+
 
 class TestUpdate:
     """Tests for UserDAO.update."""
