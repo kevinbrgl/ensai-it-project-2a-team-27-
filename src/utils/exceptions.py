@@ -176,9 +176,25 @@ class SelfFollowError(Exception):
         super().__init__("Users cannot follow themselves.")
 
 
+class SelfUnfollowError(Exception):
+    """Raised when a user attempts to unfollow themselves."""
+
+    def __init__(self) -> None:
+        """Initialize SelfUnfollowError."""
+        super().__init__("Users cannot unfollow themselves.")
+
+
 class AlreadyFollowingError(Exception):
     """Raised when a user is already following another user."""
 
     def __init__(self) -> None:
         """Initialize AlreadyFollowingError."""
         super().__init__("User is already following this user.")
+
+
+class NotFollowingError(Exception):
+    """Raised when a user attempts to unfollow a user they do not follow."""
+
+    def __init__(self) -> None:
+        """Initialize NotFollowingError."""
+        super().__init__("User is not following this user.")

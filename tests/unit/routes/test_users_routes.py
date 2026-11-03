@@ -19,7 +19,9 @@ from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
     DAOError,
+    NotFollowingError,
     SelfFollowError,
+    SelfUnfollowError,
     UserNotFoundError,
 )
 
@@ -264,6 +266,100 @@ class TestFollowUserUnitRoute:
         try:
             unauth_client = TestClient(app)
             response = unauth_client.post(f"{USERS_URL}/2/follow")
+            assert response.status_code in {
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            }
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestUnfollowUserUnitRoute:
+    """Unit tests for DELETE /users/{userId}/follow."""
+
+    def test_unfollow_user_success_204(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Unfollowing an existing user returns 204 No Content."""
+        mock_service.unfollow_user.return_value = None
+
+        response = client.delete(f"{USERS_URL}/2/follow")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not response.text
+        mock_service.unfollow_user.assert_called_once_with(
+            follower_id=1,
+            following_id=2,
+        )
+
+    def test_unfollow_user_self_400(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Attempting to unfollow oneself returns 400 Bad Request."""
+        mock_service.unfollow_user.side_effect = SelfUnfollowError
+
+        response = client.delete(f"{USERS_URL}/1/follow")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Users cannot unfollow themselves."
+
+    def test_unfollow_user_not_found_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Unfollowing a nonexistent user returns 404 Not Found."""
+        mock_service.unfollow_user.side_effect = UserNotFoundError(user_id=999)
+
+        response = client.delete(f"{USERS_URL}/999/follow")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_unfollow_user_not_following_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Unfollowing a user not followed returns 404 Not Found."""
+        mock_service.unfollow_user.side_effect = NotFollowingError
+
+        response = client.delete(f"{USERS_URL}/2/follow")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Not following this user."
+
+    def test_unfollow_user_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError during unfollow returns 500."""
+        mock_service.unfollow_user.side_effect = DAOError("DB error")
+
+        response = client.delete(f"{USERS_URL}/2/follow")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not unfollow user."
+
+    def test_unfollow_user_unauthenticated(
+        self,
+        mock_service: Mock,
+    ) -> None:
+        """Unauthenticated request is rejected with 401 or 403."""
+
+        def dummy_cursor() -> Generator[Mock]:
+            yield Mock()
+
+        app.dependency_overrides[get_cursor] = dummy_cursor
+        app.dependency_overrides[get_user_service] = lambda: mock_service
+        try:
+            unauth_client = TestClient(app)
+            response = unauth_client.delete(f"{USERS_URL}/2/follow")
             assert response.status_code in {
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,

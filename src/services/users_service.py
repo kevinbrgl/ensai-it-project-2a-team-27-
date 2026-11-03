@@ -29,6 +29,7 @@ from src.utils.exceptions import (
     IncorrectPasswordError,
     SamePasswordError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -154,6 +155,21 @@ class UserService:
         if self.dao.read(following_id) is None:
             raise UserNotFoundError(user_id=following_id)
         self.dao.add_follow(follower_id, following_id)
+
+    def unfollow_user(self, follower_id: int, following_id: int) -> None:
+        """Unfollow another user.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being unfollowed
+        :raises SelfUnfollowError: If a user attempts to unfollow themselves
+        :raises UserNotFoundError: If the target user does not exist
+        :raises NotFollowingError: If not currently following the target user
+        """
+        if follower_id == following_id:
+            raise SelfUnfollowError
+        if self.dao.read(following_id) is None:
+            raise UserNotFoundError(user_id=following_id)
+        self.dao.remove_follow(follower_id, following_id)
 
     def update_password(
         self,

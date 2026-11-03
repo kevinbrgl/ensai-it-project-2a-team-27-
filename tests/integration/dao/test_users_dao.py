@@ -11,7 +11,9 @@ from src.models import User, UserCreate, UserUpdateFull
 from src.utils.exceptions import (
     AlreadyFollowingError,
     EmailAlreadyExistsError,
+    NotFollowingError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -204,6 +206,50 @@ class TestFollow:
         """Following a nonexistent user raises UserNotFoundError."""
         with pytest.raises(UserNotFoundError):
             user_dao.add_follow(alice.id_user, UNKNOWN_ID)
+
+    def test_remove_follow_success(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """A user can unfollow a followed user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_unfollow",
+                email="it_bob_unfollow@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(alice.id_user, bob.id_user)
+        assert user_dao.is_following(alice.id_user, bob.id_user) is True
+
+        user_dao.remove_follow(alice.id_user, bob.id_user)
+        assert user_dao.is_following(alice.id_user, bob.id_user) is False
+
+    def test_remove_follow_self_error(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """A user cannot unfollow themselves."""
+        with pytest.raises(SelfUnfollowError):
+            user_dao.remove_follow(alice.id_user, alice.id_user)
+
+    def test_remove_follow_not_following(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """Unfollowing when not following raises NotFollowingError."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_unfollow_not",
+                email="it_bob_unfollow_not@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        with pytest.raises(NotFollowingError):
+            user_dao.remove_follow(alice.id_user, bob.id_user)
 
 
 class TestUpdate:

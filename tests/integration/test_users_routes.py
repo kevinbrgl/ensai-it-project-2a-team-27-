@@ -305,6 +305,98 @@ class TestFollowUserRoute:
         }
 
 
+class TestUnfollowUserRoute:
+    """Integration tests for DELETE /api/users/{user_id}/follow."""
+
+    def test_unfollow_user_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """Unfollowing a followed user returns 204."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        assert search_res.status_code == status.HTTP_200_OK
+        target_id = search_res.json()[0]["id_user"]
+
+        follow_res = client.post(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert follow_res.status_code == status.HTTP_204_NO_CONTENT
+
+        response = client.delete(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    def test_unfollow_user_self_rejected(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Unfollowing oneself returns 400 Bad Request."""
+        me_res = client.get(ME_URL, headers=auth_headers)
+        my_id = me_res.json()["id_user"]
+
+        response = client.delete(
+            f"{USERS_URL}/{my_id}/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Users cannot unfollow themselves."
+
+    def test_unfollow_user_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Unfollowing a nonexistent user returns 404 Not Found."""
+        response = client.delete(
+            f"{USERS_URL}/999999999/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_unfollow_user_not_following(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """Unfollowing a user that is not followed returns 404 Not Found."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        target_id = search_res.json()[0]["id_user"]
+
+        response = client.delete(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Not following this user."
+
+    def test_unfollow_user_unauthenticated(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Unauthenticated unfollow request returns 401."""
+        response = client.delete(f"{USERS_URL}/2/follow")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+
 class TestUpdateSelf:
     """Integration tests for PATCH /api/users/me."""
 

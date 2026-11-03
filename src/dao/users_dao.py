@@ -3,7 +3,8 @@
 This module provides CRUD operations for users in the database,
 as well as user follow management.
 All database errors are wrapped in DAOError, UserAlreadyExistsError,
-EmailAlreadyExistsError, SelfFollowError, or AlreadyFollowingError.
+EmailAlreadyExistsError, SelfFollowError, AlreadyFollowingError,
+or NotFollowingError.
 """
 
 from psycopg2 import Error as DBError
@@ -19,7 +20,9 @@ from src.utils.exceptions import (
     AlreadyFollowingError,
     DAOError,
     EmailAlreadyExistsError,
+    NotFollowingError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -192,6 +195,33 @@ class UserDAO:
             raise SelfFollowError from exc
         except DBError as exc:
             raise DAOError from exc
+
+    def remove_follow(self, follower_id: int, following_id: int) -> None:
+        """Remove a follow relationship between two users.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being unfollowed
+        :raises SelfUnfollowError: If a user tries to unfollow themselves
+        :raises NotFollowingError: If not currently following the user
+        :raises DAOError: If a database error occurs
+        """
+        if follower_id == following_id:
+            raise SelfUnfollowError
+        try:
+            self.cur.execute(
+                """
+                DELETE FROM user_follows
+                WHERE follower_id = %s AND following_id = %s
+                RETURNING follower_id
+                """,
+                (follower_id, following_id),
+            )
+            row = self.cur.fetchone()
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise NotFollowingError
 
     def is_following(self, follower_id: int, following_id: int) -> bool:
         """Check if a user follows another user.
