@@ -16,8 +16,10 @@ from src.dao.users_dao import UserDAO
 from src.models import Token, User, UserCreate, UserRegister
 from src.services.users_service import UserService
 from src.utils.exceptions import (
+    AlreadyFollowingError,
     AuthError,
     EmailAlreadyExistsError,
+    SelfFollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -320,3 +322,62 @@ class TestSearchUsers:
 
         assert result == []
         mock_dao.search_by_username.assert_not_called()
+
+
+class TestFollowUser:
+    """Tests for UserService.follow_user."""
+
+    def test_follow_valid(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Following another existing user succeeds."""
+        mock_dao.read.return_value = db_user
+
+        service.follow_user(follower_id=1, following_id=2)
+
+        mock_dao.read.assert_called_once_with(2)
+        mock_dao.add_follow.assert_called_once_with(1, 2)
+
+    def test_follow_self_rejected(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+    ) -> None:
+        """Following oneself raises SelfFollowError."""
+        with pytest.raises(SelfFollowError):
+            service.follow_user(follower_id=1, following_id=1)
+
+        mock_dao.read.assert_not_called()
+        mock_dao.add_follow.assert_not_called()
+
+    def test_follow_target_not_found(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+    ) -> None:
+        """Following a nonexistent user raises UserNotFoundError."""
+        mock_dao.read.return_value = None
+
+        with pytest.raises(UserNotFoundError):
+            service.follow_user(follower_id=1, following_id=999)
+
+        mock_dao.read.assert_called_once_with(999)
+        mock_dao.add_follow.assert_not_called()
+
+    def test_follow_already_following(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Following an already followed user raises AlreadyFollowingError."""
+        mock_dao.read.return_value = db_user
+        mock_dao.add_follow.side_effect = AlreadyFollowingError
+
+        with pytest.raises(AlreadyFollowingError):
+            service.follow_user(follower_id=1, following_id=2)
+
+        mock_dao.add_follow.assert_called_once_with(1, 2)

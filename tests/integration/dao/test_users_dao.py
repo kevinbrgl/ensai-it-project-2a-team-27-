@@ -9,8 +9,11 @@ import pytest
 from src.dao.users_dao import UserDAO
 from src.models import User, UserCreate, UserUpdateFull
 from src.utils.exceptions import (
+    AlreadyFollowingError,
     EmailAlreadyExistsError,
+    SelfFollowError,
     UserAlreadyExistsError,
+    UserNotFoundError,
 )
 
 USERNAME = "it_alice"
@@ -145,6 +148,62 @@ class TestSearchByUsername:
             )
         results = user_dao.search_by_username(prefix, limit=2)
         assert len(results) == 2  # ruff: ignore[magic-value-comparison]
+
+
+class TestFollow:
+    """Tests for UserDAO.add_follow and is_following."""
+
+    def test_add_follow_success(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """A user can follow another user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_follow",
+                email="it_bob_follow@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(alice.id_user, bob.id_user)
+        assert user_dao.is_following(alice.id_user, bob.id_user) is True
+        assert user_dao.is_following(bob.id_user, alice.id_user) is False
+
+    def test_add_follow_self_error(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """A user cannot follow themselves."""
+        with pytest.raises(SelfFollowError):
+            user_dao.add_follow(alice.id_user, alice.id_user)
+
+    def test_add_follow_already_following(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """Following twice raises AlreadyFollowingError."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_follow_dup",
+                email="it_bob_follow_dup@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(alice.id_user, bob.id_user)
+        with pytest.raises(AlreadyFollowingError):
+            user_dao.add_follow(alice.id_user, bob.id_user)
+
+    def test_add_follow_target_not_found(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """Following a nonexistent user raises UserNotFoundError."""
+        with pytest.raises(UserNotFoundError):
+            user_dao.add_follow(alice.id_user, UNKNOWN_ID)
 
 
 class TestUpdate:

@@ -1,6 +1,6 @@
 """Routes for user operations in the FastAPI application.
 
-Provides endpoints for profile reading, search, and updates.
+Provides endpoints for profile reading, search, follow, and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -19,10 +19,12 @@ from src.models import (
 )
 from src.services.users_service import UserService
 from src.utils.exceptions import (
+    AlreadyFollowingError,
     DAOError,
     EmailAlreadyExistsError,
     IncorrectPasswordError,
     SamePasswordError,
+    SelfFollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -84,6 +86,59 @@ def search_users(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not search users.",
+        ) from None
+
+
+@router.post(
+    "/{user_id}/follow",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def follow_user(
+    service: UserServiceDep,
+    current_user: CurrentUser,
+    user_id: int,
+) -> None:
+    """Follow another user.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param current_user: Authenticated user making the request (follower)
+    :param user_id: ID of the user to follow (following)
+    :raises HTTPException: 400 if user attempts to follow themselves,
+        404 if target user is not found,
+        409 if already following,
+        500 on database error
+    """
+    try:
+        service.follow_user(
+            follower_id=current_user.id_user,
+            following_id=user_id,
+        )
+    except SelfFollowError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Users cannot follow themselves.",
+        ) from None
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except AlreadyFollowingError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Already following this user.",
+        ) from None
+    except DAOError:
+        logger.exception(
+            "Failed to follow user %s for follower %s",
+            user_id,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not follow user.",
         ) from None
 
 

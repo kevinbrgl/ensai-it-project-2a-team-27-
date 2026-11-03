@@ -1,7 +1,7 @@
 """Pydantic models for user entities.
 
 Defines schemas for user registration, reading, creation, update,
-password change, and database representation.
+password change, database representation, and user follows.
 """
 
 from pydantic import BaseModel, EmailStr, Field
@@ -58,3 +58,10 @@ class UserUpdatePassword(BaseModel):
 
 class User(UserCreate, UserRead):
     """User as stored in the database (includes password_hash)."""
+
+
+class UserFollow(BaseModel):
+    """Schema representing a follow relationship between two users."""
+
+    follower_id: int
+    following_id: int

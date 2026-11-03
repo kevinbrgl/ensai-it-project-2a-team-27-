@@ -166,3 +166,19 @@ class BookNotInLibraryError(Exception):
         """Initialize the exception with the book ID."""
         self.book_id = book_id
         super().__init__(f"Book {book_id} is not in the library.")
+
+
+class SelfFollowError(Exception):
+    """Raised when a user attempts to follow themselves."""
+
+    def __init__(self) -> None:
+        """Initialize SelfFollowError."""
+        super().__init__("Users cannot follow themselves.")
+
+
+class AlreadyFollowingError(Exception):
+    """Raised when a user is already following another user."""
+
+    def __init__(self) -> None:
+        """Initialize AlreadyFollowingError."""
+        super().__init__("User is already following this user.")

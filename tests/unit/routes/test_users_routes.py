@@ -16,7 +16,12 @@ from src.core.config import settings
 from src.main import app
 from src.models.users import User
 from src.services.users_service import UserService
-from src.utils.exceptions import DAOError
+from src.utils.exceptions import (
+    AlreadyFollowingError,
+    DAOError,
+    SelfFollowError,
+    UserNotFoundError,
+)
 
 USERS_URL = f"{settings.API_STR}/users"
 PUBLIC_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
@@ -166,6 +171,99 @@ class TestSearchUsersUnitRoute:
                 f"{USERS_URL}/search",
                 params={"username": "ali"},
             )
+            assert response.status_code in {
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            }
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestFollowUserUnitRoute:
+    """Unit tests for POST /api/users/{user_id}/follow."""
+
+    def test_follow_user_success_204(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Following another user returns 204 No Content."""
+        mock_service.follow_user.return_value = None
+
+        response = client.post(f"{USERS_URL}/2/follow")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        mock_service.follow_user.assert_called_once_with(
+            follower_id=1,
+            following_id=2,
+        )
+
+    def test_follow_user_self_400(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Attempting to follow oneself returns 400 Bad Request."""
+        mock_service.follow_user.side_effect = SelfFollowError
+
+        response = client.post(f"{USERS_URL}/1/follow")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Users cannot follow themselves."
+
+    def test_follow_user_not_found_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Following a nonexistent user returns 404 Not Found."""
+        mock_service.follow_user.side_effect = UserNotFoundError(user_id=999)
+
+        response = client.post(f"{USERS_URL}/999/follow")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_follow_user_already_following_409(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Following an already followed user returns 409 Conflict."""
+        mock_service.follow_user.side_effect = AlreadyFollowingError
+
+        response = client.post(f"{USERS_URL}/2/follow")
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["detail"] == "Already following this user."
+
+    def test_follow_user_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError during follow returns 500."""
+        mock_service.follow_user.side_effect = DAOError("DB error")
+
+        response = client.post(f"{USERS_URL}/2/follow")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not follow user."
+
+    def test_follow_user_unauthenticated(
+        self,
+        mock_service: Mock,
+    ) -> None:
+        """Unauthenticated request is rejected with 401 or 403."""
+
+        def dummy_cursor() -> Generator[Mock]:
+            yield Mock()
+
+        app.dependency_overrides[get_cursor] = dummy_cursor
+        app.dependency_overrides[get_user_service] = lambda: mock_service
+        try:
+            unauth_client = TestClient(app)
+            response = unauth_client.post(f"{USERS_URL}/2/follow")
             assert response.status_code in {
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,
