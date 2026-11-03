@@ -400,3 +400,92 @@ class TestFindFavoritesByUserId:
         library_dao.toggle_favorite(id_other_user, id_book)
 
         assert library_dao.find_favorites_by_user_id(id_user) == []
+
+
+class TestFindBooksByUserId:
+    """Tests for LibraryDAO.find_books_by_user_id."""
+
+    def test_empty_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+    ) -> None:
+        """A user with no books gets an empty list."""
+        assert library_dao.find_books_by_user_id(id_user) == []
+
+    def test_no_filter_returns_all(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """Without status filter, all books are returned."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_other_book, state="COMPLETED"),
+        )
+
+        result = library_dao.find_books_by_user_id(id_user)
+
+        assert [b.id_book for b in result] == sorted([id_book, id_other_book])
+
+    def test_filter_returns_matching(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """With a status filter, only matching books are returned."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_other_book, state="COMPLETED"),
+        )
+
+        result = library_dao.find_books_by_user_id(id_user, status="READING")
+
+        assert len(result) == 1
+        assert result[0].id_book == id_book
+        assert result[0].state == "READING"
+
+    def test_filter_no_match_returns_empty(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """If no books match the filter, an empty list is returned."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="COMPLETED"),
+        )
+
+        result = library_dao.find_books_by_user_id(
+            id_user, status="WANT_TO_READ",
+        )
+
+        assert result == []
+
+    def test_other_user_books_not_listed(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_other_user: int,
+        id_book: int,
+    ) -> None:
+        """Books from another user's library are never returned."""
+        library_dao.add_book(
+            id_other_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        assert library_dao.find_books_by_user_id(id_user) == []

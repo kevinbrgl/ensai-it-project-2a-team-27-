@@ -216,3 +216,35 @@ class TestListFavorites:
 
         assert result == []
         mock_dao.find_favorites_by_user_id.assert_called_once_with(ID_USER)
+
+
+class TestListBooks:
+    """Tests for LibraryService.list_books."""
+
+    def test_valid_no_status(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """Valid request without status calls DAO with None."""
+        mock_dao.find_books_by_user_id.return_value = []
+
+        result = service.list_books(ID_USER)
+
+        assert result == []
+        mock_dao.find_books_by_user_id.assert_called_once_with(ID_USER, None)
+
+    def test_valid_with_status(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """Valid request with status forwards the filter to DAO."""
+        mock_dao.find_books_by_user_id.return_value = []
+
+        result = service.list_books(ID_USER, status="READING")
+
+        assert result == []
+        mock_dao.find_books_by_user_id.assert_called_once_with(
+            ID_USER, "READING",
+        )
