@@ -470,7 +470,8 @@ class TestFindBooksByUserId:
         )
 
         result = library_dao.find_books_by_user_id(
-            id_user, status="WANT_TO_READ",
+            id_user,
+            status="WANT_TO_READ",
         )
 
         assert result == []
