@@ -290,6 +290,45 @@ class TestFollow:
         followers = user_dao.get_followers(alice.id_user)
         assert followers == []
 
+    def test_get_following_multiple(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_following returns all users followed by the user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_following_1",
+                email="it_bob_following_1@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        charlie = user_dao.create(
+            UserCreate(
+                username="it_charlie_following_2",
+                email="it_charlie_following_2@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(alice.id_user, bob.id_user)
+        user_dao.add_follow(alice.id_user, charlie.id_user)
+
+        following = user_dao.get_following(alice.id_user)
+        following_ids = [f.id_user for f in following]
+
+        assert len(following) == 2  # ruff: ignore[magic-value-comparison]
+        assert bob.id_user in following_ids
+        assert charlie.id_user in following_ids
+
+    def test_get_following_empty(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_following on a user following nobody returns empty list."""
+        following = user_dao.get_following(alice.id_user)
+        assert following == []
+
 
 class TestUpdate:
     """Tests for UserDAO.update."""

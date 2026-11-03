@@ -500,3 +500,61 @@ class TestGetFollowers:
 
         mock_dao.read.assert_called_once_with(999)
         mock_dao.get_followers.assert_not_called()
+
+
+class TestGetFollowing:
+    """Tests for UserService.get_following."""
+
+    def test_get_following_valid(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Retrieving followed users returns following list."""
+        followed = User(
+            id_user=2,
+            username="bob",
+            email="bob@ensai.fr",
+            password_hash="hash",
+            bio="bio",
+            profile_picture="pic",
+        )
+        mock_dao.read.return_value = db_user
+        mock_dao.get_following.return_value = [followed]
+
+        result = service.get_following(1)
+
+        assert result == [followed]
+        mock_dao.read.assert_called_once_with(1)
+        mock_dao.get_following.assert_called_once_with(1)
+
+    def test_get_following_empty(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """User following nobody returns an empty list."""
+        mock_dao.read.return_value = db_user
+        mock_dao.get_following.return_value = []
+
+        result = service.get_following(1)
+
+        assert result == []
+        mock_dao.read.assert_called_once_with(1)
+        mock_dao.get_following.assert_called_once_with(1)
+
+    def test_get_following_user_not_found(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+    ) -> None:
+        """Followed users for nonexistent user raises UserNotFoundError."""
+        mock_dao.read.return_value = None
+
+        with pytest.raises(UserNotFoundError):
+            service.get_following(999)
+
+        mock_dao.read.assert_called_once_with(999)
+        mock_dao.get_following.assert_not_called()
