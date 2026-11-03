@@ -1,18 +1,24 @@
 """Routes for user operations in the FastAPI application.
 
 Provides endpoints for profile reading, search, follow, unfollow,
-followers, following, and updates.
+followers, following, quests, and updates.
 Registration is handled in auth_routes.py.
 """
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.api.deps import CurrentUser, CursorDep, UserServiceDep
+from src.api.deps import (
+    CurrentUser,
+    CursorDep,
+    QuestServiceDep,
+    UserServiceDep,
+)
 from src.dao.users_dao import UserDAO
 from src.models import (
+    Quest,
     User,
     UserRead,
     UserUpdate,
@@ -44,6 +50,49 @@ def read_self(current_user: CurrentUser) -> User:
     :return: The user information
     """
     return current_user
+
+
+@router.get(
+    "/me/quests",
+    status_code=status.HTTP_200_OK,
+)
+def get_my_quests(
+    service: QuestServiceDep,
+    current_user: CurrentUser,
+    status_filter: Annotated[
+        Literal["all", "active", "completed"],
+        Query(
+            alias="status",
+            description=(
+                "Filter by quest status ('all', 'active', 'completed')"
+            ),
+        ),
+    ] = "all",
+) -> list[Quest]:
+    """Retrieve active quests and their progress for the authenticated user.
+
+    Route is protected and requires authentication.
+
+    :param service: Quest service dependency
+    :param current_user: Authenticated user making the request
+    :param status_filter: Filter to retrieve 'all', 'active', or 'completed'
+    :raises HTTPException: 500 on database error
+    :return: List of Quest objects with calculated progress
+    """
+    try:
+        return service.get_quests(
+            user_id=current_user.id_user,
+            status_filter=status_filter,
+        )
+    except DAOError:
+        logger.exception(
+            "Failed to retrieve quests for user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve quests.",
+        ) from None
 
 
 @router.get(
