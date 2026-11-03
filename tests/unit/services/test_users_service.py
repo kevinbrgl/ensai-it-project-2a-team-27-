@@ -19,7 +19,9 @@ from src.utils.exceptions import (
     AlreadyFollowingError,
     AuthError,
     EmailAlreadyExistsError,
+    NotFollowingError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -381,3 +383,62 @@ class TestFollowUser:
             service.follow_user(follower_id=1, following_id=2)
 
         mock_dao.add_follow.assert_called_once_with(1, 2)
+
+
+class TestUnfollowUser:
+    """Tests for UserService.unfollow_user."""
+
+    def test_unfollow_valid(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Unfollowing an existing followed user succeeds."""
+        mock_dao.read.return_value = db_user
+
+        service.unfollow_user(follower_id=1, following_id=2)
+
+        mock_dao.read.assert_called_once_with(2)
+        mock_dao.remove_follow.assert_called_once_with(1, 2)
+
+    def test_unfollow_self_rejected(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+    ) -> None:
+        """Unfollowing oneself raises SelfUnfollowError."""
+        with pytest.raises(SelfUnfollowError):
+            service.unfollow_user(follower_id=1, following_id=1)
+
+        mock_dao.read.assert_not_called()
+        mock_dao.remove_follow.assert_not_called()
+
+    def test_unfollow_target_not_found(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+    ) -> None:
+        """Unfollowing a nonexistent user raises UserNotFoundError."""
+        mock_dao.read.return_value = None
+
+        with pytest.raises(UserNotFoundError):
+            service.unfollow_user(follower_id=1, following_id=999)
+
+        mock_dao.read.assert_called_once_with(999)
+        mock_dao.remove_follow.assert_not_called()
+
+    def test_unfollow_not_following(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Unfollowing when not following raises NotFollowingError."""
+        mock_dao.read.return_value = db_user
+        mock_dao.remove_follow.side_effect = NotFollowingError
+
+        with pytest.raises(NotFollowingError):
+            service.unfollow_user(follower_id=1, following_id=2)
+
+        mock_dao.remove_follow.assert_called_once_with(1, 2)

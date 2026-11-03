@@ -1,6 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
-Provides endpoints for profile reading, search, follow, and updates.
+Provides endpoints for profile reading, search, follow, unfollow,
+and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -23,8 +24,10 @@ from src.utils.exceptions import (
     DAOError,
     EmailAlreadyExistsError,
     IncorrectPasswordError,
+    NotFollowingError,
     SamePasswordError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -139,6 +142,58 @@ def follow_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not follow user.",
+        ) from None
+
+
+@router.delete(
+    "/{user_id}/follow",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def unfollow_user(
+    service: UserServiceDep,
+    current_user: CurrentUser,
+    user_id: int,
+) -> None:
+    """Unfollow another user.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param current_user: Authenticated user making the request (follower)
+    :param user_id: ID of the user to unfollow (following)
+    :raises HTTPException: 400 if user attempts to unfollow themselves,
+        404 if target user is not found or not currently followed,
+        500 on database error
+    """
+    try:
+        service.unfollow_user(
+            follower_id=current_user.id_user,
+            following_id=user_id,
+        )
+    except SelfUnfollowError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Users cannot unfollow themselves.",
+        ) from None
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except NotFollowingError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not following this user.",
+        ) from None
+    except DAOError:
+        logger.exception(
+            "Failed to unfollow user %s for follower %s",
+            user_id,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not unfollow user.",
         ) from None
 
 
