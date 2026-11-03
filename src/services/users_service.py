@@ -182,6 +182,17 @@ class UserService:
             raise UserNotFoundError(user_id=user_id)
         return self.dao.get_followers(user_id)
 
+    def get_following(self, user_id: int) -> list[User]:
+        """Get the users followed by a user.
+
+        :param user_id: ID of the user whose followed users to retrieve
+        :raises UserNotFoundError: If the user does not exist
+        :return: List of User objects followed by the user
+        """
+        if self.dao.read(user_id) is None:
+            raise UserNotFoundError(user_id=user_id)
+        return self.dao.get_following(user_id)
+
     def update_password(
         self,
         current_user: User,

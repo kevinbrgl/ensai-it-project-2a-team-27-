@@ -268,6 +268,30 @@ class UserDAO:
             raise DAOError from exc
         return [User(**row) for row in rows]
 
+    def get_following(self, user_id: int) -> list[User]:
+        """Retrieve all users followed by the specified user.
+
+        :param user_id: ID of the user whose followed users to retrieve
+        :raises DAOError: If a database error occurs
+        :return: List of User objects followed by the user
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT u.id_user, u.username, u.email, u.password_hash,
+                       u.bio, u.profile_picture
+                FROM users u
+                INNER JOIN user_follows uf ON u.id_user = uf.following_id
+                WHERE uf.follower_id = %s
+                ORDER BY uf.created_at DESC, u.id_user ASC;
+                """,
+                (user_id,),
+            )
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+        return [User(**row) for row in rows]
+
     def update(self, user_id: int, user_in: UserUpdateFull) -> User | None:
         """Update a user by their ID.
 

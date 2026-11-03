@@ -459,3 +459,98 @@ class TestGetFollowersUnitRoute:
             }
         finally:
             app.dependency_overrides.clear()
+
+
+class TestGetFollowingUnitRoute:
+    """Unit tests for GET /users/{userId}/following."""
+
+    def test_get_following_success_200(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Retrieving followed users returns 200 with UserRead payload."""
+        followed = User(
+            id_user=2,
+            username="bob",
+            email="bob@ensai.fr",
+            password_hash="secret_hash",
+            bio="My bio",
+            profile_picture="https://example.com/pic.png",
+        )
+        mock_service.get_following.return_value = [followed]
+
+        response = client.get(f"{USERS_URL}/1/following")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["id_user"] == followed.id_user
+        assert data[0]["username"] == "bob"
+        assert data[0]["email"] == "bob@ensai.fr"
+        assert "password_hash" not in data[0]
+        assert set(data[0].keys()) == PUBLIC_FIELDS
+        mock_service.get_following.assert_called_once_with(1)
+
+    def test_get_following_empty_200(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """User following nobody returns 200 with empty list."""
+        mock_service.get_following.return_value = []
+
+        response = client.get(f"{USERS_URL}/1/following")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
+        mock_service.get_following.assert_called_once_with(1)
+
+    def test_get_following_not_found_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Retrieving following of nonexistent user returns 404."""
+        mock_service.get_following.side_effect = UserNotFoundError(user_id=999)
+
+        response = client.get(f"{USERS_URL}/999/following")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_get_following_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError returns 500 Internal Server Error."""
+        mock_service.get_following.side_effect = DAOError("DB error")
+
+        response = client.get(f"{USERS_URL}/1/following")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert (
+            response.json()["detail"] == "Could not retrieve followed users."
+        )
+
+    def test_get_following_unauthenticated(
+        self,
+        mock_service: Mock,
+    ) -> None:
+        """Unauthenticated request is rejected with 401 or 403."""
+
+        def dummy_cursor() -> Generator[Mock]:
+            yield Mock()
+
+        app.dependency_overrides[get_cursor] = dummy_cursor
+        app.dependency_overrides[get_user_service] = lambda: mock_service
+        try:
+            unauth_client = TestClient(app)
+            response = unauth_client.get(f"{USERS_URL}/1/following")
+            assert response.status_code in {
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            }
+        finally:
+            app.dependency_overrides.clear()
