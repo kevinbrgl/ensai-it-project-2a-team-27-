@@ -397,6 +397,90 @@ class TestUnfollowUserRoute:
         }
 
 
+class TestGetFollowersRoute:
+    """Integration tests for GET /api/users/{user_id}/followers."""
+
+    def test_get_followers_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """Retrieving followers returns 200 with list of follower users."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        assert search_res.status_code == status.HTTP_200_OK
+        target_id = search_res.json()[0]["id_user"]
+
+        follow_res = client.post(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert follow_res.status_code == status.HTTP_204_NO_CONTENT
+
+        response = client.get(
+            f"{USERS_URL}/{target_id}/followers",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        followers = response.json()
+        assert len(followers) >= 1
+        follower_usernames = [f["username"] for f in followers]
+        me_res = client.get(ME_URL, headers=auth_headers)
+        my_username = me_res.json()["username"]
+        assert my_username in follower_usernames
+        assert "password_hash" not in followers[0]
+
+    def test_get_followers_empty(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """User with no followers returns 200 with empty list."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        assert search_res.status_code == status.HTTP_200_OK
+        target_id = search_res.json()[0]["id_user"]
+
+        response = client.get(
+            f"{USERS_URL}/{target_id}/followers",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
+
+    def test_get_followers_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Retrieving followers for nonexistent user returns 404."""
+        response = client.get(
+            f"{USERS_URL}/999999999/followers",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_get_followers_unauthenticated(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Unauthenticated request returns 401."""
+        response = client.get(f"{USERS_URL}/2/followers")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+
 class TestUpdateSelf:
     """Integration tests for PATCH /api/users/me."""
 
