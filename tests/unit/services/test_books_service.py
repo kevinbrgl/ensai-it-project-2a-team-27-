@@ -143,3 +143,17 @@ class TestGetBook:
 
         with pytest.raises(BookNotFoundError):
             service.get_book(999)
+
+    def test_get_book_details(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+    ) -> None:
+        """get_book_details returns the book from DAO."""
+        mock_dao.read.return_value = fake_book
+
+        book = service.get_book_details(1)
+
+        assert book == fake_book
+        mock_dao.read.assert_called_once_with(1)

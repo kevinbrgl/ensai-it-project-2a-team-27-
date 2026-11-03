@@ -140,3 +140,12 @@ class BookService:
         if book is None:
             raise BookNotFoundError(book_id=book_id)
         return book
+
+    def get_book_details(self, book_id: int) -> Book:
+        """Retrieve details of a book by its internal ID.
+
+        :param book_id: ID of the book
+        :raises BookNotFoundError: Raised if the book does not exist
+        :return: The Book object
+        """
+        return self.get_book(book_id)

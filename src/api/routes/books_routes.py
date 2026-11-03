@@ -6,11 +6,15 @@ Provides endpoints for searching and browsing books.
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from src.api.deps import BookServiceDep, CurrentUser
 from src.models.books import Book
-from src.utils.exceptions import DAOError, ExternalServiceError
+from src.utils.exceptions import (
+    BookNotFoundError,
+    DAOError,
+    ExternalServiceError,
+)
 
 router = APIRouter(prefix="/books", tags=["Books"])
 logger = logging.getLogger(__name__)
@@ -52,4 +56,40 @@ def search_books(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error occurred during book search.",
+        ) from None
+
+
+@router.get(
+    "/{book_id}",
+    status_code=status.HTTP_200_OK,
+)
+def get_book_details(
+    book_id: Annotated[
+        int,
+        Path(ge=1, description="Database ID of the book"),
+    ],
+    service: BookServiceDep,
+    _current_user: CurrentUser,
+) -> Book:
+    """Retrieve details for a single book by its internal identifier.
+
+    :param book_id: Unique database identifier of the book
+    :param service: Book service dependency
+    :param _current_user: Authenticated user dependency
+    :raises HTTPException: 404 if the book is not found in database,
+        500 if a database error occurs
+    :return: The Book object with all metadata
+    """
+    try:
+        return service.get_book(book_id)
+    except BookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Database error while retrieving book %s", book_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database error occurred while retrieving book details.",
         ) from None
