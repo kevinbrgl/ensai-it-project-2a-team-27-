@@ -192,6 +192,33 @@ class AlreadyFollowingError(Exception):
         super().__init__("User is already following this user.")
 
 
+class ReviewNotFoundError(Exception):
+    """Raised when a review does not exist."""
+
+    def __init__(self, review_id: int) -> None:
+        """Initialize the exception with the review ID."""
+        self.review_id = review_id
+        super().__init__(f"No review found for id={review_id}")
+
+
+class NotReviewAuthorError(Exception):
+    """Raised when a user edits or deletes a review they did not write."""
+
+    def __init__(self, review_id: int) -> None:
+        """Initialize the exception with the review ID."""
+        self.review_id = review_id
+        super().__init__(f"User is not the author of review {review_id}.")
+
+
+class ReviewAlreadyExistsError(Exception):
+    """Raised when a user reviews the same book twice."""
+
+    def __init__(self, book_id: int) -> None:
+        """Initialize the exception with the book ID."""
+        self.book_id = book_id
+        super().__init__(f"Book {book_id} has already been reviewed.")
+
+
 class NotFollowingError(Exception):
     """Raised when a user attempts to unfollow a user they do not follow."""
 

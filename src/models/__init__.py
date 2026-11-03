@@ -7,6 +7,12 @@ from src.models.books import Book, BookCreate, BookRead
 from src.models.library import LibraryBookAdd, LibraryBookRead
 from src.models.misc import Token, TokenPayload
 from src.models.quests import Quest, QuestCategory, QuestUserStats
+from src.models.reviews import (
+    BookReviews,
+    ReviewCreate,
+    ReviewRead,
+    ReviewUpdate,
+)
 from src.models.users import (
     User,
     UserCreate,
