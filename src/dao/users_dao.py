@@ -1,24 +1,32 @@
 """Data Access Object for user operations.
 
-This module provides CRUD operations for users in the database.
-All database errors are wrapped in DAOError, UserAlreadyExistsError
-or EmailAlreadyExistsError.
+This module provides CRUD operations for users in the database,
+as well as user follow management.
+All database errors are wrapped in DAOError, UserAlreadyExistsError,
+EmailAlreadyExistsError, SelfFollowError, or AlreadyFollowingError.
 """
 
 from psycopg2 import Error as DBError
-from psycopg2.errors import UniqueViolation
+from psycopg2.errors import (
+    CheckViolation,
+    ForeignKeyViolation,
+    UniqueViolation,
+)
 from psycopg2.extras import RealDictCursor
 
 from src.models.users import User, UserCreate, UserUpdateFull
 from src.utils.exceptions import (
+    AlreadyFollowingError,
     DAOError,
     EmailAlreadyExistsError,
+    SelfFollowError,
     UserAlreadyExistsError,
+    UserNotFoundError,
 )
 
 
 class UserDAO:
-    """DAO class for user CRUD operations.
+    """DAO class for user CRUD operations and social relationships.
 
     :attr cur: Database cursor (RealDictCursor)
     """
@@ -155,6 +163,56 @@ class UserDAO:
         except DBError as exc:
             raise DAOError from exc
         return [User(**row) for row in rows]
+
+    def add_follow(self, follower_id: int, following_id: int) -> None:
+        """Add a follow relationship between two users.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being followed
+        :raises SelfFollowError: If a user tries to follow themselves
+        :raises UserNotFoundError: If the user to follow does not exist
+        :raises AlreadyFollowingError: If already following the user
+        :raises DAOError: If a database error occurs
+        """
+        if follower_id == following_id:
+            raise SelfFollowError
+        try:
+            self.cur.execute(
+                """
+                INSERT INTO user_follows (follower_id, following_id)
+                VALUES (%s, %s)
+                """,
+                (follower_id, following_id),
+            )
+        except UniqueViolation as exc:
+            raise AlreadyFollowingError from exc
+        except ForeignKeyViolation as exc:
+            raise UserNotFoundError(user_id=following_id) from exc
+        except CheckViolation as exc:
+            raise SelfFollowError from exc
+        except DBError as exc:
+            raise DAOError from exc
+
+    def is_following(self, follower_id: int, following_id: int) -> bool:
+        """Check if a user follows another user.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being followed
+        :raises DAOError: If a database error occurs
+        :return: True if the relationship exists, False otherwise
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT 1
+                FROM user_follows
+                WHERE follower_id = %s AND following_id = %s
+                """,
+                (follower_id, following_id),
+            )
+            return self.cur.fetchone() is not None
+        except DBError as exc:
+            raise DAOError from exc
 
     def update(self, user_id: int, user_in: UserUpdateFull) -> User | None:
         """Update a user by their ID.

@@ -1,8 +1,8 @@
 """Service layer for user operations.
 
 This module provides business logic for user-related operations.
-Exceptions are raised for not found, duplicates, authentication
-or password errors.
+Exceptions are raised for not found, duplicates, authentication,
+social actions, or password errors.
 """
 
 from datetime import timedelta
@@ -28,6 +28,7 @@ from src.utils.exceptions import (
     EmailAlreadyExistsError,
     IncorrectPasswordError,
     SamePasswordError,
+    SelfFollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -138,6 +139,21 @@ class UserService:
         if not query:
             return []
         return self.dao.search_by_username(query, limit=limit)
+
+    def follow_user(self, follower_id: int, following_id: int) -> None:
+        """Follow another user.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being followed
+        :raises SelfFollowError: If a user attempts to follow themselves
+        :raises UserNotFoundError: If the target user does not exist
+        :raises AlreadyFollowingError: If already following the target user
+        """
+        if follower_id == following_id:
+            raise SelfFollowError
+        if self.dao.read(following_id) is None:
+            raise UserNotFoundError(user_id=following_id)
+        self.dao.add_follow(follower_id, following_id)
 
     def update_password(
         self,
