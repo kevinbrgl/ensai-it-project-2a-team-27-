@@ -591,3 +591,101 @@ class TestListFavoritesRoute:
 
         assert mine.json() == []
         assert len(theirs.json()) == 1
+
+
+class TestUpdateBookStatusRoute:
+    """Integration tests for PATCH /api/library/books/{id_book}/status."""
+
+    def test_update_status_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book in library: returns 200 OK and the updated status."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/status",
+            headers=auth_headers,
+            json={"state": "COMPLETED"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_book"] == id_book
+        assert data["state"] == "COMPLETED"
+
+    def test_invalid_state_rejected(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Invalid state in payload: 422 Unprocessable Content."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/status",
+            headers=auth_headers,
+            json={"state": "FINISHED"},  # Not in regex pattern
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_book_not_in_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book not in library: Exception is mapped to 404 Not Found."""
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/status",
+            headers=auth_headers,
+            json={"state": "COMPLETED"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_unauthorized(self, client: TestClient, id_book: int) -> None:
+        """Missing token: the authentication dependency rejects with 401."""
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/status",
+            json={"state": "COMPLETED"},
+        )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_other_user_cannot_update(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Another user gets 404 and does not change my reading status."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/status",
+            headers=other_auth_headers,
+            json={"state": "COMPLETED"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        mine = client.get(LIBRARY_BOOKS_URL, headers=auth_headers)
+        assert mine.json()[0]["state"] == "READING"

@@ -149,6 +149,40 @@ class LibraryDAO:
             raise BookNotInLibraryError(id_book)
         return LibraryBookRead(**row)
 
+    def update_status(
+        self,
+        id_user: int,
+        id_book: int,
+        state: str,
+    ) -> LibraryBookRead:
+        """Update the reading state of a book in a user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book to update
+        :param state: The new reading state
+        :raises BookNotInLibraryError: If the book is not in the library
+        :raises DAOError: If a DB error occurs
+        :return: The updated library activity
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE user_book_activities
+                SET state = %s
+                WHERE id_user = %s AND id_book = %s
+                RETURNING *
+                """,
+                (state, id_user, id_book),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise BookNotInLibraryError(id_book)
+        return LibraryBookRead(**row)
+
     def find_favorites_by_user_id(
         self,
         id_user: int,

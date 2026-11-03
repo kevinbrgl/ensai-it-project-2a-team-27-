@@ -61,6 +61,21 @@ class LibraryService:
         """
         return self.dao.toggle_favorite(id_user, id_book)
 
+    def update_book_status(
+        self,
+        id_user: int,
+        id_book: int,
+        state: str,
+    ) -> LibraryBookRead:
+        """Update the reading status of a book in the user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book
+        :param state: The new reading state
+        :return: The updated library activity
+        """
+        return self.dao.update_status(id_user, id_book, state)
+
     def list_favorites(self, id_user: int) -> list[LibraryBookDetails]:
         """List the favorite books of the user's library.
 

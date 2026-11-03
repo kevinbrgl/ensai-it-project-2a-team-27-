@@ -490,3 +490,55 @@ class TestFindBooksByUserId:
         )
 
         assert library_dao.find_books_by_user_id(id_user) == []
+
+
+class TestUpdateStatus:
+    """Tests for LibraryDAO.update_status."""
+
+    def test_update_status_success(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book in the library has its reading state updated."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        result = library_dao.update_status(id_user, id_book, "COMPLETED")
+
+        assert result.id_user == id_user
+        assert result.id_book == id_book
+        assert result.state == "COMPLETED"
+
+    def test_other_fields_unchanged(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Updating the status does not alter likes or favorites."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.toggle_like(id_user, id_book)
+        library_dao.toggle_favorite(id_user, id_book)
+
+        result = library_dao.update_status(id_user, id_book, "COMPLETED")
+
+        assert result.state == "COMPLETED"
+        assert result.is_liked is True
+        assert result.is_favorite is True
+
+    def test_not_in_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Updating a book the user does not have raises an error."""
+        with pytest.raises(BookNotInLibraryError):
+            library_dao.update_status(id_user, id_book, "COMPLETED")
