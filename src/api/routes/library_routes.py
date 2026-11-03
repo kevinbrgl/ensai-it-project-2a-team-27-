@@ -1,8 +1,9 @@
 """Routes for library operations in the FastAPI application."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.api.deps import CurrentUser, LibraryServiceDep
 from src.models.library import (
@@ -171,6 +172,44 @@ def toggle_favorite(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not update the favorite.",
+        ) from None
+
+
+@router.get("/books")
+def list_books(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    status_filter: Annotated[
+        str | None,
+        Query(
+            alias="status",
+            pattern="^(READING|WANT_TO_READ|COMPLETED)$",
+            description="Filter by reading state",
+        ),
+    ] = None,
+) -> list[LibraryBookDetails]:
+    """List the books in the authenticated user's library.
+
+    Supports an optional 'status' query parameter to filter the results.
+    Returns an empty list when the user has no books matching the criteria.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param status_filter: Optional status to filter by
+    :raises HTTPException: 500 on database error
+    :return: The list of library books
+    """
+    try:
+        return service.list_books(current_user.id_user, status_filter)
+
+    except DAOError:
+        logger.exception(
+            "Failed to list books of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not list the library books.",
         ) from None
 
 

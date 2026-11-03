@@ -179,3 +179,40 @@ class LibraryDAO:
             raise DAOError from exc
 
         return [LibraryBookDetails(**row) for row in rows]
+
+    def find_books_by_user_id(
+        self,
+        id_user: int,
+        status: str | None = None,
+    ) -> list[LibraryBookDetails]:
+        """List a user's books, optionally filtered by reading state.
+
+        :param id_user: ID of the user
+        :param status: Optional reading state to filter by
+        :raises DAOError: If a DB error occurs
+        :return: The user's books, or an empty list if there are none
+        """
+        query = """
+            SELECT uba.id_user, uba.id_book, uba.state,
+                   uba.is_liked, uba.is_favorite,
+                   b.title, b.author, b.category, b.publish_date,
+                   b.description, b.cover_image
+            FROM user_book_activities AS uba
+            JOIN books AS b ON b.id_book = uba.id_book
+            WHERE uba.id_user = %s
+        """
+        params: list[int | str] = [id_user]
+
+        if status is not None:
+            query += " AND uba.state = %s"
+            params.append(status)
+
+        query += " ORDER BY uba.id_book"
+
+        try:
+            self.cur.execute(query, tuple(params))
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+
+        return [LibraryBookDetails(**row) for row in rows]
