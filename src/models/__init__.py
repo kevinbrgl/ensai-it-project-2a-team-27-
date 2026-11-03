@@ -4,6 +4,7 @@ This module aggregates all model classes for easy access throughout the app.
 """
 
 from src.models.books import Book, BookCreate, BookRead
+from src.models.library import LibraryBookAdd, LibraryBookRead
 from src.models.misc import Token, TokenPayload
 from src.models.users import (
     User,
