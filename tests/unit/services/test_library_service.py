@@ -249,3 +249,43 @@ class TestListBooks:
             ID_USER,
             "READING",
         )
+
+
+class TestUpdateBookStatus:
+    """Tests for LibraryService.update_book_status."""
+
+    def test_valid(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Valid request: returns the updated reading activity."""
+        updated_book = book_read.model_copy(update={"state": "COMPLETED"})
+        mock_dao.update_status.return_value = updated_book
+
+        result = service.update_book_status(ID_USER, ID_BOOK, "COMPLETED")
+
+        assert result == updated_book
+        mock_dao.update_status.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            "COMPLETED",
+        )
+
+    def test_not_in_library(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """DAO raises BookNotInLibraryError: it is propagated."""
+        mock_dao.update_status.side_effect = BookNotInLibraryError(ID_BOOK)
+
+        with pytest.raises(BookNotInLibraryError):
+            service.update_book_status(ID_USER, ID_BOOK, "COMPLETED")
+
+        mock_dao.update_status.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            "COMPLETED",
+        )

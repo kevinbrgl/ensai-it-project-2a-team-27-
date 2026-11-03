@@ -12,6 +12,12 @@ class LibraryBookAdd(BaseModel):
     state: str = Field(pattern="^(READING|WANT_TO_READ|COMPLETED)$")
 
 
+class LibraryBookUpdateStatus(BaseModel):
+    """Body of PATCH /library/books/{id_book}/status."""
+
+    state: str = Field(pattern="^(READING|WANT_TO_READ|COMPLETED)$")
+
+
 class LibraryBookRead(BaseModel):
     """Library activity data returned by the API."""
 
