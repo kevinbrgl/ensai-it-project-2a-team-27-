@@ -50,9 +50,11 @@ class BookService:
         :return: JSON payload returned by Open Library
         """
         headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
-        params: dict[str, str | int] = {"q": query,
-                                        "limit": limit,
-                                        "fields": OPEN_LIBRARY_FIELDS}
+        params: dict[str, str | int] = {
+            "q": query,
+            "limit": limit,
+            "fields": OPEN_LIBRARY_FIELDS,
+        }
 
         try:
             with httpx2.Client(timeout=self.timeout) as client:
@@ -172,9 +174,7 @@ class BookService:
             else None
         )
         clean_author = (
-            author.strip()
-            if author is not None and author.strip()
-            else None
+            author.strip() if author is not None and author.strip() else None
         )
 
         if clean_category and clean_author:

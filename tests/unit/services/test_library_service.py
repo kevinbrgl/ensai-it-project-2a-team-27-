@@ -246,5 +246,6 @@ class TestListBooks:
 
         assert result == []
         mock_dao.find_books_by_user_id.assert_called_once_with(
-            ID_USER, "READING",
+            ID_USER,
+            "READING",
         )
