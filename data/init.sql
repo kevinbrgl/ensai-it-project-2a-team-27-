@@ -35,3 +35,12 @@ CREATE TABLE IF NOT EXISTS revoked_tokens (
     expires_at TIMESTAMPTZ NOT NULL
 );
  
+
+
+CREATE TABLE IF NOT EXISTS user_follows (
+    follower_id  INT REFERENCES users(id_user) ON DELETE CASCADE,
+    following_id INT REFERENCES users(id_user) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (follower_id, following_id),
+    CHECK (follower_id <> following_id)
+);

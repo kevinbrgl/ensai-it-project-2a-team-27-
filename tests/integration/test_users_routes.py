@@ -20,6 +20,7 @@ REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 ME_URL = f"{settings.API_STR}/users/me"
 SEARCH_URL = f"{settings.API_STR}/users/search"
+USERS_URL = f"{settings.API_STR}/users"
 PASSWORD_URL = f"{settings.API_STR}/users/me/password"
 PASSWORD = "motdepasse123"
 NEW_PASSWORD = "nouveaumdp456"
@@ -210,6 +211,98 @@ class TestSearchUsersRoute:
         )
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert response.json()["detail"] == "Could not search users."
+
+
+class TestFollowUserRoute:
+    """Integration tests for POST /api/users/{user_id}/follow."""
+
+    def test_follow_user_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """Following another user returns 204."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        assert search_res.status_code == status.HTTP_200_OK
+        target_id = search_res.json()[0]["id_user"]
+
+        response = client.post(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    def test_follow_user_self_rejected(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Following oneself returns 400 Bad Request."""
+        me_res = client.get(ME_URL, headers=auth_headers)
+        my_id = me_res.json()["id_user"]
+
+        response = client.post(
+            f"{USERS_URL}/{my_id}/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Users cannot follow themselves."
+
+    def test_follow_user_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Following a nonexistent user returns 404 Not Found."""
+        response = client.post(
+            f"{USERS_URL}/999999999/follow",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_follow_user_already_following(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """Following the same user twice returns 409 Conflict."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        target_id = search_res.json()[0]["id_user"]
+
+        resp1 = client.post(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert resp1.status_code == status.HTTP_204_NO_CONTENT
+
+        resp2 = client.post(
+            f"{USERS_URL}/{target_id}/follow",
+            headers=auth_headers,
+        )
+        assert resp2.status_code == status.HTTP_409_CONFLICT
+        assert resp2.json()["detail"] == "Already following this user."
+
+    def test_follow_user_unauthenticated(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Unauthenticated follow request returns 401."""
+        response = client.post(f"{USERS_URL}/2/follow")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
 
 
 class TestUpdateSelf:

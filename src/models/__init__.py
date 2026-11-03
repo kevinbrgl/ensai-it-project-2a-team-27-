@@ -9,6 +9,7 @@ from src.models.misc import Token, TokenPayload
 from src.models.users import (
     User,
     UserCreate,
+    UserFollow,
     UserRead,
     UserRegister,
     UserUpdate,

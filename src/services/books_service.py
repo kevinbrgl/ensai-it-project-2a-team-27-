@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 OPEN_LIBRARY_FIELDS = (
-    "key,title,author_name,subject,first_publish_year,cover_i")
+    "key,title,author_name,subject,first_publish_year,cover_i"
+)
 HTTP_ERROR_STATUS = 400
 MIN_VALID_YEAR = 1
 MAX_VALID_YEAR = 9999
