@@ -127,6 +127,35 @@ class UserDAO:
             raise DAOError from exc
         return User(**row) if row else None
 
+    def search_by_username(
+        self,
+        username: str,
+        limit: int = 10,
+    ) -> list[User]:
+        """Search users by username (case-insensitive substring match).
+
+        :param username: Substring to search in usernames
+        :param limit: Maximum number of users to return
+        :raises DAOError: If a database error occurs
+        :return: List of matching User objects ordered by username
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT id_user, username, email, password_hash,
+                       bio, profile_picture
+                FROM users
+                WHERE username ILIKE %s
+                ORDER BY username ASC
+                LIMIT %s
+                """,
+                (f"%{username}%", limit),
+            )
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+        return [User(**row) for row in rows]
+
     def update(self, user_id: int, user_in: UserUpdateFull) -> User | None:
         """Update a user by their ID.
 

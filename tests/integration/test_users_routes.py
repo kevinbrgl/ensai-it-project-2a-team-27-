@@ -10,12 +10,16 @@ from uuid import uuid4
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+from pytest_mock import MockerFixture
 
 from src.core.config import settings
+from src.services.users_service import UserService
+from src.utils.exceptions import DAOError
 
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 ME_URL = f"{settings.API_STR}/users/me"
+SEARCH_URL = f"{settings.API_STR}/users/search"
 PASSWORD_URL = f"{settings.API_STR}/users/me/password"
 PASSWORD = "motdepasse123"
 NEW_PASSWORD = "nouveaumdp456"
@@ -116,6 +120,96 @@ class TestReadSelf:
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+class TestSearchUsersRoute:
+    """Integration tests for GET /api/users/search."""
+
+    def test_search_unauthenticated(self, client: TestClient) -> None:
+        """Route requires authentication: 401 without token."""
+        response = client.get(SEARCH_URL, params={"username": "alice"})
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+    def test_search_missing_username(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Missing username query param returns 422."""
+        response = client.get(SEARCH_URL, headers=auth_headers)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_search_empty_username(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Empty username query param returns 422."""
+        response = client.get(
+            SEARCH_URL,
+            params={"username": ""},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_search_success(
+        self,
+        client: TestClient,
+        username: str,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Search returns 200 and a list of matching users."""
+        response = client.get(
+            SEARCH_URL,
+            params={"username": username},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        found = next((u for u in data if u["username"] == username), None)
+        assert found is not None
+        assert set(found.keys()) == PUBLIC_FIELDS
+        assert "password" not in found
+        assert "password_hash" not in found
+
+    def test_search_no_results(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Searching for an unknown username returns an empty list."""
+        response = client.get(
+            SEARCH_URL,
+            params={"username": "nonexistent_reader_xyz"},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == []
+
+    def test_search_database_error(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        mocker: MockerFixture,
+    ) -> None:
+        """Database error in DAO returns 500."""
+        mocker.patch.object(
+            UserService,
+            "search_users",
+            side_effect=DAOError("Database error"),
+        )
+        response = client.get(
+            SEARCH_URL,
+            params={"username": "alice"},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not search users."
 
 
 class TestUpdateSelf:

@@ -277,3 +277,46 @@ class TestRegister:
             service.register(user_in)
 
         mock_dao.create.assert_not_called()
+
+
+class TestSearchUsers:
+    """Tests for UserService.search_users."""
+
+    def test_search_valid(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Searching with a valid query returns matching users."""
+        mock_dao.search_by_username.return_value = [db_user]
+
+        result = service.search_users("john")
+
+        assert result == [db_user]
+        mock_dao.search_by_username.assert_called_once_with("john", limit=10)
+
+    def test_search_whitespace_trimmed(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+        db_user: User,
+    ) -> None:
+        """Leading/trailing spaces are trimmed before querying the DAO."""
+        mock_dao.search_by_username.return_value = [db_user]
+
+        result = service.search_users("  john  ", limit=5)
+
+        assert result == [db_user]
+        mock_dao.search_by_username.assert_called_once_with("john", limit=5)
+
+    def test_search_empty_query(
+        self,
+        service: UserService,
+        mock_dao: Mock,
+    ) -> None:
+        """Empty query returns an empty list without calling the DAO."""
+        result = service.search_users("   ")
+
+        assert result == []
+        mock_dao.search_by_username.assert_not_called()
