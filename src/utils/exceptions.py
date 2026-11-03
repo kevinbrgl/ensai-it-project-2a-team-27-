@@ -182,3 +182,33 @@ class AlreadyFollowingError(Exception):
     def __init__(self) -> None:
         """Initialize AlreadyFollowingError."""
         super().__init__("User is already following this user.")
+
+
+class PlaylistAlreadyExistsError(Exception):
+    """Raised when a user already has a playlist with the same name.
+
+    :param name: Name of the playlist that already exists
+    """
+
+    def __init__(self, name: str) -> None:
+        """Initialize PlaylistAlreadyExistsError.
+
+        :param name: Name of the playlist that already exists
+        :return: None
+        """
+        super().__init__(f"Playlist {name} already exists")
+
+
+class PlaylistNotFoundError(Exception):
+    """Raised when a playlist does not exist or belongs to another user.
+
+    :param id_playlist: ID of the playlist
+    """
+
+    def __init__(self, id_playlist: int) -> None:
+        """Initialize PlaylistNotFoundError.
+
+        :param id_playlist: ID of the playlist
+        :return: None
+        """
+        super().__init__(f"No playlist found for id={id_playlist}")
