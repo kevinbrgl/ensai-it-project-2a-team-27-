@@ -110,6 +110,43 @@ class TestReadByEmail:
         assert user_dao.read_by_email("nobody@ensai.fr") is None
 
 
+class TestSearchByUsername:
+    """Tests for UserDAO.search_by_username."""
+
+    def test_search_exact_match(self, user_dao: UserDAO, alice: User) -> None:
+        """Searching with the exact username returns the user."""
+        results = user_dao.search_by_username(alice.username)
+        assert any(u.id_user == alice.id_user for u in results)
+
+    def test_search_partial_case_insensitive(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """Searching with a case-insensitive substring matches the user."""
+        results = user_dao.search_by_username("ALICE")
+        assert any(u.id_user == alice.id_user for u in results)
+
+    def test_search_no_match(self, user_dao: UserDAO) -> None:
+        """Searching for a nonexistent substring returns an empty list."""
+        results = user_dao.search_by_username("nonexistent_user_xyz")
+        assert results == []
+
+    def test_search_limit(self, user_dao: UserDAO) -> None:
+        """The limit parameter is respected."""
+        prefix = "search_test_limit_"
+        for i in range(3):
+            user_dao.create(
+                UserCreate(
+                    username=f"{prefix}{i}",
+                    email=f"{prefix}{i}@ensai.fr",
+                    password_hash=PASSWORD_HASH,
+                ),
+            )
+        results = user_dao.search_by_username(prefix, limit=2)
+        assert len(results) == 2  # ruff: ignore[magic-value-comparison]
+
+
 class TestUpdate:
     """Tests for UserDAO.update."""
 

@@ -17,6 +17,8 @@ from src.utils.exceptions import BookNotFoundError, ExternalServiceError
 logger = logging.getLogger(__name__)
 
 OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
+OPEN_LIBRARY_FIELDS = (
+    "key,title,author_name,subject,first_publish_year,cover_i")
 HTTP_ERROR_STATUS = 400
 MIN_VALID_YEAR = 1
 MAX_VALID_YEAR = 9999
@@ -47,7 +49,9 @@ class BookService:
         :return: JSON payload returned by Open Library
         """
         headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
-        params: dict[str, str | int] = {"q": query, "limit": limit}
+        params: dict[str, str | int] = {"q": query,
+                                        "limit": limit,
+                                        "fields": OPEN_LIBRARY_FIELDS}
 
         try:
             with httpx2.Client(timeout=self.timeout) as client:

@@ -18,9 +18,15 @@ from src.main import app
 from src.models.books import Book
 from src.models.users import User
 from src.services.books_service import BookService
-from src.utils.exceptions import DAOError, ExternalServiceError
+from src.utils.exceptions import (
+    BookNotFoundError,
+    DAOError,
+    ExternalServiceError,
+)
 
 BOOKS_URL = f"{settings.API_STR}/books"
+TEST_BOOK_ID = 42
+NON_EXISTING_BOOK_ID = 999
 
 
 @pytest.fixture
@@ -67,6 +73,98 @@ def client(
     app.dependency_overrides[get_user] = lambda: fake_user
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+class TestGetBookDetailsRoute:
+    """Unit tests for GET /api/books/{book_id}."""
+
+    def test_get_book_unauthenticated(self, mock_service: Mock) -> None:
+        """Endpoint rejects requests without a valid token."""
+
+        def dummy_cursor() -> Generator[Mock]:
+            yield Mock()
+
+        app.dependency_overrides[get_cursor] = dummy_cursor
+        app.dependency_overrides[get_book_service] = lambda: mock_service
+        try:
+            unauth_client = TestClient(app)
+            response = unauth_client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
+            assert response.status_code in {
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            }
+        finally:
+            app.dependency_overrides.clear()
+
+    def test_get_book_success(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_book: Book,
+    ) -> None:
+        """Found book returns 200 with full book details."""
+        mock_service.get_book.return_value = fake_book
+
+        response = client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_book"] == fake_book.id_book
+        assert data["title"] == fake_book.title
+        assert data["author"] == fake_book.author
+        assert data["category"] == fake_book.category
+        assert data["publish_date"] == str(fake_book.publish_date)
+        assert data["description"] == fake_book.description
+        assert data["cover_image"] == fake_book.cover_image
+        assert data["id_book_api"] == fake_book.id_book_api
+        mock_service.get_book.assert_called_once_with(TEST_BOOK_ID)
+
+    def test_get_book_not_found_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Non-existing book raises 404 Not Found."""
+        mock_service.get_book.side_effect = BookNotFoundError(
+            book_id=NON_EXISTING_BOOK_ID,
+        )
+
+        response = client.get(f"{BOOKS_URL}/{NON_EXISTING_BOOK_ID}")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Book not found."
+
+    def test_get_book_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError from database raises 500 Internal Server Error."""
+        mock_service.get_book.side_effect = DAOError("DB connection failed")
+
+        response = client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        expected_detail = (
+            "Database error occurred while retrieving book details."
+        )
+        assert response.json()["detail"] == expected_detail
+
+    def test_get_book_invalid_id_zero_422(
+        self,
+        client: TestClient,
+    ) -> None:
+        """book_id < 1 violates validation and returns 422."""
+        response = client.get(f"{BOOKS_URL}/0")
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_get_book_invalid_id_string_422(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Non-integer book_id returns 422."""
+        response = client.get(f"{BOOKS_URL}/invalid-id")
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestSearchBooksUnitRoute:

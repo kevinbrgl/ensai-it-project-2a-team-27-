@@ -255,3 +255,77 @@ class TestGetBooksCatalogueRoute:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert any(b["id_book"] == created.id_book for b in data)
+
+
+class TestGetBookDetailsRoute:
+    """Integration tests for GET /api/books/{book_id}."""
+
+    def test_get_book_unauthenticated(self, client: TestClient) -> None:
+        """Route requires authentication: 401 or 403 without token."""
+        response = client.get(f"{BOOKS_URL}/1")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+    def test_get_book_invalid_id_422(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Invalid book_id (<= 0 or non-int) returns 422."""
+        response = client.get(f"{BOOKS_URL}/0", headers=auth_headers)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+        response_str = client.get(
+            f"{BOOKS_URL}/invalid",
+            headers=auth_headers,
+        )
+        assert response_str.status_code == (
+            status.HTTP_422_UNPROCESSABLE_CONTENT
+        )
+
+    def test_get_book_not_found_404(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Non-existing book returns 404 Not Found."""
+        response = client.get(f"{BOOKS_URL}/999999999", headers=auth_headers)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Book not found."
+
+    def test_get_book_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+    ) -> None:
+        """Existing book returns 200 with full book details."""
+        created = book_dao.create(
+            BookCreate(
+                title="Foundation",
+                author="Isaac Asimov",
+                category="Science Fiction",
+                publish_date=date(1951, 1, 1),
+                description="A galactic empire falls into chaos.",
+                cover_image="https://example.com/foundation.jpg",
+                id_book_api="/works/OL99999W",
+            ),
+        )
+
+        response = client.get(
+            f"{BOOKS_URL}/{created.id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_book"] == created.id_book
+        assert data["title"] == "Foundation"
+        assert data["author"] == "Isaac Asimov"
+        assert data["category"] == "Science Fiction"
+        assert data["publish_date"] == "1951-01-01"
+        assert data["description"] == "A galactic empire falls into chaos."
+        assert data["cover_image"] == "https://example.com/foundation.jpg"
+        assert data["id_book_api"] == "/works/OL99999W"

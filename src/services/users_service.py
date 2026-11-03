@@ -127,6 +127,18 @@ class UserService:
             raise UserNotFoundError(username=username)
         return user
 
+    def search_users(self, username: str, limit: int = 10) -> list[User]:
+        """Search users whose username matches the query.
+
+        :param username: Query string to match
+        :param limit: Maximum number of users to return
+        :return: List of matching User objects
+        """
+        query = username.strip()
+        if not query:
+            return []
+        return self.dao.search_by_username(query, limit=limit)
+
     def update_password(
         self,
         current_user: User,

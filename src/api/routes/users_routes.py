@@ -1,12 +1,15 @@
 """Routes for user operations in the FastAPI application.
 
-Provides endpoints for profile reading and updates.
+Provides endpoints for profile reading, search, and updates.
 Registration is handled in auth_routes.py.
 """
 
-from fastapi import APIRouter, HTTPException, status
+import logging
+from typing import Annotated
 
-from src.api.deps import CurrentUser, CursorDep
+from fastapi import APIRouter, HTTPException, Query, status
+
+from src.api.deps import CurrentUser, CursorDep, UserServiceDep
 from src.dao.users_dao import UserDAO
 from src.models import (
     User,
@@ -16,6 +19,7 @@ from src.models import (
 )
 from src.services.users_service import UserService
 from src.utils.exceptions import (
+    DAOError,
     EmailAlreadyExistsError,
     IncorrectPasswordError,
     SamePasswordError,
@@ -24,6 +28,7 @@ from src.utils.exceptions import (
 )
 
 router = APIRouter(prefix="/users", tags=["Users"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/me", response_model=UserRead)
@@ -34,6 +39,52 @@ def read_self(current_user: CurrentUser) -> User:
     :return: The user information
     """
     return current_user
+
+
+@router.get(
+    "/search",
+    response_model=list[UserRead],
+    status_code=status.HTTP_200_OK,
+)
+def search_users(
+    service: UserServiceDep,
+    _current_user: CurrentUser,
+    username: Annotated[
+        str,
+        Query(
+            min_length=1,
+            max_length=30,
+            description="Username search query",
+        ),
+    ],
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=50,
+            description="Maximum number of users to return",
+        ),
+    ] = 10,
+) -> list[User]:
+    """Search for users by username substring.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param _current_user: The authenticated user making the request
+    :param username: Username query string
+    :param limit: Maximum number of users to return
+    :raises HTTPException: 500 on database error
+    :return: List of matching users
+    """
+    try:
+        return service.search_users(username=username, limit=limit)
+    except DAOError:
+        logger.exception("Failed to search users with query: %s", username)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not search users.",
+        ) from None
 
 
 @router.patch("/me", response_model=UserRead)
