@@ -63,6 +63,7 @@ class LibraryService:
 
     def list_favorites(self, id_user: int) -> list[LibraryBookDetails]:
         """List the favorite books of the user's library.
+
         :param id_user: ID of the user
         :return: The favorite books, or an empty list if there are none
         """
