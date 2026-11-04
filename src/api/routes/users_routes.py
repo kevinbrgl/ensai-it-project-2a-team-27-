@@ -13,6 +13,8 @@ from fastapi import APIRouter, HTTPException, Query, status
 from src.api.deps import (
     CurrentUser,
     CursorDep,
+    LibraryServiceDep,
+    PlaylistServiceDep,
     QuestServiceDep,
     UserServiceDep,
 )
@@ -24,6 +26,8 @@ from src.models import (
     UserUpdate,
     UserUpdatePassword,
 )
+from src.models.library import LibraryBookDetails
+from src.models.playlists import PlaylistRead
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
@@ -395,4 +399,83 @@ def update_self_password(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Wrong password provided",
+        ) from None
+
+
+@router.get("/{user_id}/library")
+def get_user_library(
+    user_service: UserServiceDep,
+    library_service: LibraryServiceDep,
+    _current_user: CurrentUser,
+    user_id: int,
+    status_filter: Annotated[
+        str | None,
+        Query(
+            alias="status",
+            pattern="^(READING|WANT_TO_READ|COMPLETED)$",
+            description="Filter by reading state",
+        ),
+    ] = None,
+) -> list[LibraryBookDetails]:
+    """List the books in another user's library.
+
+    Every authenticated user can see the library of any user.
+
+    :param user_service: User service dependency
+    :param library_service: Library service dependency
+    :param _current_user: Authenticated user making the request
+    :param user_id: ID of the user whose library to retrieve
+    :param status_filter: Optional reading state to filter by
+    :raises HTTPException: 404 if the user is not found,
+        500 on database error
+    :return: The books of the user's library
+    """
+    try:
+        user_service.read(user_id)
+        return library_service.list_books(user_id, status_filter)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Failed to get the library of user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve the library.",
+        ) from None
+
+
+@router.get("/{user_id}/playlists")
+def get_user_playlists(
+    user_service: UserServiceDep,
+    playlist_service: PlaylistServiceDep,
+    _current_user: CurrentUser,
+    user_id: int,
+) -> list[PlaylistRead]:
+    """List another user's playlists.
+
+    Every authenticated user can see the playlists of any user.
+
+    :param user_service: User service dependency
+    :param playlist_service: Playlist service dependency
+    :param _current_user: Authenticated user making the request
+    :param user_id: ID of the user whose playlists to retrieve
+    :raises HTTPException: 404 if the user is not found,
+        500 on database error
+    :return: The user's playlists, in creation order
+    """
+    try:
+        user_service.read(user_id)
+        return playlist_service.list_playlists(user_id)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Failed to get the playlists of user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve the playlists.",
         ) from None
