@@ -192,6 +192,66 @@ class AlreadyFollowingError(Exception):
         super().__init__("User is already following this user.")
 
 
+class PlaylistAlreadyExistsError(Exception):
+    """Raised when a user already has a playlist with the same name.
+
+    :param name: Name of the playlist that already exists
+    """
+
+    def __init__(self, name: str) -> None:
+        """Initialize PlaylistAlreadyExistsError.
+
+        :param name: Name of the playlist that already exists
+        :return: None
+        """
+        super().__init__(f"Playlist {name} already exists")
+
+
+class PlaylistNotFoundError(Exception):
+    """Raised when a playlist does not exist or belongs to another user.
+
+    :param id_playlist: ID of the playlist
+    """
+
+    def __init__(self, id_playlist: int) -> None:
+        """Initialize PlaylistNotFoundError.
+
+        :param id_playlist: ID of the playlist
+        :return: None
+        """
+        super().__init__(f"No playlist found for id={id_playlist}")
+
+
+class BookAlreadyInPlaylistError(Exception):
+    """Raised when a book is already in a playlist.
+
+    :param id_book: ID of the book
+    """
+
+    def __init__(self, id_book: int) -> None:
+        """Initialize BookAlreadyInPlaylistError.
+
+        :param id_book: ID of the book
+        :return: None
+        """
+        super().__init__(f"Book {id_book} is already in the playlist")
+
+
+class BookNotInPlaylistError(Exception):
+    """Raised when a book is not in a playlist.
+
+    :param id_book: ID of the book
+    """
+
+    def __init__(self, id_book: int) -> None:
+        """Initialize BookNotInPlaylistError.
+
+        :param id_book: ID of the book
+        :return: None
+        """
+        super().__init__(f"Book {id_book} is not in the playlist")
+
+        
 class ReviewNotFoundError(Exception):
     """Raised when a review does not exist."""
 
