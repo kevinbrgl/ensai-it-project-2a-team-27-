@@ -51,3 +51,9 @@ CREATE TABLE IF NOT EXISTS playlists (
     name        VARCHAR(100) NOT NULL,
     UNIQUE (id_user, name)
 );
+
+CREATE TABLE IF NOT EXISTS playlist_books (
+    id_playlist INT REFERENCES playlists(id_playlist) ON DELETE CASCADE,
+    id_book     INT REFERENCES books(id_book) ON DELETE CASCADE,
+    PRIMARY KEY (id_playlist, id_book)
+);

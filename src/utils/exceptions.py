@@ -212,3 +212,33 @@ class PlaylistNotFoundError(Exception):
         :return: None
         """
         super().__init__(f"No playlist found for id={id_playlist}")
+
+
+class BookAlreadyInPlaylistError(Exception):
+    """Raised when a book is already in a playlist.
+
+    :param id_book: ID of the book
+    """
+
+    def __init__(self, id_book: int) -> None:
+        """Initialize BookAlreadyInPlaylistError.
+
+        :param id_book: ID of the book
+        :return: None
+        """
+        super().__init__(f"Book {id_book} is already in the playlist")
+
+
+class BookNotInPlaylistError(Exception):
+    """Raised when a book is not in a playlist.
+
+    :param id_book: ID of the book
+    """
+
+    def __init__(self, id_book: int) -> None:
+        """Initialize BookNotInPlaylistError.
+
+        :param id_book: ID of the book
+        :return: None
+        """
+        super().__init__(f"Book {id_book} is not in the playlist")

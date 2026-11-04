@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+from psycopg2.extras import RealDictCursor
 
 from src.core.config import settings
 
@@ -63,6 +64,26 @@ def create_playlist(
     return response.json()["id_playlist"]
 
 
+def create_book(cursor: RealDictCursor, title: str) -> int:
+    """Insert a test book with a unique API ID and return its ID.
+
+    :param cursor: Test cursor
+    :param title: Title of the book
+    :return: ID of the created book
+    """
+    cursor.execute(
+        """
+        INSERT INTO books (id_book_api, title)
+        VALUES (%s, %s)
+        RETURNING id_book
+        """,
+        (f"test_{uuid4().hex[:8]}", title),
+    )
+    row = cursor.fetchone()
+    assert row is not None
+    return row["id_book"]
+
+
 @pytest.fixture
 def auth_headers(client: TestClient) -> dict[str, str]:
     """Return the auth headers of a new logged-in user."""
@@ -73,6 +94,12 @@ def auth_headers(client: TestClient) -> dict[str, str]:
 def other_auth_headers(client: TestClient) -> dict[str, str]:
     """Return the auth headers of a second logged-in user."""
     return login_new_user(client, "plother")
+
+
+@pytest.fixture
+def id_book(cursor: RealDictCursor) -> int:
+    """Insert a test book in the database and return its ID."""
+    return create_book(cursor, "Dune")
 
 
 class TestCreatePlaylistRoute:
@@ -420,5 +447,297 @@ class TestDeletePlaylistRoute:
     def test_unauthorized(self, client: TestClient) -> None:
         """Missing token: 401 Unauthorized."""
         response = client.delete(f"{PLAYLISTS_URL}/1")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestAddBookToPlaylistRoute:
+    """Integration tests for POST /api/playlists/{id_playlist}/books."""
+
+    def test_add_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book of the catalog: 201 Created."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.post(
+            f"{PLAYLISTS_URL}/{id_playlist}/books",
+            headers=auth_headers,
+            json={"id_book": id_book},
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json() == {
+            "id_playlist": id_playlist,
+            "id_book": id_book,
+        }
+
+    def test_duplicate(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Same book twice in the same playlist: 409 Conflict."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+        url = f"{PLAYLISTS_URL}/{id_playlist}/books"
+        client.post(url, headers=auth_headers, json={"id_book": id_book})
+
+        response = client.post(
+            url,
+            headers=auth_headers,
+            json={"id_book": id_book},
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+
+    def test_book_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Book missing from the local catalog: 404 Not Found."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.post(
+            f"{PLAYLISTS_URL}/{id_playlist}/books",
+            headers=auth_headers,
+            json={"id_book": 999999999},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_playlist_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Unknown playlist: 404 Not Found."""
+        response = client.post(
+            f"{PLAYLISTS_URL}/999999999/books",
+            headers=auth_headers,
+            json={"id_book": id_book},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_other_user_cannot_add(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Another user gets 404 and my playlist stays empty."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.post(
+            f"{PLAYLISTS_URL}/{id_playlist}/books",
+            headers=other_auth_headers,
+            json={"id_book": id_book},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        mine = client.get(
+            f"{PLAYLISTS_URL}/{id_playlist}",
+            headers=auth_headers,
+        )
+        assert mine.json()["books"] == []
+
+    def test_missing_book_id(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Body without id_book: 422 (validation error)."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.post(
+            f"{PLAYLISTS_URL}/{id_playlist}/books",
+            headers=auth_headers,
+            json={},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_unauthorized(self, client: TestClient) -> None:
+        """Missing token: 401 Unauthorized."""
+        response = client.post(
+            f"{PLAYLISTS_URL}/1/books",
+            json={"id_book": 1},
+        )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestGetPlaylistRoute:
+    """Integration tests for GET /api/playlists/{id_playlist}."""
+
+    def test_empty_playlist(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """New playlist: 200 OK, its name and an empty list of books."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.get(
+            f"{PLAYLISTS_URL}/{id_playlist}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_playlist"] == id_playlist
+        assert data["name"] == "Polars"
+        assert data["books"] == []
+
+    def test_books_with_details(
+        self,
+        client: TestClient,
+        cursor: RealDictCursor,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Books are listed with their details, sorted by title."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+        url = f"{PLAYLISTS_URL}/{id_playlist}"
+        for title in ("Dune", "Anna Karenine"):
+            client.post(
+                f"{url}/books",
+                headers=auth_headers,
+                json={"id_book": create_book(cursor, title)},
+            )
+
+        response = client.get(url, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_200_OK
+        books = response.json()["books"]
+        assert [b["title"] for b in books] == ["Anna Karenine", "Dune"]
+        assert {"id_book", "author", "cover_image"} <= set(books[0])
+
+    def test_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Unknown playlist: 404 Not Found."""
+        response = client.get(
+            f"{PLAYLISTS_URL}/999999999",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_other_user_cannot_read(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+    ) -> None:
+        """Another user's playlist: 404 Not Found."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.get(
+            f"{PLAYLISTS_URL}/{id_playlist}",
+            headers=other_auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_unauthorized(self, client: TestClient) -> None:
+        """Missing token: 401 Unauthorized."""
+        response = client.get(f"{PLAYLISTS_URL}/1")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestRemoveBookFromPlaylistRoute:
+    """Integration tests for DELETE /api/playlists/{id}/books/{id_book}."""
+
+    def test_remove_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book in the playlist: 204 No Content, and it is no longer listed."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+        url = f"{PLAYLISTS_URL}/{id_playlist}"
+        client.post(
+            f"{url}/books",
+            headers=auth_headers,
+            json={"id_book": id_book},
+        )
+
+        response = client.delete(
+            f"{url}/books/{id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert client.get(url, headers=auth_headers).json()["books"] == []
+
+    def test_book_not_in_playlist(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book not in the playlist: 404 Not Found."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+
+        response = client.delete(
+            f"{PLAYLISTS_URL}/{id_playlist}/books/{id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_playlist_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Unknown playlist: 404 Not Found."""
+        response = client.delete(
+            f"{PLAYLISTS_URL}/999999999/books/{id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_other_user_cannot_remove(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Another user gets 404 and the book stays in my playlist."""
+        id_playlist = create_playlist(client, auth_headers, "Polars")
+        url = f"{PLAYLISTS_URL}/{id_playlist}"
+        client.post(
+            f"{url}/books",
+            headers=auth_headers,
+            json={"id_book": id_book},
+        )
+
+        response = client.delete(
+            f"{url}/books/{id_book}",
+            headers=other_auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        books = client.get(url, headers=auth_headers).json()["books"]
+        assert len(books) == 1
+
+    def test_unauthorized(self, client: TestClient) -> None:
+        """Missing token: 401 Unauthorized."""
+        response = client.delete(f"{PLAYLISTS_URL}/1/books/1")
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED

@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from src.models.books import Book
+
 
 class PlaylistCreate(BaseModel):
     """Data sent by the client to create a playlist."""
@@ -19,3 +21,22 @@ class PlaylistRead(BaseModel):
 
 class PlaylistUpdate(PlaylistCreate):
     """Body of PATCH /playlists/{id_playlist}."""
+
+
+class PlaylistBookAdd(BaseModel):
+    """Body of POST /playlists/{id_playlist}/books."""
+
+    id_book: int
+
+
+class PlaylistBookRead(BaseModel):
+    """A book of a playlist, as returned by the API."""
+
+    id_playlist: int
+    id_book: int
+
+
+class PlaylistDetails(PlaylistRead):
+    """A playlist with the details of its books."""
+
+    books: list[Book]

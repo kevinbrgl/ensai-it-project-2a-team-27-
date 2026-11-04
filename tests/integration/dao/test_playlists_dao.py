@@ -14,6 +14,9 @@ from src.dao.users_dao import UserDAO
 from src.models.playlists import PlaylistCreate, PlaylistUpdate
 from src.models.users import UserCreate
 from src.utils.exceptions import (
+    BookAlreadyInPlaylistError,
+    BookNotFoundError,
+    BookNotInPlaylistError,
     PlaylistAlreadyExistsError,
     PlaylistNotFoundError,
 )
@@ -35,6 +38,26 @@ def create_user(user_dao: UserDAO, prefix: str) -> int:
         ),
     )
     return user.id_user
+
+
+def create_book(cursor: RealDictCursor, title: str) -> int:
+    """Insert a test book with a unique API ID and return its ID.
+
+    :param cursor: Test cursor
+    :param title: Title of the book
+    :return: ID of the created book
+    """
+    cursor.execute(
+        """
+        INSERT INTO books (id_book_api, title)
+        VALUES (%s, %s)
+        RETURNING id_book
+        """,
+        (f"test_{uuid4().hex[:8]}", title),
+    )
+    row = cursor.fetchone()
+    assert row is not None
+    return row["id_book"]
 
 
 @pytest.fixture
@@ -60,6 +83,12 @@ def id_playlist(playlist_dao: PlaylistDAO, id_user: int) -> int:
     """Create a playlist named "Polars" for the test user, return its ID."""
     playlist = playlist_dao.create(id_user, PlaylistCreate(name="Polars"))
     return playlist.id_playlist
+
+
+@pytest.fixture
+def id_book(cursor: RealDictCursor) -> int:
+    """Insert a test book in the database and return its ID."""
+    return create_book(cursor, "Dune")
 
 
 class TestCreate:
@@ -277,3 +306,157 @@ class TestDelete:
             playlist_dao.delete(id_other_user, id_playlist)
 
         assert len(playlist_dao.find_by_user_id(id_user)) == 1
+
+
+class TestRead:
+    """Tests for PlaylistDAO.read."""
+
+    def test_ok(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_user: int,
+        id_playlist: int,
+    ) -> None:
+        """The owner reads their playlist."""
+        result = playlist_dao.read(id_user, id_playlist)
+
+        assert result is not None
+        assert result.id_playlist == id_playlist
+        assert result.name == "Polars"
+
+    def test_not_found(self, playlist_dao: PlaylistDAO, id_user: int) -> None:
+        """Unknown playlist: None."""
+        assert playlist_dao.read(id_user, 999999999) is None
+
+    def test_other_user(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_other_user: int,
+        id_playlist: int,
+    ) -> None:
+        """Another user's playlist is treated as not found: None."""
+        assert playlist_dao.read(id_other_user, id_playlist) is None
+
+
+class TestAddBook:
+    """Tests for PlaylistDAO.add_book."""
+
+    def test_ok(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_playlist: int,
+        id_book: int,
+    ) -> None:
+        """The book is added to the playlist."""
+        result = playlist_dao.add_book(id_playlist, id_book)
+
+        assert result.id_playlist == id_playlist
+        assert result.id_book == id_book
+
+    def test_duplicate(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_playlist: int,
+        id_book: int,
+    ) -> None:
+        """Same book twice in the same playlist raises an error."""
+        playlist_dao.add_book(id_playlist, id_book)
+
+        with pytest.raises(BookAlreadyInPlaylistError):
+            playlist_dao.add_book(id_playlist, id_book)
+
+    def test_book_not_found(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_playlist: int,
+    ) -> None:
+        """Book missing from the local database raises an error."""
+        with pytest.raises(BookNotFoundError):
+            playlist_dao.add_book(id_playlist, 999999999)
+
+
+class TestFindBooks:
+    """Tests for PlaylistDAO.find_books."""
+
+    def test_empty(self, playlist_dao: PlaylistDAO, id_playlist: int) -> None:
+        """A playlist without books gives an empty list."""
+        assert playlist_dao.find_books(id_playlist) == []
+
+    def test_sorted_by_title(
+        self,
+        playlist_dao: PlaylistDAO,
+        cursor: RealDictCursor,
+        id_playlist: int,
+    ) -> None:
+        """The books come with their details, sorted by title."""
+        id_dune = create_book(cursor, "Dune")
+        id_anna = create_book(cursor, "Anna Karenine")
+        playlist_dao.add_book(id_playlist, id_dune)
+        playlist_dao.add_book(id_playlist, id_anna)
+
+        result = playlist_dao.find_books(id_playlist)
+
+        assert [book.title for book in result] == ["Anna Karenine", "Dune"]
+        assert result[0].id_book == id_anna
+
+    def test_only_this_playlist(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_user: int,
+        id_playlist: int,
+        id_book: int,
+    ) -> None:
+        """The books of another playlist are not listed."""
+        other = playlist_dao.create(id_user, PlaylistCreate(name="Romans"))
+        playlist_dao.add_book(other.id_playlist, id_book)
+
+        assert playlist_dao.find_books(id_playlist) == []
+        assert len(playlist_dao.find_books(other.id_playlist)) == 1
+
+
+class TestRemoveBook:
+    """Tests for PlaylistDAO.remove_book."""
+
+    def test_ok(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_playlist: int,
+        id_book: int,
+    ) -> None:
+        """The book is no longer in the playlist after removal."""
+        playlist_dao.add_book(id_playlist, id_book)
+
+        playlist_dao.remove_book(id_playlist, id_book)
+
+        assert playlist_dao.find_books(id_playlist) == []
+
+    def test_not_in_playlist(
+        self,
+        playlist_dao: PlaylistDAO,
+        id_playlist: int,
+        id_book: int,
+    ) -> None:
+        """Book not in the playlist raises an error."""
+        with pytest.raises(BookNotInPlaylistError):
+            playlist_dao.remove_book(id_playlist, id_book)
+
+    def test_deleting_playlist_removes_its_books(
+        self,
+        playlist_dao: PlaylistDAO,
+        cursor: RealDictCursor,
+        id_user: int,
+        id_playlist: int,
+        id_book: int,
+    ) -> None:
+        """Deleting a playlist also deletes its rows in playlist_books."""
+        playlist_dao.add_book(id_playlist, id_book)
+
+        playlist_dao.delete(id_user, id_playlist)
+
+        cursor.execute(
+            "SELECT COUNT(*) AS n FROM playlist_books WHERE id_playlist = %s",
+            (id_playlist,),
+        )
+        row = cursor.fetchone()
+        assert row is not None
+        assert row["n"] == 0
