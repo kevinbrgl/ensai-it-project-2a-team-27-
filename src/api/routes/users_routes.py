@@ -1,17 +1,24 @@
 """Routes for user operations in the FastAPI application.
 
-Provides endpoints for profile reading, search, follow, and updates.
+Provides endpoints for profile reading, search, follow, unfollow,
+followers, following, quests, and updates.
 Registration is handled in auth_routes.py.
 """
 
 import logging
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.api.deps import CurrentUser, CursorDep, UserServiceDep
+from src.api.deps import (
+    CurrentUser,
+    CursorDep,
+    QuestServiceDep,
+    UserServiceDep,
+)
 from src.dao.users_dao import UserDAO
 from src.models import (
+    Quest,
     User,
     UserRead,
     UserUpdate,
@@ -23,8 +30,10 @@ from src.utils.exceptions import (
     DAOError,
     EmailAlreadyExistsError,
     IncorrectPasswordError,
+    NotFollowingError,
     SamePasswordError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -41,6 +50,49 @@ def read_self(current_user: CurrentUser) -> User:
     :return: The user information
     """
     return current_user
+
+
+@router.get(
+    "/me/quests",
+    status_code=status.HTTP_200_OK,
+)
+def get_my_quests(
+    service: QuestServiceDep,
+    current_user: CurrentUser,
+    status_filter: Annotated[
+        Literal["all", "active", "completed"],
+        Query(
+            alias="status",
+            description=(
+                "Filter by quest status ('all', 'active', 'completed')"
+            ),
+        ),
+    ] = "all",
+) -> list[Quest]:
+    """Retrieve active quests and their progress for the authenticated user.
+
+    Route is protected and requires authentication.
+
+    :param service: Quest service dependency
+    :param current_user: Authenticated user making the request
+    :param status_filter: Filter to retrieve 'all', 'active', or 'completed'
+    :raises HTTPException: 500 on database error
+    :return: List of Quest objects with calculated progress
+    """
+    try:
+        return service.get_quests(
+            user_id=current_user.id_user,
+            status_filter=status_filter,
+        )
+    except DAOError:
+        logger.exception(
+            "Failed to retrieve quests for user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve quests.",
+        ) from None
 
 
 @router.get(
@@ -139,6 +191,130 @@ def follow_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not follow user.",
+        ) from None
+
+
+@router.delete(
+    "/{user_id}/follow",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def unfollow_user(
+    service: UserServiceDep,
+    current_user: CurrentUser,
+    user_id: int,
+) -> None:
+    """Unfollow another user.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param current_user: Authenticated user making the request (follower)
+    :param user_id: ID of the user to unfollow (following)
+    :raises HTTPException: 400 if user attempts to unfollow themselves,
+        404 if target user is not found or not currently followed,
+        500 on database error
+    """
+    try:
+        service.unfollow_user(
+            follower_id=current_user.id_user,
+            following_id=user_id,
+        )
+    except SelfUnfollowError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Users cannot unfollow themselves.",
+        ) from None
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except NotFollowingError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not following this user.",
+        ) from None
+    except DAOError:
+        logger.exception(
+            "Failed to unfollow user %s for follower %s",
+            user_id,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not unfollow user.",
+        ) from None
+
+
+@router.get(
+    "/{user_id}/followers",
+    response_model=list[UserRead],
+    status_code=status.HTTP_200_OK,
+)
+def get_followers(
+    service: UserServiceDep,
+    _current_user: CurrentUser,
+    user_id: int,
+) -> list[User]:
+    """List a user's followers.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param _current_user: Authenticated user making the request
+    :param user_id: ID of the user whose followers to retrieve
+    :raises HTTPException: 404 if the user is not found,
+        500 on database error
+    :return: List of followers
+    """
+    try:
+        return service.get_followers(user_id)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Failed to get followers for user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve followers.",
+        ) from None
+
+
+@router.get(
+    "/{user_id}/following",
+    response_model=list[UserRead],
+    status_code=status.HTTP_200_OK,
+)
+def get_following(
+    service: UserServiceDep,
+    _current_user: CurrentUser,
+    user_id: int,
+) -> list[User]:
+    """List the users followed by a user.
+
+    Route is protected and requires authentication.
+
+    :param service: User service dependency
+    :param _current_user: Authenticated user making the request
+    :param user_id: ID of the user whose followed users to retrieve
+    :raises HTTPException: 404 if the user is not found,
+        500 on database error
+    :return: List of followed users
+    """
+    try:
+        return service.get_following(user_id)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Failed to get following for user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve followed users.",
         ) from None
 
 

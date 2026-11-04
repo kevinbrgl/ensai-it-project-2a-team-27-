@@ -1,14 +1,16 @@
 """Routes for library operations in the FastAPI application."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.api.deps import CurrentUser, LibraryServiceDep
 from src.models.library import (
     LibraryBookAdd,
     LibraryBookDetails,
     LibraryBookRead,
+    LibraryBookUpdateStatus,
 )
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
@@ -171,6 +173,85 @@ def toggle_favorite(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not update the favorite.",
+        ) from None
+
+
+@router.patch("/books/{id_book}/status")
+def update_book_status(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    id_book: int,
+    status_in: LibraryBookUpdateStatus,
+) -> LibraryBookRead:
+    """Update the reading status of a book in the authenticated user's library.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param id_book: ID of the book to update
+    :param status_in: The new status
+    :raises HTTPException: 404 if not in library, 500 on database error
+    :return: The updated reading activity
+    """
+    try:
+        return service.update_book_status(
+            current_user.id_user,
+            id_book,
+            status_in.state,
+        )
+
+    except BookNotInLibraryError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book is not in the library.",
+        ) from None
+
+    except DAOError:
+        logger.exception(
+            "Failed to update status of book %s for user %s",
+            id_book,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update the book status.",
+        ) from None
+
+
+@router.get("/books")
+def list_books(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    status_filter: Annotated[
+        str | None,
+        Query(
+            alias="status",
+            pattern="^(READING|WANT_TO_READ|COMPLETED)$",
+            description="Filter by reading state",
+        ),
+    ] = None,
+) -> list[LibraryBookDetails]:
+    """List the books in the authenticated user's library.
+
+    Supports an optional 'status' query parameter to filter the results.
+    Returns an empty list when the user has no books matching the criteria.
+
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param status_filter: Optional status to filter by
+    :raises HTTPException: 500 on database error
+    :return: The list of library books
+    """
+    try:
+        return service.list_books(current_user.id_user, status_filter)
+
+    except DAOError:
+        logger.exception(
+            "Failed to list books of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not list the library books.",
         ) from None
 
 

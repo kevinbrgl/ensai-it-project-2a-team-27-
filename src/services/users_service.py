@@ -29,6 +29,7 @@ from src.utils.exceptions import (
     IncorrectPasswordError,
     SamePasswordError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -154,6 +155,43 @@ class UserService:
         if self.dao.read(following_id) is None:
             raise UserNotFoundError(user_id=following_id)
         self.dao.add_follow(follower_id, following_id)
+
+    def unfollow_user(self, follower_id: int, following_id: int) -> None:
+        """Unfollow another user.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being unfollowed
+        :raises SelfUnfollowError: If a user attempts to unfollow themselves
+        :raises UserNotFoundError: If the target user does not exist
+        :raises NotFollowingError: If not currently following the target user
+        """
+        if follower_id == following_id:
+            raise SelfUnfollowError
+        if self.dao.read(following_id) is None:
+            raise UserNotFoundError(user_id=following_id)
+        self.dao.remove_follow(follower_id, following_id)
+
+    def get_followers(self, user_id: int) -> list[User]:
+        """Get the followers of a user.
+
+        :param user_id: ID of the user whose followers to retrieve
+        :raises UserNotFoundError: If the user does not exist
+        :return: List of User objects who follow the user
+        """
+        if self.dao.read(user_id) is None:
+            raise UserNotFoundError(user_id=user_id)
+        return self.dao.get_followers(user_id)
+
+    def get_following(self, user_id: int) -> list[User]:
+        """Get the users followed by a user.
+
+        :param user_id: ID of the user whose followed users to retrieve
+        :raises UserNotFoundError: If the user does not exist
+        :return: List of User objects followed by the user
+        """
+        if self.dao.read(user_id) is None:
+            raise UserNotFoundError(user_id=user_id)
+        return self.dao.get_following(user_id)
 
     def update_password(
         self,

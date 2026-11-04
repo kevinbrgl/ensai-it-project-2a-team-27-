@@ -57,3 +57,13 @@ CREATE TABLE IF NOT EXISTS playlist_books (
     id_book     INT REFERENCES books(id_book) ON DELETE CASCADE,
     PRIMARY KEY (id_playlist, id_book)
 );
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id_review   SERIAL PRIMARY KEY,
+    id_user     INT NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
+    id_book     INT NOT NULL REFERENCES books(id_book) ON DELETE CASCADE,
+    rating      INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment     TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (id_user, id_book)
+);

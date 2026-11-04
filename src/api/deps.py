@@ -19,12 +19,16 @@ from src.core.config import settings
 from src.dao.books_dao import BookDAO
 from src.dao.library_dao import LibraryDAO
 from src.dao.playlists_dao import PlaylistDAO
+from src.dao.quests_dao import QuestDAO
+from src.dao.reviews_dao import ReviewDAO
 from src.dao.tokens_dao import TokenDAO
 from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
 from src.services.books_service import BookService
 from src.services.library_service import LibraryService
 from src.services.playlists_service import PlaylistService
+from src.services.quests_service import QuestService
+from src.services.reviews_service import ReviewService
 from src.services.tokens_service import TokenService
 from src.services.users_service import UserService
 from src.utils.exceptions import UserNotFoundError
@@ -165,3 +169,19 @@ def get_playlist_service(cursor: CursorDep) -> PlaylistService:
 
 
 PlaylistServiceDep = Annotated[PlaylistService, Depends(get_playlist_service)]
+
+
+def get_review_service(cursor: CursorDep) -> ReviewService:
+    """Build a ReviewService bound to the request cursor."""
+    return ReviewService(ReviewDAO(cursor), BookDAO(cursor), UserDAO(cursor))
+
+
+ReviewServiceDep = Annotated[ReviewService, Depends(get_review_service)]
+
+
+def get_quest_service(cursor: CursorDep) -> QuestService:
+    """Build a QuestService bound to the request cursor."""
+    return QuestService(QuestDAO(cursor))
+
+
+QuestServiceDep = Annotated[QuestService, Depends(get_quest_service)]

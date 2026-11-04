@@ -11,7 +11,9 @@ from src.models import User, UserCreate, UserUpdateFull
 from src.utils.exceptions import (
     AlreadyFollowingError,
     EmailAlreadyExistsError,
+    NotFollowingError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -204,6 +206,128 @@ class TestFollow:
         """Following a nonexistent user raises UserNotFoundError."""
         with pytest.raises(UserNotFoundError):
             user_dao.add_follow(alice.id_user, UNKNOWN_ID)
+
+    def test_remove_follow_success(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """A user can unfollow a followed user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_unfollow",
+                email="it_bob_unfollow@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(alice.id_user, bob.id_user)
+        assert user_dao.is_following(alice.id_user, bob.id_user) is True
+
+        user_dao.remove_follow(alice.id_user, bob.id_user)
+        assert user_dao.is_following(alice.id_user, bob.id_user) is False
+
+    def test_remove_follow_self_error(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """A user cannot unfollow themselves."""
+        with pytest.raises(SelfUnfollowError):
+            user_dao.remove_follow(alice.id_user, alice.id_user)
+
+    def test_remove_follow_not_following(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """Unfollowing when not following raises NotFollowingError."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_unfollow_not",
+                email="it_bob_unfollow_not@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        with pytest.raises(NotFollowingError):
+            user_dao.remove_follow(alice.id_user, bob.id_user)
+
+    def test_get_followers_multiple(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_followers returns all users who follow the user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_follower_1",
+                email="it_bob_follower_1@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        charlie = user_dao.create(
+            UserCreate(
+                username="it_charlie_follower_2",
+                email="it_charlie_follower_2@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(bob.id_user, alice.id_user)
+        user_dao.add_follow(charlie.id_user, alice.id_user)
+
+        followers = user_dao.get_followers(alice.id_user)
+        follower_ids = [f.id_user for f in followers]
+
+        assert len(followers) == 2  # ruff: ignore[magic-value-comparison]
+        assert bob.id_user in follower_ids
+        assert charlie.id_user in follower_ids
+
+    def test_get_followers_empty(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_followers on a user with no followers returns empty list."""
+        followers = user_dao.get_followers(alice.id_user)
+        assert followers == []
+
+    def test_get_following_multiple(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_following returns all users followed by the user."""
+        bob = user_dao.create(
+            UserCreate(
+                username="it_bob_following_1",
+                email="it_bob_following_1@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        charlie = user_dao.create(
+            UserCreate(
+                username="it_charlie_following_2",
+                email="it_charlie_following_2@ensai.fr",
+                password_hash=PASSWORD_HASH,
+            ),
+        )
+        user_dao.add_follow(alice.id_user, bob.id_user)
+        user_dao.add_follow(alice.id_user, charlie.id_user)
+
+        following = user_dao.get_following(alice.id_user)
+        following_ids = [f.id_user for f in following]
+
+        assert len(following) == 2  # ruff: ignore[magic-value-comparison]
+        assert bob.id_user in following_ids
+        assert charlie.id_user in following_ids
+
+    def test_get_following_empty(
+        self,
+        user_dao: UserDAO,
+        alice: User,
+    ) -> None:
+        """get_following on a user following nobody returns empty list."""
+        following = user_dao.get_following(alice.id_user)
+        assert following == []
 
 
 class TestUpdate:

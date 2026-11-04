@@ -149,6 +149,40 @@ class LibraryDAO:
             raise BookNotInLibraryError(id_book)
         return LibraryBookRead(**row)
 
+    def update_status(
+        self,
+        id_user: int,
+        id_book: int,
+        state: str,
+    ) -> LibraryBookRead:
+        """Update the reading state of a book in a user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book to update
+        :param state: The new reading state
+        :raises BookNotInLibraryError: If the book is not in the library
+        :raises DAOError: If a DB error occurs
+        :return: The updated library activity
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE user_book_activities
+                SET state = %s
+                WHERE id_user = %s AND id_book = %s
+                RETURNING *
+                """,
+                (state, id_user, id_book),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise BookNotInLibraryError(id_book)
+        return LibraryBookRead(**row)
+
     def find_favorites_by_user_id(
         self,
         id_user: int,
@@ -175,6 +209,43 @@ class LibraryDAO:
             )
             rows = self.cur.fetchall()
 
+        except DBError as exc:
+            raise DAOError from exc
+
+        return [LibraryBookDetails(**row) for row in rows]
+
+    def find_books_by_user_id(
+        self,
+        id_user: int,
+        status: str | None = None,
+    ) -> list[LibraryBookDetails]:
+        """List a user's books, optionally filtered by reading state.
+
+        :param id_user: ID of the user
+        :param status: Optional reading state to filter by
+        :raises DAOError: If a DB error occurs
+        :return: The user's books, or an empty list if there are none
+        """
+        query = """
+            SELECT uba.id_user, uba.id_book, uba.state,
+                   uba.is_liked, uba.is_favorite,
+                   b.title, b.author, b.category, b.publish_date,
+                   b.description, b.cover_image
+            FROM user_book_activities AS uba
+            JOIN books AS b ON b.id_book = uba.id_book
+            WHERE uba.id_user = %s
+        """
+        params: list[int | str] = [id_user]
+
+        if status is not None:
+            query += " AND uba.state = %s"
+            params.append(status)
+
+        query += " ORDER BY uba.id_book"
+
+        try:
+            self.cur.execute(query, tuple(params))
+            rows = self.cur.fetchall()
         except DBError as exc:
             raise DAOError from exc
 

@@ -216,3 +216,76 @@ class TestListFavorites:
 
         assert result == []
         mock_dao.find_favorites_by_user_id.assert_called_once_with(ID_USER)
+
+
+class TestListBooks:
+    """Tests for LibraryService.list_books."""
+
+    def test_valid_no_status(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """Valid request without status calls DAO with None."""
+        mock_dao.find_books_by_user_id.return_value = []
+
+        result = service.list_books(ID_USER)
+
+        assert result == []
+        mock_dao.find_books_by_user_id.assert_called_once_with(ID_USER, None)
+
+    def test_valid_with_status(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """Valid request with status forwards the filter to DAO."""
+        mock_dao.find_books_by_user_id.return_value = []
+
+        result = service.list_books(ID_USER, status="READING")
+
+        assert result == []
+        mock_dao.find_books_by_user_id.assert_called_once_with(
+            ID_USER,
+            "READING",
+        )
+
+
+class TestUpdateBookStatus:
+    """Tests for LibraryService.update_book_status."""
+
+    def test_valid(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Valid request: returns the updated reading activity."""
+        updated_book = book_read.model_copy(update={"state": "COMPLETED"})
+        mock_dao.update_status.return_value = updated_book
+
+        result = service.update_book_status(ID_USER, ID_BOOK, "COMPLETED")
+
+        assert result == updated_book
+        mock_dao.update_status.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            "COMPLETED",
+        )
+
+    def test_not_in_library(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """DAO raises BookNotInLibraryError: it is propagated."""
+        mock_dao.update_status.side_effect = BookNotInLibraryError(ID_BOOK)
+
+        with pytest.raises(BookNotInLibraryError):
+            service.update_book_status(ID_USER, ID_BOOK, "COMPLETED")
+
+        mock_dao.update_status.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            "COMPLETED",
+        )

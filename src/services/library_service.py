@@ -61,6 +61,21 @@ class LibraryService:
         """
         return self.dao.toggle_favorite(id_user, id_book)
 
+    def update_book_status(
+        self,
+        id_user: int,
+        id_book: int,
+        state: str,
+    ) -> LibraryBookRead:
+        """Update the reading status of a book in the user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book
+        :param state: The new reading state
+        :return: The updated library activity
+        """
+        return self.dao.update_status(id_user, id_book, state)
+
     def list_favorites(self, id_user: int) -> list[LibraryBookDetails]:
         """List the favorite books of the user's library.
 
@@ -68,3 +83,16 @@ class LibraryService:
         :return: The favorite books, or an empty list if there are none
         """
         return self.dao.find_favorites_by_user_id(id_user)
+
+    def list_books(
+        self,
+        id_user: int,
+        status: str | None = None,
+    ) -> list[LibraryBookDetails]:
+        """List the books in the user's library, optionally filtered by status.
+
+        :param id_user: ID of the user
+        :param status: Optional reading state to filter by
+        :return: The user's books, or an empty list if there are none
+        """
+        return self.dao.find_books_by_user_id(id_user, status)

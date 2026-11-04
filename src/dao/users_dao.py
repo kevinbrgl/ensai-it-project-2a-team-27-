@@ -3,7 +3,8 @@
 This module provides CRUD operations for users in the database,
 as well as user follow management.
 All database errors are wrapped in DAOError, UserAlreadyExistsError,
-EmailAlreadyExistsError, SelfFollowError, or AlreadyFollowingError.
+EmailAlreadyExistsError, SelfFollowError, AlreadyFollowingError,
+or NotFollowingError.
 """
 
 from psycopg2 import Error as DBError
@@ -19,7 +20,9 @@ from src.utils.exceptions import (
     AlreadyFollowingError,
     DAOError,
     EmailAlreadyExistsError,
+    NotFollowingError,
     SelfFollowError,
+    SelfUnfollowError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -193,6 +196,33 @@ class UserDAO:
         except DBError as exc:
             raise DAOError from exc
 
+    def remove_follow(self, follower_id: int, following_id: int) -> None:
+        """Remove a follow relationship between two users.
+
+        :param follower_id: ID of the follower
+        :param following_id: ID of the user being unfollowed
+        :raises SelfUnfollowError: If a user tries to unfollow themselves
+        :raises NotFollowingError: If not currently following the user
+        :raises DAOError: If a database error occurs
+        """
+        if follower_id == following_id:
+            raise SelfUnfollowError
+        try:
+            self.cur.execute(
+                """
+                DELETE FROM user_follows
+                WHERE follower_id = %s AND following_id = %s
+                RETURNING follower_id
+                """,
+                (follower_id, following_id),
+            )
+            row = self.cur.fetchone()
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise NotFollowingError
+
     def is_following(self, follower_id: int, following_id: int) -> bool:
         """Check if a user follows another user.
 
@@ -213,6 +243,54 @@ class UserDAO:
             return self.cur.fetchone() is not None
         except DBError as exc:
             raise DAOError from exc
+
+    def get_followers(self, user_id: int) -> list[User]:
+        """Retrieve all users following the specified user.
+
+        :param user_id: ID of the user whose followers to retrieve
+        :raises DAOError: If a database error occurs
+        :return: List of User objects who follow the user
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT u.id_user, u.username, u.email, u.password_hash,
+                       u.bio, u.profile_picture
+                FROM users u
+                INNER JOIN user_follows uf ON u.id_user = uf.follower_id
+                WHERE uf.following_id = %s
+                ORDER BY uf.created_at DESC, u.id_user ASC;
+                """,
+                (user_id,),
+            )
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+        return [User(**row) for row in rows]
+
+    def get_following(self, user_id: int) -> list[User]:
+        """Retrieve all users followed by the specified user.
+
+        :param user_id: ID of the user whose followed users to retrieve
+        :raises DAOError: If a database error occurs
+        :return: List of User objects followed by the user
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT u.id_user, u.username, u.email, u.password_hash,
+                       u.bio, u.profile_picture
+                FROM users u
+                INNER JOIN user_follows uf ON u.id_user = uf.following_id
+                WHERE uf.follower_id = %s
+                ORDER BY uf.created_at DESC, u.id_user ASC;
+                """,
+                (user_id,),
+            )
+            rows = self.cur.fetchall()
+        except DBError as exc:
+            raise DAOError from exc
+        return [User(**row) for row in rows]
 
     def update(self, user_id: int, user_in: UserUpdateFull) -> User | None:
         """Update a user by their ID.
