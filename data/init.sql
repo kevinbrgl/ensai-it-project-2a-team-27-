@@ -44,3 +44,14 @@ CREATE TABLE IF NOT EXISTS user_follows (
     PRIMARY KEY (follower_id, following_id),
     CHECK (follower_id <> following_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id_review   SERIAL PRIMARY KEY,
+    id_user     INT NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
+    id_book     INT NOT NULL REFERENCES books(id_book) ON DELETE CASCADE,
+    rating      INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment     TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (id_user, id_book)
+);
