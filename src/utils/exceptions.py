@@ -251,7 +251,7 @@ class BookNotInPlaylistError(Exception):
         """
         super().__init__(f"Book {id_book} is not in the playlist")
 
-        
+
 class ReviewNotFoundError(Exception):
     """Raised when a review does not exist."""
 
