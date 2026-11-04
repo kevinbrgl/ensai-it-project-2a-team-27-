@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS user_follows (
     CHECK (follower_id <> following_id)
 );
 
+CREATE TABLE IF NOT EXISTS playlists (
+    id_playlist SERIAL PRIMARY KEY,
+    id_user     INT NOT NULL REFERENCES users(id_user) ON DELETE CASCADE,
+    name        VARCHAR(100) NOT NULL,
+    UNIQUE (id_user, name)
+);
+
+CREATE TABLE IF NOT EXISTS playlist_books (
+    id_playlist INT REFERENCES playlists(id_playlist) ON DELETE CASCADE,
+    id_book     INT REFERENCES books(id_book) ON DELETE CASCADE,
+    PRIMARY KEY (id_playlist, id_book)
+);
 
 CREATE TABLE IF NOT EXISTS reviews (
     id_review   SERIAL PRIMARY KEY,

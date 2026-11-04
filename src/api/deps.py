@@ -18,6 +18,7 @@ from src.core import security
 from src.core.config import settings
 from src.dao.books_dao import BookDAO
 from src.dao.library_dao import LibraryDAO
+from src.dao.playlists_dao import PlaylistDAO
 from src.dao.quests_dao import QuestDAO
 from src.dao.reviews_dao import ReviewDAO
 from src.dao.tokens_dao import TokenDAO
@@ -25,6 +26,7 @@ from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
 from src.services.books_service import BookService
 from src.services.library_service import LibraryService
+from src.services.playlists_service import PlaylistService
 from src.services.quests_service import QuestService
 from src.services.reviews_service import ReviewService
 from src.services.tokens_service import TokenService
@@ -155,6 +157,18 @@ def get_library_service(cursor: CursorDep) -> LibraryService:
 
 
 LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
+
+
+def get_playlist_service(cursor: CursorDep) -> PlaylistService:
+    """Build a PlaylistService bound to the request cursor.
+
+    :param cursor: Database cursor dependency
+    :return: A PlaylistService instance
+    """
+    return PlaylistService(PlaylistDAO(cursor))
+
+
+PlaylistServiceDep = Annotated[PlaylistService, Depends(get_playlist_service)]
 
 
 def get_review_service(cursor: CursorDep) -> ReviewService:

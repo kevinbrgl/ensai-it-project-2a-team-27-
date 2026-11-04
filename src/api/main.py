@@ -6,6 +6,7 @@ from src.api.routes import (
     auth_routes,
     books_routes,
     library_routes,
+    playlists_routes,
     reviews_routes,
     users_routes,
 )
@@ -17,4 +18,5 @@ api_router.include_router(auth_routes.router)
 api_router.include_router(books_routes.router)
 api_router.include_router(users_routes.router)
 api_router.include_router(library_routes.router)
+api_router.include_router(playlists_routes.router)
 api_router.include_router(reviews_routes.router)
