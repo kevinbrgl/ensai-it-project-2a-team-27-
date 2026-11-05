@@ -1,21 +1,14 @@
 [server]
 port = 8000
+headless = true
+
+[browser]
+gatherUsageStats = false
 
 [theme]
-textColor="#1a1a1a"
-font="Calibri"
-
-primaryColor="#1963a0"
-backgroundColor="#90C090"
-secondaryBackgroundColor="#ffffff"
-
-redTextColor="#8b0303"
-redBackgroundColor="#ff5f5f"
-greenTextColor="#016806"
-greenBackgroundColor="#9cd1b7"
-yellowTextColor="#bd7f0c"
-yellowBackgroundColor="#f7bd53"
-
-
-dataframeBorderColor="#976a09"
-dataframeHeaderBackgroundColor="#eea73d"
+base = "dark"
+primaryColor = "#e5a93c"
+backgroundColor = "#14181c"
+secondaryBackgroundColor = "#1f2630"
+textColor = "#e2e8f0"
+font = "sans serif"

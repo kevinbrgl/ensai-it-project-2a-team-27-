@@ -1,8 +1,8 @@
 [project]
-name = "project_name_front"
+name = "ex_libris_frontend"
 version = "0.1.0"
-description = "User interface template for the ENSAI 2nd year IT project"
-authors = [{ name = "Lastname Firstname" }, { name = "Author2" }]
+description = "Ex-Libris Web Frontend — Literary tracking inspired by Letterboxd"
+authors = [{ name = "Team 27" }]
 requires-python = ">=3.13"
 
 dependencies = ["pandas", "python-dotenv", "PyYAML", "requests", "streamlit"]

@@ -1,16 +1,19 @@
+"""Authentication guard utilities for page access control."""
+
 import logging
-import time
 
 import streamlit as st
 
+from utils.session import is_authenticated
 
-def check_authentification():
-    """Checks if the user is authenticated.
 
-    If the user is not logged, he is redirected to the home page.
+def check_authentification() -> bool:
+    """Check if the user is authenticated.
+
+    :return: True if authenticated, False otherwise
     """
-    if not st.session_state.get("access_token"):
-        logging.info("Not logged in, return to the home page")
-        st.error("You must be logged in to access this page. Return to the home page")
-        time.sleep(1)
-        st.switch_page("pages/home.py")
+    if not is_authenticated():
+        logging.info("User is not authenticated.")
+        st.warning("Vous devez être connecté pour accéder à cette page.")
+        return False
+    return True
