@@ -16,6 +16,7 @@ from src.api.deps import (
     LibraryServiceDep,
     PlaylistServiceDep,
     QuestServiceDep,
+    StatsServiceDep,
     UserServiceDep,
 )
 from src.dao.users_dao import UserDAO
@@ -28,6 +29,7 @@ from src.models import (
 )
 from src.models.library import LibraryBookDetails
 from src.models.playlists import PlaylistRead
+from src.models.stats import UserStats
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
@@ -478,4 +480,32 @@ def get_user_playlists(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve the playlists.",
+        ) from None
+
+
+@router.get("/me/stats")
+def read_my_stats(
+    service: StatsServiceDep,
+    current_user: CurrentUser,
+) -> UserStats:
+    """Return the reading statistics of the authenticated user.
+
+    Books finished, genre distribution of the library and rating
+    distribution of the user's reviews.
+
+    :param service: Statistics service dependency
+    :param current_user: The authenticated user
+    :raises HTTPException: 500 on database error
+    :return: The user's statistics
+    """
+    try:
+        return service.get_stats(current_user.id_user)
+    except DAOError:
+        logger.exception(
+            "Failed to compute the stats of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not compute the statistics.",
         ) from None
