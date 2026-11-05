@@ -28,19 +28,25 @@ def render_catalog_page() -> None:
         unsafe_allow_html=True,
     )
 
+    if not is_authenticated():
+        st.info(
+            "💡 Connectez-vous via l'onglet **Connexion** pour rechercher et ajouter des livres."
+        )
+        return
+
     # Search Bar
     search_col1, search_col2 = st.columns([4, 1])
     with search_col1:
         query = st.text_input(
             "Recherche de livres",
-            placeholder="Titre, auteur, mot-clé...",
+            placeholder="Titre (ex: Dune, Le Petit Prince...), auteur...",
             label_visibility="collapsed",
             key="catalog_search_input",
         )
     with search_col2:
         search_btn = st.button("Rechercher 🔍", use_container_width=True)
 
-    # Catégories populaires
+    # Catégories populaires pour filtrer le catalogue existant
     categories = [
         "Toutes les catégories",
         "Science-Fiction",
@@ -63,17 +69,19 @@ def render_catalog_page() -> None:
     # Fetch books
     books: list[dict] = []
     if (search_btn or query) and query.strip():
-        with st.spinner("Recherche en cours..."):
-            res = api_client.search_books(query.strip())
+        with st.spinner("Recherche sur Open Library et synchronisation..."):
+            res = api_client.search_books(query=query.strip(), limit=20)
             if res["success"]:
                 books = res["data"] or []
             else:
                 st.error(res["error"] or "Erreur lors de la recherche.")
     else:
-        with st.spinner("Chargement des suggestions..."):
-            res = api_client.get_catalog(category=category_filter, limit=16)
+        with st.spinner("Chargement des suggestions du catalogue..."):
+            res = api_client.get_catalog(category=category_filter)
             if res["success"]:
                 books = res["data"] or []
+            else:
+                st.error(res["error"] or "Erreur lors du chargement.")
 
     render_section_title(
         "OUVRAGES DISPONIBLES",
@@ -81,7 +89,7 @@ def render_catalog_page() -> None:
     )
 
     if not books:
-        st.info("Aucun livre trouvé pour ces critères.")
+        st.info("Aucun livre trouvé. Essayez une recherche par titre ou auteur.")
         return
 
     # Grille de 4 colonnes façon Letterboxd
@@ -93,32 +101,30 @@ def render_catalog_page() -> None:
             with col:
                 render_book_card(book, show_state=False)
 
-                if is_authenticated():
-                    book_id_api = book.get("id_book_api") or str(book.get("id_book"))
+                book_id = book.get("id_book")
+                if book_id is not None:
                     with st.popover("➕ Ajouter", use_container_width=True):
                         st.caption(f"Ajouter : {book.get('title')}")
                         state_choice = st.selectbox(
                             "Statut de lecture",
-                            options=["TO_READ", "READING", "COMPLETED"],
+                            options=["WANT_TO_READ", "READING", "COMPLETED"],
                             format_func=lambda x: {
-                                "TO_READ": "À lire ⏳",
+                                "WANT_TO_READ": "À lire ⏳",
                                 "READING": "En cours 📖",
                                 "COMPLETED": "Terminé ✅",
                             }.get(x, x),
-                            key=f"state_sel_{book_id_api}",
+                            key=f"state_sel_{book_id}",
                         )
-                        is_fav = st.checkbox("Coup de cœur ❤️", key=f"fav_chk_{book_id_api}")
+                        is_fav = st.checkbox("Coup de cœur ❤️", key=f"fav_chk_{book_id}")
 
-                        if st.button("Confirmer", key=f"add_btn_{book_id_api}"):
-                            add_res = api_client.post(
-                                "/library/books",
-                                json={
-                                    "id_book_api": book.get("id_book_api"),
-                                    "state": state_choice,
-                                    "is_favorite": is_fav,
-                                },
+                        if st.button("Confirmer", key=f"add_btn_{book_id}"):
+                            add_res = api_client.add_to_library(
+                                id_book=int(book_id),
+                                state=state_choice,
                             )
                             if add_res["success"]:
+                                if is_fav:
+                                    api_client.toggle_favorite(int(book_id))
                                 st.toast("Livre ajouté à votre bibliothèque !", icon="📚")
                             else:
                                 st.error(add_res["error"] or "Impossible d'ajouter.")

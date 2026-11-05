@@ -79,12 +79,64 @@ CUSTOM_CSS = """
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
 }
 
-.book-cover-img {
+.book-cover-wrapper {
     width: 100%;
     aspect-ratio: 2 / 3;
+    position: relative;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #10151c;
+}
+
+.book-cover-img {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     border-radius: 4px;
-    box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.5), 0 4px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.3);
+    display: block;
+}
+
+.book-cover-placeholder {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 2 / 3;
+    border-radius: 4px;
+    background: linear-gradient(145deg, #1f2833 0%, #121820 100%);
+    border: 1px solid #2e3a49;
+    box-shadow: inset 5px 0 10px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 12px 10px;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.placeholder-icon {
+    font-size: 1.4rem;
+    opacity: 0.85;
+}
+
+.placeholder-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #e5a93c;
+    line-height: 1.3;
+    max-height: 4.8em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.placeholder-author {
+    font-size: 0.72rem;
+    color: #8fa0b0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .book-title {

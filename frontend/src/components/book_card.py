@@ -1,27 +1,35 @@
 """Book card component for displaying book posters in Letterboxd style.
 
-Provides visual poster rendering, fallback covers, and action buttons.
+Provides visual poster rendering, real cover loading, and elegant fallback covers.
 """
 
+import html
 from typing import Any
 
 import streamlit as st
 
-DEFAULT_COVER = (
-    "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&q=80&w=400"
-)
 
+def get_cover_url(book: dict[str, Any]) -> str | None:
+    """Retrieve book cover URL from book object or Open Library OLID.
 
-def get_cover_url(book: dict[str, Any]) -> str:
-    """Retrieve book cover URL from book object or fallback."""
-    url = book.get("cover_url") or book.get("thumbnail_url")
-    if not url or not str(url).strip():
-        # Fallback to Open Library covers if id_book_api starts with OL
-        id_api = str(book.get("id_book_api", ""))
-        if "OL" in id_api and id_api.endswith("M"):
-            return f"https://covers.openlibrary.org/b/id/{id_api}-M.jpg"
-        return DEFAULT_COVER
-    return str(url)
+    :param book: Dictionary containing book details
+    :return: Direct URL to the cover image, or None if unavailable
+    """
+    # 1. Direct cover_image field stored in DB by books_service
+    cover_image = book.get("cover_image") or book.get("cover_url")
+    if cover_image and str(cover_image).strip():
+        clean_url = str(cover_image).strip()
+        if clean_url.startswith("http"):
+            return clean_url
+
+    # 2. Derive cover from Open Library identifier (e.g. /works/OL12345W or OL12345M)
+    id_api = str(book.get("id_book_api") or "").strip()
+    if id_api:
+        clean_id = id_api.strip("/").split("/")[-1]
+        if clean_id.startswith("OL"):
+            return f"https://covers.openlibrary.org/b/olid/{clean_id}-M.jpg"
+
+    return None
 
 
 def render_book_card(
@@ -35,33 +43,63 @@ def render_book_card(
     :param show_state: Whether to render the reading state badge
     :param key_prefix: Prefix for button widget keys
     """
-    title = book.get("title", "Sans titre")
-    author = book.get("author", "Auteur inconnu")
+    raw_title = str(book.get("title") or "Sans titre")
+    raw_author = str(book.get("author") or "Auteur inconnu")
+    title = html.escape(raw_title)
+    author = html.escape(raw_author)
     state = book.get("state")
-    category = book.get("category") or "Général"
-    cover = get_cover_url(book)
+    category = html.escape(str(book.get("category") or "Littérature"))
+    cover_url = get_cover_url(book)
 
+    # Reading state badge
     state_badge_html = ""
     if show_state and state:
         css_class = {
             "READING": "badge-reading",
             "COMPLETED": "badge-completed",
+            "WANT_TO_READ": "badge-to-read",
             "TO_READ": "badge-to-read",
             "ABANDONED": "badge-favorite",
         }.get(state, "badge-to-read")
 
         label = {
-            "READING": "En cours",
-            "COMPLETED": "Terminé",
-            "TO_READ": "À lire",
-            "ABANDONED": "Abandonné",
+            "READING": "En cours 📖",
+            "COMPLETED": "Terminé ✅",
+            "WANT_TO_READ": "À lire ⏳",
+            "TO_READ": "À lire ⏳",
+            "ABANDONED": "Abandonné ❌",
         }.get(state, state)
 
         state_badge_html = f'<span class="badge-status {css_class}">{label}</span>'
 
+    # Cover image or typographic placeholder
+    if cover_url:
+        cover_html = f"""
+        <div class="book-cover-wrapper">
+            <img class="book-cover-img" src="{cover_url}" alt="{title}"
+                 loading="lazy"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+            <div class="book-cover-placeholder" style="display: none;">
+                <div class="placeholder-icon">📖</div>
+                <div class="placeholder-title">{title}</div>
+                <div class="placeholder-author">{author}</div>
+            </div>
+        </div>
+        """
+    else:
+        cover_html = f"""
+        <div class="book-cover-wrapper">
+            <div class="book-cover-placeholder">
+                <div class="placeholder-icon">📖</div>
+                <div class="placeholder-title">{title}</div>
+                <div class="placeholder-author">{author}</div>
+            </div>
+        </div>
+        """
+
     card_html = f"""
     <div class="book-poster-container">
-        <img class="book-cover-img" src="{cover}" alt="{title}" onerror="this.src='{DEFAULT_COVER}'" />
+        {cover_html}
         <div class="book-title" title="{title}">{title}</div>
         <div class="book-author" title="{author}">{author}</div>
         <div style="margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">

@@ -33,6 +33,22 @@ def test_api_client_request_success(mock_request):
 
 
 @patch("requests.Session.request")
+def test_api_client_search_books_query_param(mock_request):
+    """Verify search_books passes 'q' as query parameter name."""
+    mock_resp = Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = []
+    mock_request.return_value = mock_resp
+
+    client = APIClient(base_url="http://testserver:8000")
+    client.search_books(query="Fondation", limit=15)
+
+    mock_request.assert_called_once()
+    kwargs = mock_request.call_args.kwargs
+    assert kwargs["params"] == {"q": "Fondation", "limit": 15}
+
+
+@patch("requests.Session.request")
 def test_api_client_request_failure(mock_request):
     """Verify HTTP error extracts detail message from payload."""
     mock_resp = Mock()

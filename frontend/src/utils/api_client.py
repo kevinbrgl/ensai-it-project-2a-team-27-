@@ -162,25 +162,53 @@ class APIClient:
         self,
         category: str | None = None,
         author: str | None = None,
-        limit: int = 20,
-        offset: int = 0,
     ) -> dict[str, Any]:
         """Retrieve catalog books with optional filters."""
-        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        params: dict[str, Any] = {}
         if category:
             params["category"] = category
         if author:
             params["author"] = author
         return self.get("/books", params=params)
 
-    def search_books(self, query: str) -> dict[str, Any]:
-        """Search books via OpenLibrary integration."""
-        return self.get("/books/search", params={"query": query})
+    def search_books(self, query: str, limit: int = 20) -> dict[str, Any]:
+        """Search books via OpenLibrary integration using query parameter 'q'."""
+        return self.get("/books/search", params={"q": query, "limit": limit})
 
-    def get_library(self, state: str | None = None) -> dict[str, Any]:
-        """Retrieve current user library books."""
-        params = {"state": state} if state else None
+    def get_library(self, status: str | None = None) -> dict[str, Any]:
+        """Retrieve current user library books filtered by status."""
+        params = {"status": status} if status else None
         return self.get("/library/books", params=params)
+
+    def get_favorites(self) -> dict[str, Any]:
+        """Retrieve user's favorite books."""
+        return self.get("/library/favorites")
+
+    def add_to_library(self, id_book: int, state: str = "WANT_TO_READ") -> dict[str, Any]:
+        """Add a book by internal ID to user library."""
+        return self.post(
+            "/library/books",
+            json={"id_book": id_book, "state": state},
+        )
+
+    def update_book_status(self, id_book: int, state: str) -> dict[str, Any]:
+        """Update reading status of a book in library."""
+        return self.patch(
+            f"/library/books/{id_book}/status",
+            json={"state": state},
+        )
+
+    def toggle_favorite(self, id_book: int) -> dict[str, Any]:
+        """Toggle favorite flag on a book in library."""
+        return self.post(f"/library/books/{id_book}/favorite")
+
+    def toggle_like(self, id_book: int) -> dict[str, Any]:
+        """Toggle like flag on a book in library."""
+        return self.post(f"/library/books/{id_book}/like")
+
+    def remove_from_library(self, id_book: int) -> dict[str, Any]:
+        """Remove a book from user library."""
+        return self.delete(f"/library/books/{id_book}")
 
     def search_users(self, username: str, limit: int = 10) -> dict[str, Any]:
         """Search other users by username."""
@@ -193,6 +221,14 @@ class APIClient:
     def unfollow_user(self, user_id: int) -> dict[str, Any]:
         """Unfollow a user."""
         return self.delete(f"/users/{user_id}/follow")
+
+    def get_followers(self, user_id: int) -> dict[str, Any]:
+        """List followers of a user."""
+        return self.get(f"/users/{user_id}/followers")
+
+    def get_following(self, user_id: int) -> dict[str, Any]:
+        """List users followed by a user."""
+        return self.get(f"/users/{user_id}/following")
 
 
 api_client = APIClient()
