@@ -9,17 +9,52 @@ from typing import Any
 import requests
 import streamlit as st
 
-DEFAULT_TIMEOUT = int(os.getenv("BACKEND_TIMEOUT", 10))
-API_BASE_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+
+def get_backend_url() -> str:
+    """Resolve backend URL, prioritizing 127.0.0.1:8000 over legacy port 5000.
+
+    Replaces 'localhost' with '127.0.0.1' to avoid IPv6 lookup timeouts on Linux.
+    :return: Resolved base URL string without trailing slash
+    """
+    url = os.getenv("BACKEND_URL", "").strip()
+    # Default or old template legacy port 5000 -> FastAPI port 8000
+    if not url or ":5000" in url:
+        return "http://127.0.0.1:8000"
+    if "localhost" in url:
+        url = url.replace("localhost", "127.0.0.1")
+    return url.rstrip("/")
+
+
+DEFAULT_TIMEOUT = int(os.getenv("BACKEND_TIMEOUT", 15))
 
 
 class APIClient:
     """Client for making authenticated HTTP requests to the Ex-Libris API."""
 
-    def __init__(self, base_url: str = API_BASE_URL, timeout: int = DEFAULT_TIMEOUT) -> None:
-        self.base_url = base_url
+    def __init__(
+        self,
+        base_url: str | None = None,
+        timeout: int = DEFAULT_TIMEOUT,
+    ) -> None:
+        self._custom_base_url = base_url
         self.timeout = timeout
         self.session = requests.Session()
+
+    @property
+    def base_url(self) -> str:
+        """Return configured base URL or dynamic backend URL."""
+        return self._custom_base_url or get_backend_url()
+
+    def is_healthy(self) -> bool:
+        """Probe the backend API to check if the server is running.
+
+        :return: True if backend responds within 1.5 seconds, False otherwise
+        """
+        try:
+            resp = self.session.get(f"{self.base_url}/", timeout=1.5)
+            return resp.status_code < 500
+        except Exception:
+            return False
 
     def _get_headers(self) -> dict[str, str]:
         """Retrieve request headers with Bearer token if user is authenticated."""
@@ -93,14 +128,22 @@ class APIClient:
                 "success": False,
                 "status_code": 408,
                 "data": None,
-                "error": "Le serveur met trop de temps à répondre (Timeout).",
+                "error": (
+                    f"Le serveur API ({self.base_url}) n'a pas répondu à temps (Timeout). "
+                    "Assurez-vous que le backend FastAPI est bien lancé dans le terminal 1 "
+                    "avec la commande : 'uv run src/main.py'."
+                ),
             }
         except requests.exceptions.ConnectionError:
             return {
                 "success": False,
                 "status_code": 503,
                 "data": None,
-                "error": "Impossible de contacter l'API (Service indisponible).",
+                "error": (
+                    f"Impossible de joindre le serveur API sur {self.base_url}. "
+                    "Vérifiez que le backend FastAPI tourne bien dans le terminal 1 "
+                    "('uv run src/main.py')."
+                ),
             }
         except requests.exceptions.RequestException as exc:
             return {

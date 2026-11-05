@@ -6,6 +6,7 @@ Orchestrates navigation, global layout, theme application, and session tracking.
 import streamlit as st
 
 from theme.styles import apply_custom_css
+from utils.api_client import api_client
 from utils.env_variables import load_environment_variables
 from utils.log_init import initialize_logs
 from utils.session import clear_session, get_current_user, init_session, is_authenticated
@@ -27,6 +28,9 @@ if "logs_initialized" not in st.session_state:
 init_session()
 apply_custom_css()
 
+# API Health Status Indicator
+api_online = api_client.is_healthy()
+
 # Configure Multi-Page Navigation with st.navigation
 pages_dict: dict[str, list[st.Page]] = {}
 
@@ -37,13 +41,18 @@ if is_authenticated():
     with st.sidebar:
         st.markdown(
             f"""
-            <div style="background: #1a222c; border: 1px solid #283341; border-radius: 8px; padding: 12px; margin-bottom: 1rem;">
+            <div style="background: #1a222c; border: 1px solid #283341; border-radius: 8px; padding: 12px; margin-bottom: 0.5rem;">
                 <div style="font-size: 0.75rem; text-transform: uppercase; color: #8fa0b0; font-weight: 700;">Connecté en tant que</div>
                 <div style="font-size: 1.15rem; font-weight: 800; color: #e5a93c; margin-top: 2px;">@{username}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        if api_online:
+            st.caption("🟢 API connectée (`127.0.0.1:8000`)")
+        else:
+            st.error("🔴 API non joignable\n\nLancez `uv run src/main.py` dans le 1er terminal.")
 
         if st.button("Se déconnecter 🚪", use_container_width=True):
             clear_session()
@@ -63,13 +72,18 @@ else:
     with st.sidebar:
         st.markdown(
             """
-            <div style="background: #1a222c; border: 1px solid #283341; border-radius: 8px; padding: 12px; margin-bottom: 1rem;">
+            <div style="background: #1a222c; border: 1px solid #283341; border-radius: 8px; padding: 12px; margin-bottom: 0.5rem;">
                 <div style="font-size: 1.1rem; font-weight: 700; color: #ffffff;">Bienvenue sur Ex-Libris</div>
                 <div style="font-size: 0.85rem; color: #8fa0b0; margin-top: 4px;">Connectez-vous pour gérer votre bibliothèque et accomplir des quêtes.</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
+        if api_online:
+            st.caption("🟢 API connectée (`127.0.0.1:8000`)")
+        else:
+            st.error("🔴 API non joignable\n\nLancez `uv run src/main.py` dans le 1er terminal.")
 
     pages_dict = {
         "Accès": [
