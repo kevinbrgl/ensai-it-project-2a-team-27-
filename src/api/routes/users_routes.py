@@ -509,3 +509,50 @@ def read_my_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not compute the statistics.",
         ) from None
+
+
+@router.get("/{user_id}/stats")
+def get_user_stats(
+    user_id: int,
+    current_user: CurrentUser,
+    user_service: UserServiceDep,
+    stats_service: StatsServiceDep,
+) -> UserStats:
+    """View a friend's stats.
+
+    :param user_id: ID of the user whose stats are being requested
+    :param current_user: The authenticated user making the request
+    :param user_service: The user service to check if the target user exists
+    :param stats_service: The stats service to retrieve reading statistics
+    :raises HTTPException: If the user is not found, not followed,
+     or on DB error
+    :return: The target user's reading statistics
+    """
+    try:
+        # 1. Vérifier que l'utilisateur cible existe
+        user_service.read(user_id=user_id)
+
+        # 2. Vérifier que l'utilisateur courant suit bien l'utilisateur cible
+        following = user_service.get_following(current_user.id_user)
+        is_following = any(user.id_user == user_id for user in following)
+
+        if not is_following:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You must follow this user to view their stats.",
+            )
+
+        # 3. Récupérer et renvoyer les statistiques
+        return stats_service.get_stats(id_user=user_id)
+
+    except UserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from exc
+    except DAOError as exc:
+        logger.exception("Failed to retrieve stats for user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve statistics.",
+        ) from exc
