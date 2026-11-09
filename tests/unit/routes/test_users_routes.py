@@ -11,10 +11,17 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from src.api.deps import get_cursor, get_user, get_user_service
+from src.api.deps import (
+    get_cursor,
+    get_stats_service,
+    get_user,
+    get_user_service,
+)
 from src.core.config import settings
 from src.main import app
+from src.models.stats import GenreCount, RatingCount, UserStats
 from src.models.users import User
+from src.services.stats_service import StatsService
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
@@ -33,6 +40,12 @@ PUBLIC_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
 def mock_service() -> Mock:
     """Return a mocked UserService."""
     return Mock(spec=UserService)
+
+
+@pytest.fixture
+def mock_stats_service() -> Mock:
+    """Return a mocked StatsService."""
+    return Mock(spec=StatsService)
 
 
 @pytest.fixture
@@ -64,10 +77,12 @@ def fake_matched_user() -> User:
 @pytest.fixture
 def client(
     mock_service: Mock,
+    mock_stats_service: Mock,
     fake_user: User,
 ) -> Generator[TestClient]:
     """Yield a TestClient with service and auth dependencies overridden."""
     app.dependency_overrides[get_user_service] = lambda: mock_service
+    app.dependency_overrides[get_stats_service] = lambda: mock_stats_service
     app.dependency_overrides[get_user] = lambda: fake_user
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -554,3 +569,135 @@ class TestGetFollowingUnitRoute:
             }
         finally:
             app.dependency_overrides.clear()
+
+
+class TestReadMyStatsUnitRoute:
+    """Unit tests for GET /users/me/stats."""
+
+    def test_read_my_stats_success_200(
+        self,
+        client: TestClient,
+        mock_stats_service: Mock,
+    ) -> None:
+        """Retrieving own stats returns 200 with UserStats payload."""
+        mock_stats_service.get_stats.return_value = UserStats(
+            books_finished=10,
+            genres=[GenreCount(category="Finance", count=10)],
+            ratings=[RatingCount(rating=5, count=10)],
+        )
+
+        response = client.get(f"{USERS_URL}/me/stats")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["books_finished"] == 10  # ruff: ignore[magic-value-comparison]
+        mock_stats_service.get_stats.assert_called_once_with(1)
+
+    def test_read_my_stats_dao_error_500(
+        self,
+        client: TestClient,
+        mock_stats_service: Mock,
+    ) -> None:
+        """DAOError during own stats retrieval returns 500."""
+        mock_stats_service.get_stats.side_effect = DAOError("DB error")
+
+        response = client.get(f"{USERS_URL}/me/stats")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not compute the statistics."
+
+
+class TestGetUserStatsUnitRoute:
+    """Unit tests for GET /users/{userId}/stats."""
+
+    def test_get_user_stats_success_200(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        mock_stats_service: Mock,
+    ) -> None:
+        """Retrieving a followed user's stats returns 200 with payload."""
+        friend = User(
+            id_user=2,
+            username="bob",
+            email="bob@ensai.fr",
+            password_hash="hash",
+        )
+        mock_service.read.return_value = friend
+        # Simule que le fake_user (id=1) suit l'utilisateur 2
+        mock_service.get_following.return_value = [friend]
+
+        mock_stats_service.get_stats.return_value = UserStats(
+            books_finished=5,
+            genres=[GenreCount(category="Finance", count=5)],
+            ratings=[RatingCount(rating=5, count=5)],
+        )
+
+        response = client.get(f"{USERS_URL}/2/stats")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["books_finished"] == 5  # ruff: ignore[magic-value-comparison]
+        mock_service.read.assert_called_once_with(user_id=2)
+        mock_service.get_following.assert_called_once_with(1)
+        mock_stats_service.get_stats.assert_called_once_with(id_user=2)
+
+    def test_get_user_stats_not_following_403(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Retrieving stats of an unfollowed user returns 403."""
+        stranger = User(
+            id_user=3,
+            username="charlie",
+            email="c@ensai.fr",
+            password_hash="hash",
+        )
+        mock_service.read.return_value = stranger
+        # Simule que le fake_user ne suit personne
+        mock_service.get_following.return_value = []
+
+        response = client.get(f"{USERS_URL}/3/stats")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == (
+            "You must follow this user to view their stats."
+        )
+        mock_service.read.assert_called_once_with(user_id=3)
+        mock_service.get_following.assert_called_once_with(1)
+
+    def test_get_user_stats_not_found_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Retrieving stats for a nonexistent user returns 404."""
+        mock_service.read.side_effect = UserNotFoundError(user_id=999)
+
+        response = client.get(f"{USERS_URL}/999/stats")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_get_user_stats_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        mock_stats_service: Mock,
+    ) -> None:
+        """DAOError during stats retrieval returns 500."""
+        friend = User(
+            id_user=2,
+            username="bob",
+            email="bob@ensai.fr",
+            password_hash="hash",
+        )
+        mock_service.read.return_value = friend
+        mock_service.get_following.return_value = [friend]
+        mock_stats_service.get_stats.side_effect = DAOError("DB error")
+
+        response = client.get(f"{USERS_URL}/2/stats")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not retrieve statistics."
