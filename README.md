@@ -1,10 +1,14 @@
+Here's the full README with a new **section 5, "Run the web frontend"**. The later sections are renumbered (6 to 9), the intro now mentions the web interface, and I fixed the "project aroot" typo. Everything else is unchanged.
+
+````markdown
 # Ex-Libris — Reading Tracker API
 
 ENSAI 2nd-year IT project — team 27.
 
 Ex-Libris is a REST API (FastAPI + PostgreSQL) that lets users find books
 (through Open Library), add them to their library, track their reading,
-and rate and review them.
+and rate and review them. A React web interface (in `frontend/`) lets you
+use every feature from the browser.
 
 ---
 
@@ -102,7 +106,61 @@ your VSCode URL followed by `/proxy/8000/`.
 
 ---
 
-## 5. Available endpoints
+## 5. Run the web frontend
+
+The `frontend/` folder contains the web interface (React). It is already
+compiled in `frontend/dist/`, so **you only need Python**: no Node.js, no npm.
+
+1. **Keep the API running** in a first terminal (section 4).
+
+2. **Open a second terminal** and start the frontend:
+
+   ```bash
+   cd frontend
+   python serve.py
+   ```
+
+   (`uv run python serve.py` works too.)
+
+3. **Open the app**:
+   - on your computer: <http://localhost:5173>
+   - on Onyxia: your VSCode URL followed by `/proxy/5173/`,
+     for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5173/`
+
+4. Create an account on the sign-up page, and you're in.
+
+Stop it with `Ctrl+C`. Both terminals must stay open while you use the app.
+
+`serve.py` serves the app and forwards every `/api/...` request to the API on
+`http://127.0.0.1:8000` (the API has no CORS configuration, so the browser
+can't call it directly). To change the defaults:
+
+```bash
+BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5173 python serve.py
+```
+
+**Troubleshooting**
+
+| Message | Fix |
+|---|---|
+| `connect ECONNREFUSED 0.0.0.0:5173` in the browser | `serve.py` isn't running: start it (step 2) and keep its terminal open. |
+| “Cannot reach the server” in the app | The API isn't running: start `uv run src/main.py`. |
+| “Open Library service is unavailable” when searching | The API can't reach openlibrary.org (network). |
+| `Address already in use` | Another server uses port 5173: `FRONTEND_PORT=5174 python serve.py`, then open `/proxy/5174/`. |
+
+**Changing the frontend code** (only if you edit files in `frontend/src/`):
+you then need Node.js 20.19+ to rebuild `dist/`. See `frontend/README.md`:
+
+```bash
+cd frontend
+npm install       # once
+npm run dev       # live development server
+npm run build     # rebuild dist/ before committing
+```
+
+---
+
+## 6. Available endpoints
 
 All routes are prefixed with `/api`. For overall progress, see the
 `ex_libris_endpoints.xlsx` spreadsheet in the drive.
@@ -144,7 +202,7 @@ nor its hash is ever returned** (filtered by `response_model=UserRead`).
 
 ---
 
-## 6. Tests
+## 7. Tests
 
 | Folder | Type | Database | Count |
 |---|---|---|---|
@@ -166,7 +224,7 @@ that is rolled back at the end (see `tests/integration/conftest.py`).
 
 ---
 
-## 7. Code quality (ruff, mypy)
+## 8. Code quality (ruff, mypy)
 
 ```bash
 uv run ruff check src tests          # analyse
@@ -176,7 +234,7 @@ uv run mypy src                      # type checking
 
 ---
 
-## 8. Adding a new endpoint: the recipe
+## 9. Adding a new endpoint: the recipe
 
 ### Before you start: create your own branch
 
@@ -264,3 +322,4 @@ git pull
 git checkout feature/books-search
 git merge main
 ```
+

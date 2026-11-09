@@ -1,0 +1,15 @@
+.list { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.row { display: grid; grid-template-columns: minmax(90px, 34%) 1fr 32px; align-items: center; gap: var(--space-3); }
+.label { font-size: var(--text-sm); color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track { height: 8px; border-radius: var(--radius-full); background: var(--paper-200); overflow: hidden; }
+.bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-600);
+  transform-origin: left;
+  animation: grow 500ms var(--ease-out);
+}
+.bar:not([style*='width: 0%']) { min-width: 4px; }
+.value { font-size: var(--text-sm); text-align: right; color: var(--text); font-weight: 500; }
+@keyframes grow { from { transform: scaleX(0); } }

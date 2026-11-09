@@ -1,0 +1,38 @@
+/* Outer radius 14px, padding 4px → items use 10px. */
+.root { position: relative; display: inline-flex; }
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 220px;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: menu-in 140ms var(--ease-out);
+}
+.start { left: 0; }
+.end { right: 0; }
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 36px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  background: none;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.item:hover, .item:focus-visible { background: var(--paper-100); }
+.check { display: grid; place-items: center; width: 16px; color: var(--accent-600); }
+.trailing { margin-left: auto; color: var(--text-muted); }
+.danger { color: var(--danger-600); }
+.danger .trailing { color: inherit; }
+.separator { height: 1px; margin: var(--space-1) 0; background: var(--border); }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } }

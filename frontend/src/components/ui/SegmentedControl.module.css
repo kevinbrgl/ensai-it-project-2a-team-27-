@@ -1,0 +1,27 @@
+/* Outer radius 10px, padding 3px → inner radius 7px. */
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--paper-200);
+}
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-md) - 3px);
+  background: transparent;
+  color: var(--ink-700);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: background var(--duration), color var(--duration);
+}
+.option:hover { color: var(--text); }
+.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.sm .option { height: 28px; padding: 0 10px; }
+.count { color: var(--text-muted); font-weight: 400; }

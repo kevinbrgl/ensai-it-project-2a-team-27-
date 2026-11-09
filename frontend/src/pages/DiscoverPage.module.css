@@ -1,0 +1,30 @@
+.search { position: relative; display: flex; gap: var(--space-2); max-width: 720px; }
+.searchIcon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 var(--space-4) 0 48px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-md);
+  box-shadow: var(--shadow-sm);
+}
+.search input:focus { outline: none; border-color: var(--accent-600); box-shadow: var(--focus-ring); }
+.search button { height: 48px; padding: 0 var(--space-6); }
+
+.more { display: flex; justify-content: center; margin-top: var(--space-10); }
+
+.customGenre { display: flex; gap: var(--space-2); max-width: 340px; }
+.customGenre input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+.customGenre input:focus { outline: none; border-color: var(--accent-600); box-shadow: var(--focus-ring); }

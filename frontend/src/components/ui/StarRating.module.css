@@ -1,0 +1,17 @@
+.stars { display: inline-flex; gap: 1px; vertical-align: middle; }
+.on { color: var(--star); }
+.off { color: var(--paper-300); }
+.inputRow { display: flex; align-items: center; gap: var(--space-3); }
+.input { display: inline-flex; }
+.starButton {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  transition: transform var(--duration) var(--ease-out);
+}
+.starButton:hover { transform: scale(1.12); }
+.label { font-size: var(--text-sm); color: var(--text-muted); }
+.error { font-size: var(--text-sm); color: var(--danger-600); font-weight: 500; }
