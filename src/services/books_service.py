@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 OPEN_LIBRARY_FIELDS = (
-    "key,title,author_name,subject,first_publish_year,cover_i"
+    "key,title,author_name,subject,first_publish_year,cover_i,"
+    "ratings_average"
 )
 HTTP_ERROR_STATUS = 400
 MIN_VALID_YEAR = 1
@@ -41,20 +42,34 @@ class BookService:
         self.dao = book_dao
         self.timeout = timeout
 
-    def _fetch_open_library(self, query: str, limit: int) -> dict[str, Any]:
+    def _fetch_open_library(
+        self,
+        query: str | None = None,
+        limit: int = 10,
+        *,
+        subject: str | None = None,
+        sort: str | None = None,
+    ) -> dict[str, Any]:
         """Fetch search results from Open Library.
 
-        :param query: Search query (title or author)
+        :param query: Free-text search query (title or author)
         :param limit: Maximum number of results to fetch
+        :param subject: Optional subject (genre) filter
+        :param sort: Optional Open Library sort order (e.g. "rating")
         :raises ExternalServiceError: If Open Library is unreachable or fails
         :return: JSON payload returned by Open Library
         """
         headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
         params: dict[str, str | int] = {
-            "q": query,
             "limit": limit,
             "fields": OPEN_LIBRARY_FIELDS,
         }
+        if query:
+            params["q"] = query
+        if subject:
+            params["subject"] = subject
+        if sort:
+            params["sort"] = sort
 
         try:
             with httpx2.Client(timeout=self.timeout) as client:
@@ -79,6 +94,48 @@ class BookService:
 
         return response.json()
 
+    @staticmethod
+    def _doc_to_book_create(doc: dict[str, Any]) -> BookCreate | None:
+        """Convert one Open Library search document into a BookCreate.
+
+        :param doc: A document of the "docs" list returned by Open Library
+        :return: The BookCreate, or None if the document has no title
+        """
+        title = doc.get("title")
+        if not title:
+            return None
+
+        authors = doc.get("author_name", [])
+        author = ", ".join(authors) if authors else None
+
+        subjects = doc.get("subject", [])
+        category = subjects[0] if subjects else None
+
+        publish_year = doc.get("first_publish_year")
+        publish_date = (
+            date(publish_year, 1, 1)
+            if isinstance(publish_year, int)
+            and MIN_VALID_YEAR <= publish_year <= MAX_VALID_YEAR
+            else None
+        )
+
+        cover_i = doc.get("cover_i")
+        cover_image = (
+            f"https://covers.openlibrary.org/b/id/{cover_i}-M.jpg"
+            if cover_i
+            else None
+        )
+
+        return BookCreate(
+            id_book_api=doc.get("key"),
+            title=title[:255],
+            author=author[:255] if author else None,
+            category=category[:100] if category else None,
+            publish_date=publish_date,
+            description=None,
+            cover_image=cover_image,
+        )
+
     def search_books(self, query: str, limit: int = 10) -> list[Book]:
         """Search books on Open Library and synchronize them in the local DB.
 
@@ -96,45 +153,62 @@ class BookService:
 
         results: list[Book] = []
         for doc in docs:
-            title = doc.get("title")
-            if not title:
+            book_create = self._doc_to_book_create(doc)
+            if book_create is None:
                 continue
-
-            authors = doc.get("author_name", [])
-            author = ", ".join(authors) if authors else None
-
-            subjects = doc.get("subject", [])
-            category = subjects[0] if subjects else None
-
-            publish_year = doc.get("first_publish_year")
-            publish_date = (
-                date(publish_year, 1, 1)
-                if isinstance(publish_year, int)
-                and MIN_VALID_YEAR <= publish_year <= MAX_VALID_YEAR
-                else None
-            )
-
-            cover_i = doc.get("cover_i")
-            cover_image = (
-                f"https://covers.openlibrary.org/b/id/{cover_i}-M.jpg"
-                if cover_i
-                else None
-            )
-
-            book_create = BookCreate(
-                id_book_api=doc.get("key"),
-                title=title[:255],
-                author=author[:255] if author else None,
-                category=category[:100] if category else None,
-                publish_date=publish_date,
-                description=None,
-                cover_image=cover_image,
-            )
-
-            persisted_book = self.dao.upsert(book_create)
-            results.append(persisted_book)
+            results.append(self.dao.upsert(book_create))
 
         return results
+
+    def search_by_subject(
+        self,
+        subject: str,
+        limit: int = 10,
+        sort: str = "rating",
+    ) -> list[tuple[BookCreate, float | None]]:
+        """Search Open Library by subject, without saving the results.
+
+        Only documents with an Open Library key are kept, so that they
+        can be deduplicated and compared with a user's library.
+
+        :param subject: Subject (genre) to search for
+        :param limit: Maximum number of results to fetch
+        :param sort: Open Library sort order
+        :raises ExternalServiceError: Raised if Open Library is unavailable
+        :return: The candidate books with their Open Library rating
+        """
+        sanitized_subject = subject.strip()
+        if not sanitized_subject:
+            return []
+
+        payload = self._fetch_open_library(
+            limit=limit,
+            subject=sanitized_subject,
+            sort=sort,
+        )
+
+        candidates: list[tuple[BookCreate, float | None]] = []
+        for doc in payload.get("docs", []):
+            book_create = self._doc_to_book_create(doc)
+            if book_create is None or not book_create.id_book_api:
+                continue
+            rating = doc.get("ratings_average")
+            open_library_rating = (
+                round(float(rating), 2)
+                if isinstance(rating, int | float)
+                else None
+            )
+            candidates.append((book_create, open_library_rating))
+
+        return candidates
+
+    def save_book(self, book_create: BookCreate) -> Book:
+        """Insert or update a book in the local database.
+
+        :param book_create: Data of the book to save
+        :return: The saved Book, with its internal ID
+        """
+        return self.dao.upsert(book_create)
 
     def get_book(self, book_id: int) -> Book:
         """Read a book by its internal ID.
