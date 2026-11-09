@@ -20,6 +20,7 @@ from src.dao.books_dao import BookDAO
 from src.dao.library_dao import LibraryDAO
 from src.dao.playlists_dao import PlaylistDAO
 from src.dao.quests_dao import QuestDAO
+from src.dao.recommendations_dao import RecommendationDAO
 from src.dao.reviews_dao import ReviewDAO
 from src.dao.stats_dao import StatsDAO
 from src.dao.tokens_dao import TokenDAO
@@ -29,6 +30,7 @@ from src.services.books_service import BookService
 from src.services.library_service import LibraryService
 from src.services.playlists_service import PlaylistService
 from src.services.quests_service import QuestService
+from src.services.recommendations_service import RecommendationService
 from src.services.reviews_service import ReviewService
 from src.services.stats_service import StatsService
 from src.services.tokens_service import TokenService
@@ -199,3 +201,26 @@ def get_stats_service(cursor: CursorDep) -> StatsService:
 
 
 StatsServiceDep = Annotated[StatsService, Depends(get_stats_service)]
+
+
+def get_recommendation_service(
+    cursor: CursorDep,
+    book_service: BookServiceDep,
+) -> RecommendationService:
+    """Build a RecommendationService bound to the request cursor.
+
+    :param cursor: Database cursor dependency
+    :param book_service: Book service dependency (same cursor)
+    :return: A RecommendationService instance
+    """
+    return RecommendationService(
+        RecommendationDAO(cursor),
+        StatsDAO(cursor),
+        book_service,
+    )
+
+
+RecommendationServiceDep = Annotated[
+    RecommendationService,
+    Depends(get_recommendation_service),
+]
