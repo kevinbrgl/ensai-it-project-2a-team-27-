@@ -1,6 +1,3 @@
-Here's the full README with a new **section 5, "Run the web frontend"**. The later sections are renumbered (6 to 9), the intro now mentions the web interface, and I fixed the "project aroot" typo. Everything else is unchanged.
-
-````markdown
 # Ex-Libris — Reading Tracker API
 
 ENSAI 2nd-year IT project — team 27.
@@ -322,4 +319,3 @@ git pull
 git checkout feature/books-search
 git merge main
 ```
-
