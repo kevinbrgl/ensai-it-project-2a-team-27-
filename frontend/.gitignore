@@ -1,4 +1,4 @@
-# dist/ is committed on purpose: serve.py runs it without Node.js.
+# dist/ is committed on purpose: app.py runs it without Node.js.
 node_modules
 .env
 .env.local

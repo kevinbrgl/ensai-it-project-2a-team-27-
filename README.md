@@ -1,39 +1,47 @@
-# Ex-Libris — Reading Tracker API
+# 📚 Ex-Libris
 
-ENSAI 2nd-year IT project — team 27.
-
-Ex-Libris is a REST API (FastAPI + PostgreSQL) that lets users find books
-(through Open Library), add them to their library, track their reading,
-and rate and review them. A React web interface (in `frontend/`) lets you
-use every feature from the browser.
+> Reading tracker: **FastAPI + PostgreSQL** API · **React** web app
+> ENSAI 2A IT project, team 27
 
 ---
 
-## 1. Install uv
-
-[uv](https://docs.astral.sh/uv/) installs Python and all the project's dependencies.
-
-Windows (PowerShell):
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Mac / Linux (Terminal):
+## ⚡ TL;DR
 
 ```bash
+uv sync                                  # install everything
+cp .env.example .env                     # then fill in the DB settings
+uv run src/main.py                       # backend  → :8000
+cd frontend && uv run python app.py      # frontend → :5000 (2nd terminal)
+uv run pytest                            # tests
+```
+
+---
+
+## 🧰 Prerequisites
+
+| Tool | Version | Why |
+|---|---|---|
+| [uv](https://docs.astral.sh/uv/) | latest | Python 3.13 and all the dependencies |
+| PostgreSQL | 15+ | Database (yours, Onyxia's, or Docker) |
+| [Node.js](https://nodejs.org/) | ≥ 20.19 | ✏️ **Only to edit the frontend** |
+
+<details>
+<summary>📦 Install uv</summary>
+
+```bash
+# Mac / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Close and reopen the terminal, then check:
-
-```bash
-uv --version
+```powershell
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
+</details>
 
 ---
 
-## 2. Install the dependencies
+## 1️⃣ Install
 
 From the project root:
 
@@ -41,270 +49,197 @@ From the project root:
 uv sync
 ```
 
-`uv sync` creates the `.venv` folder and installs Python 3.13 and every dependency
-listed in `pyproject.toml`. Run it again after any `git pull` that changes
-`pyproject.toml` or `uv.lock`.
+This creates `.venv/` with Python 3.13 and all the dependencies.
+🔁 Run it again after any `git pull` that changes `pyproject.toml` or `uv.lock`.
 
 ---
 
-## 3. Create the `.env` file
-
-The `.env` file holds settings and passwords. It is **ignored by Git**:
-never commit it. It is read by `src/core/config.py`.
-
-Create it from the template.
-
-Windows (PowerShell):
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Mac / Linux:
+## 2️⃣ Configure `.env`
 
 ```bash
-cp .env.example .env
+cp .env.example .env          # Windows: Copy-Item .env.example .env
 ```
 
-Then fill it in with your PostgreSQL database details:
-
 ```ini
-POSTGRES_HOST=<database host>
+POSTGRES_HOST=<host>
 POSTGRES_PORT=5432
 POSTGRES_DATABASE=defaultdb
 POSTGRES_USER=<user>
 POSTGRES_PASSWORD=<password>
-
-SECRET_KEY=<a long random string>
+SECRET_KEY=<long random string>
 ```
 
-**Generate a `SECRET_KEY`** (same command everywhere):
+Generate a `SECRET_KEY`:
 
 ```bash
 uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
+> ⚠️ `.env` is git-ignored. **Never commit it.**
+
 ---
 
-## 4. Run the API and open the documentation
-
-From the project root (same command everywhere):
+## 3️⃣ Run the backend
 
 ```bash
 uv run src/main.py
 ```
 
-On startup, the API automatically creates any missing tables from
-`data/init.sql`. It restarts by itself every time you save a file.
-Stop it with `Ctrl+C`.
+- 🟢 API on **http://127.0.0.1:8000**, with the Swagger docs at the root
+- 🗄️ Tables are created automatically from `data/init.sql`
+- 🔄 Auto-reloads when you save · stop with `Ctrl+C`
 
-:warning: On Onyxia, don't click the `127.0.0.1` link that VSCode suggests: use
-your VSCode URL followed by `/proxy/8000/`.
+> 🟣 **Onyxia:** open `<your-vscode-url>/proxy/8000/`, not the `127.0.0.1` link.
 
 ---
 
-## 5. Run the web frontend
+## 4️⃣ Run the frontend
 
-The `frontend/` folder contains the web interface (React). It is already
-compiled in `frontend/dist/`, so **you only need Python**: no Node.js, no npm.
-
-1. **Keep the API running** in a first terminal (section 4).
-
-2. **Open a second terminal** and start the frontend:
-
-   ```bash
-   cd frontend
-   python app.py
-   ```
-
-   (`uv run python app.py` works too.)
-
-3. **Open the app**:
-   - on your computer: <http://localhost:5000>
-   - on Onyxia: your VSCode URL followed by `/proxy/5000/`,
-     for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5000/`
-
-4. Create an account on the sign-up page, and you're in.
-
-Stop it with `Ctrl+C`. Both terminals must stay open while you use the app.
-
-`serve.py` serves the app and forwards every `/api/...` request to the API on
-`http://127.0.0.1:8000` (the API has no CORS configuration, so the browser
-can't call it directly). To change the defaults:
+Open a **second terminal** and keep the backend running.
 
 ```bash
-BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5000 python app.py
+cd frontend
+uv run python app.py
 ```
 
-**Troubleshooting**
+➡️ **http://localhost:5000** · Onyxia: `<your-vscode-url>/proxy/5000/`
 
-| Message | Fix |
-|---|---|
-| `connect ECONNREFUSED 0.0.0.0:5000` in the browser | `app.py` isn't running: start it (step 2) and keep its terminal open. |
-| “Cannot reach the server” in the app | The API isn't running: start `uv run src/main.py`. |
-| “Open Library service is unavailable” when searching | The API can't reach openlibrary.org (network). |
-| `Address already in use` | Another server uses port 5000 (on a Mac, often AirPlay Receiver): `FRONTEND_PORT=5001 python app.py`, then open `/proxy/5001/`. |
+Create an account and you're in 🎉
 
+`app.py` serves the compiled app (`frontend/dist/`) and forwards `/api/...` to the backend, so you don't need any CORS setup.
 
-## 6. Available endpoints
-
-All routes are prefixed with `/api`. For overall progress, see the
-`ex_libris_endpoints.xlsx` spreadsheet in the drive.
-
-| Method | Route | Auth | Status |
-|---|---|---|---|
-| `POST` | `/api/auth/register` | no | :white_check_mark: done and tested |
-
-### `POST /api/auth/register` — create an account
-
-**Request body**
-
-```json
-{
-  "username": "yazid",
-  "email": "yazid@ensai.fr",
-  "password": "motdepasse123"
-}
+```bash
+BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5001 uv run python app.py   # custom port / backend
 ```
 
-| Field | Rule |
-|---|---|
-| `username` | 3 to 30 characters, unique |
-| `email` | valid email format, unique |
-| `password` | 8 to 72 characters (72 is bcrypt's limit) |
+### 👑 Make yourself admin (moderation features)
 
-**Responses**
+Sign up in the app, then run this in your database:
 
-| Code | When | Body |
+```sql
+UPDATE users SET is_admin = TRUE WHERE username = '<your-username>';
+```
+
+---
+
+## ✏️ Editing the frontend (Node.js)
+
+Only needed if you change files in `frontend/src/`.
+
+<details>
+<summary>📦 Install Node.js on Onyxia (no admin rights)</summary>
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+```
+
+```bash
+source ~/.bashrc && nvm install 22
+```
+</details>
+
+```bash
+cd frontend
+npm install              # first time only
+npm run dev -- --host    # live reload on http://localhost:5000
+```
+
+Onyxia: set `VITE_BASE_PATH=/absproxy/5000/` in `frontend/.env`, then open `<your-vscode-url>/absproxy/5000/`.
+
+### 🚨 Before you commit
+
+```bash
+npm run build                  # regenerate frontend/dist/
+git add frontend/src frontend/dist
+```
+
+> Always **commit `frontend/dist/` together with your changes**, or everyone else keeps running the old version.
+> Merge conflict in `dist/`? Don't edit those files: merge, run `npm run build`, then commit.
+
+<details>
+<summary>⚙️ <code>frontend/.env</code> options (optional, <code>cp .env.example .env</code>)</summary>
+
+| Variable | Default | Purpose |
 |---|---|---|
-| `201` | account created | `{"id_user": 1, "username": "yazid", "email": "yazid@ensai.fr", "bio": null, "profile_picture": null}` |
-| `409` | username already taken | `{"detail": "Username already used."}` |
-| `409` | email already used | `{"detail": "Email already used."}` |
-| `422` | invalid data (email, length…) | Pydantic error details |
-| `500` | database error | `{"detail": "Could not register user."}` (full cause in the terminal) |
-
-The password is hashed with **bcrypt** before being stored, and **neither the password
-nor its hash is ever returned** (filtered by `response_model=UserRead`).
+| `VITE_BACKEND_URL` | `http://127.0.0.1:8000` | Where `/api` is forwarded |
+| `VITE_PORT` | `5000` | Dev server port |
+| `VITE_BASE_PATH` | `/` | Sub-path (Onyxia: `/absproxy/5000/`) |
+| `VITE_API_URL` | *(empty)* | Leave empty |
+</details>
 
 ---
 
-## 7. Tests
+## 🧪 Tests
 
-| Folder | Type | Database | Count |
-|---|---|---|---|
-| `tests/unit/` | **service** tests, the DAO is replaced by a mock | no | 7 |
-| `tests/integration/` | **DAO** tests on a real database | yes (the one in `.env`) | 12 |
+| Command | Runs | DB needed? |
+|---|---|---|
+| `uv run pytest tests/unit -v` | Unit tests (services + routes, everything mocked) | ❌ |
+| `uv run pytest tests/integration -v` | DAO + API tests on a real PostgreSQL | ✅ |
+| `uv run pytest -v` | Everything | ✅ |
+| `uv run pytest --cov=src --cov-report=term-missing` | Everything + coverage | ✅ |
 
-Commands (same everywhere):
+Integration tests use the DB from `.env`, and **every test is rolled back**, so they leave no trace.
+In VS Code: *Testing* panel 🧪 → ↻ → ▶.
+
+### 🐳 Throwaway test database (optional)
 
 ```bash
-uv run pytest tests/unit -v          # fast, no database needed
-uv run pytest tests/integration -v   # needs a running PostgreSQL database
-uv run pytest -v                     # everything
+docker compose -f docker-compose.test.yml up -d
 ```
 
-**Integration tests leave no trace**: each test runs inside a transaction
-that is rolled back at the end (see `tests/integration/conftest.py`).
+Then use these values in `.env`:
 
-**From the VSCode interface**: *Testing* panel (flask icon) → ↻ button, then ▶.
-
----
-
-## 8. Code quality (ruff, mypy)
-
-```bash
-uv run ruff check          # analyse
-uv run ruff check --fix    # fix what can be fixed automatically
-uv run mypy src tests frontend/app.py                     # type checking
+```ini
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5433
+POSTGRES_DATABASE=test_db
+POSTGRES_USER=test_user
+POSTGRES_PASSWORD=test_pass
 ```
 
 ---
 
-## 9. Adding a new endpoint: the recipe
-
-### Before you start: create your own branch
-
-Never work directly on `main`. Each endpoint gets its own branch, so your work
-doesn't break anyone else's and can be reviewed in a Pull Request.
-
-Same commands on Windows, Mac and Linux:
+## 🧹 Code quality
 
 ```bash
-git checkout main                    # go back to the main branch
-git pull                             # get the latest version of the project
-git checkout -b feature/books-search # create your branch and switch to it
+uv run ruff check                        # lint
+uv run ruff check --fix                  # auto-fix
+uv run mypy src tests frontend/app.py    # type check
+cd frontend && npm run lint              # frontend lint (Node)
 ```
 
-Name the branch after what you build: `feature/<short-description>`,
-for example `feature/auth-login` or `feature/library-add-book`.
+---
 
-Check which branch you are on at any time with `git branch`
-(the current one has a `*`).
+## 🆘 Troubleshooting
 
-### The steps
+| Problem | Fix |
+|---|---|
+| Browser: `ECONNREFUSED ...:5000` | The frontend isn't running. Start `app.py` (step 4). |
+| App: *"Cannot reach the backend"* | The backend isn't running. Run `uv run src/main.py`. |
+| App doesn't show your latest frontend change | Run `npm run build` in `frontend/`, then reload. |
+| `Address already in use` | Pick another port: `FRONTEND_PORT=5001 uv run python app.py`. On a Mac, port 5000 is often AirPlay. |
+| *"Open Library service is unavailable"* | The backend can't reach openlibrary.org (network). |
+| `uv sync` fails building **psycopg2** (`pg_config.h`) | Install the PostgreSQL headers: `sudo apt install libpq-dev` (Linux) · `brew install libpq` (Mac) |
+| Local Swagger page fails to load `openapi.json` | Add `ROOT_PATH=/` to `.env` (the default `/proxy/8000` is meant for Onyxia). |
+| Integration tests can't connect | Check `.env`, or start the Docker test DB. |
 
-Example with books. Work in this order, from the bottom layer up:
+---
 
-1. **Table**: add `CREATE TABLE IF NOT EXISTS books (...)` at the end of `data/init.sql`.
-   :warning: **Never use `DROP TABLE`**: this file runs every time the API starts.
-2. **Models**: `src/models/books.py` (input, output, database row).
-3. **Exceptions**: add yours to `src/utils/exceptions.py`.
-4. **DAO**: `src/dao/books_dao.py`, class `BookDAO(cursor)`.
-   Always use `%s` parameters, **never f-strings** with user-provided values.
-5. **Service**: `src/services/books_service.py`, class `BookService(dao)`.
-6. **Unit tests**: `tests/unit/services/test_books_service.py` (mocked DAO).
-7. **Dependency**: at the end of `src/api/deps.py`:
+## 🗂️ Project layout
 
-```python
-   def get_book_service(cursor: CursorDep) -> BookService:
-       """Build a BookService bound to the request cursor."""
-       return BookService(BookDAO(cursor))
-
-
-   BookServiceDep = Annotated[BookService, Depends(get_book_service)]
 ```
-
-8. **Route**: `src/api/routes/books_routes.py`, then plug it into `src/api/main.py`
-   (`api_router.include_router(books_routes.router)`).
-9. **Protected route?** Just add the `current_user: CurrentUser` parameter.
-10. **Integration tests**: `tests/integration/dao/test_books_dao.py`
-    (the `cursor` fixture from the conftest is reusable).
-11. Test in `/docs`, run `ruff` and `pytest`.
-
-`auth_routes.py`, `users_service.py`, `users_dao.py` and their tests are a complete example.
-
-### When you're done: commit, push and open a Pull Request
-
-Commit regularly while you work, not only at the end:
-
-```bash
-git add -A
-git status                           # check that .env is NOT in the list
-git commit -m "feat(books): add GET /books/search endpoint"
-```
-
-The first time, push your branch to GitHub:
-
-```bash
-git push -u origin feature/books-search
-```
-
-After that, a simple `git push` is enough.
-
-Then, on GitHub:
-
-1. Click **Compare & pull request** (or go to *Pull requests* → *New pull request*).
-2. Choose your branch → `main`.
-3. In the description, explain what you did and write `Closes #<issue number>`
-   so the issue closes automatically when the PR is merged.
-4. Ask a teammate to review it before merging.
-
-**If `main` changed while you were working**, bring those changes into your branch
-before opening the PR:
-
-```bash
-git checkout main
-git pull
-git checkout feature/books-search
-git merge main
+src/
+  api/routes/   HTTP routes (auth, books, library, playlists, reviews, users, admin, recommendations)
+  services/     business logic
+  dao/          SQL queries
+  models/       Pydantic models
+  core/         config, DB pool, security
+frontend/
+  app.py        Python server for dist/ + /api proxy
+  dist/         compiled app (committed: rebuild with npm run build)
+  src/          React app source
+tests/
+  unit/         mocked tests
+  integration/  real-DB tests
+data/init.sql   database schema
 ```
