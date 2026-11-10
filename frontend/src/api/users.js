@@ -14,9 +14,12 @@ export function getKnownUser(idUser) {
   return knownUsers.get(Number(idUser)) || null;
 }
 
-/** GET /users/me → UserRead */
+/**
+ * GET /users/me/settings → UserMe
+ * Same as /users/me plus theme, profile_visibility and is_admin.
+ */
 export async function getMe() {
-  const me = await request('/users/me');
+  const me = await request('/users/me/settings');
   remember([me]);
   return me;
 }
@@ -24,6 +27,13 @@ export async function getMe() {
 /** PATCH /users/me (only the given fields) → UserRead */
 export async function updateMe(fields) {
   const me = await request('/users/me', { method: 'PATCH', json: fields });
+  remember([me]);
+  return me;
+}
+
+/** PATCH /users/me/settings { theme?: 'day'|'night', profile_visibility?: 'public'|'private' } → UserMe */
+export async function updateSettings(settings) {
+  const me = await request('/users/me/settings', { method: 'PATCH', json: settings });
   remember([me]);
   return me;
 }

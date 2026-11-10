@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { getBook } from '../api/books';
 import { listUserReviews } from '../api/reviews';
 import * as usersApi from '../api/users';
+import { ModerationMenu } from '../components/admin/ModerationMenu';
 import { BookGrid, BookGridSkeleton } from '../components/books/BookGrid';
 import { ReviewItem } from '../components/reviews/ReviewItem';
 import { StatsPanels } from '../components/stats/StatsPanels';
@@ -75,7 +76,10 @@ export function UserPage() {
               Edit profile
             </Button>
           ) : (
-            <FollowButton user={profile || { id_user: id, username: name }} social={social} size="md" />
+            <>
+              <FollowButton user={profile || { id_user: id, username: name }} social={social} size="md" />
+              {me.is_admin && <ModerationMenu user={profile || { id_user: id, username: name }} />}
+            </>
           )}
         </div>
       </header>

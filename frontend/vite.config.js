@@ -24,7 +24,7 @@ export default defineConfig(({ command, mode }) => {
     // works at the site root and under an Onyxia /proxy/<port>/ sub-path.
     base: command === 'build' ? './' : base,
     plugins: [react()],
-    server: { port: Number(env.VITE_PORT) || 5173, proxy },
+    server: { port: Number(env.VITE_PORT) || 5000, proxy },
     preview: { port: Number(env.VITE_PORT) || 4173, proxy },
   };
 });

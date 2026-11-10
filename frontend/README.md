@@ -1,321 +1,233 @@
-# Ex-Libris — Reading Tracker API
+# Ex-Libris — Web frontend
 
-ENSAI 2nd-year IT project — team 27.
+React interface for the Ex-Libris reading-tracker API (FastAPI, in `src/` at the
+project root). Users can search books, keep a library, rate and review books,
+organise shelves, follow other readers and track their reading progress.
 
-Ex-Libris is a REST API (FastAPI + PostgreSQL) that lets users find books
-(through Open Library), add them to their library, track their reading,
-and rate and review them. A React web interface (in `frontend/`) lets you
-use every feature from the browser.
-
----
-
-## 1. Install uv
-
-[uv](https://docs.astral.sh/uv/) installs Python and all the project's dependencies.
-
-Windows (PowerShell):
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-Mac / Linux (Terminal):
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Close and reopen the terminal, then check:
-
-```bash
-uv --version
-```
+Built with **React 19**, **React Router 7** and **Vite 7**. Styling uses plain
+CSS Modules and a small set of design tokens: no UI framework and no extra
+runtime dependencies.
 
 ---
 
-## 2. Install the dependencies
+## 1. Quick start — Python only, no Node.js
 
-From the project root:
+The `dist/` folder already contains the compiled app, and `serve.py` serves
+it with the Python standard library. Nothing to install.
 
-```bash
-uv sync
-```
+1. Start the backend, from the project root (first terminal):
 
-`uv sync` creates the `.venv` folder and installs Python 3.13 and every dependency
-listed in `pyproject.toml`. Run it again after any `git pull` that changes
-`pyproject.toml` or `uv.lock`.
+   ```bash
+   uv run src/main.py
+   ```
+
+2. Start the frontend, from this folder (second terminal):
+
+   ```bash
+   cd frontend
+   ```
+   ```bash
+   uv run python app.py
+   ```
+
+3. Open the app:
+   - on your computer: <http://localhost:5000>
+   - on Onyxia/VSCode: your VSCode URL followed by `/proxy/5000/`
+     (for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5000/`)
+
+`serve.py` forwards every `/api` request to the backend. To change the
+defaults, set environment variables, e.g.
+`BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5000 python app.py`.
+
+> `dist/` is the compiled version of `src/`. If you **change the code** in
+> `src/`, rebuild it with Node.js (section 2): `npm run build`. Otherwise you
+> never need Node.js.
 
 ---
 
-## 3. Create the `.env` file
+## 2. Development mode (Node.js) — only to change the code
 
-The `.env` file holds settings and passwords. It is **ignored by Git**:
-never commit it. It is read by `src/core/config.py`.
+Requirements:
 
-Create it from the template.
+- **Node.js 20.19 or newer** (22 LTS recommended): <https://nodejs.org>.
+  On Onyxia, without admin rights:
 
-Windows (PowerShell):
+  ```bash
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+  ```
+  ```bash
+  source ~/.bashrc && nvm install 22
+  ```
 
-```powershell
-Copy-Item .env.example .env
+- The backend running (`uv run src/main.py`).
+
+### Install
+
+From this `frontend/` folder:
+
+```bash
+npm install
 ```
 
-Mac / Linux:
+### Configure (optional)
 
 ```bash
 cp .env.example .env
 ```
 
-Then fill it in with your PostgreSQL database details:
-
-```ini
-POSTGRES_HOST=<database host>
-POSTGRES_PORT=5432
-POSTGRES_DATABASE=defaultdb
-POSTGRES_USER=<user>
-POSTGRES_PASSWORD=<password>
-
-SECRET_KEY=<a long random string>
-```
-
-**Generate a `SECRET_KEY`** (same command everywhere):
-
-```bash
-uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
----
-
-## 4. Run the API and open the documentation
-
-From the project root (same command everywhere):
-
-```bash
-uv run src/main.py
-```
-
-On startup, the API automatically creates any missing tables from
-`data/init.sql`. It restarts by itself every time you save a file.
-Stop it with `Ctrl+C`.
-
-:warning: On Onyxia, don't click the `127.0.0.1` link that VSCode suggests: use
-your VSCode URL followed by `/proxy/8000/`.
-
----
-
-## 5. Run the web frontend
-
-The `frontend/` folder contains the web interface (React). It is already
-compiled in `frontend/dist/`, so **you only need Python**: no Node.js, no npm.
-
-1. **Keep the API running** in a first terminal (section 4).
-
-2. **Open a second terminal** and start the frontend:
-
-   ```bash
-   cd frontend
-   python serve.py
-   ```
-
-   (`uv run python serve.py` works too.)
-
-3. **Open the app**:
-   - on your computer: <http://localhost:5173>
-   - on Onyxia: your VSCode URL followed by `/proxy/5173/`,
-     for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5173/`
-
-4. Create an account on the sign-up page, and you're in.
-
-Stop it with `Ctrl+C`. Both terminals must stay open while you use the app.
-
-`serve.py` serves the app and forwards every `/api/...` request to the API on
-`http://127.0.0.1:8000` (the API has no CORS configuration, so the browser
-can't call it directly). To change the defaults:
-
-```bash
-BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5173 python serve.py
-```
-
-**Troubleshooting**
-
-| Message | Fix |
-|---|---|
-| `connect ECONNREFUSED 0.0.0.0:5173` in the browser | `serve.py` isn't running: start it (step 2) and keep its terminal open. |
-| “Cannot reach the server” in the app | The API isn't running: start `uv run src/main.py`. |
-| “Open Library service is unavailable” when searching | The API can't reach openlibrary.org (network). |
-| `Address already in use` | Another server uses port 5173: `FRONTEND_PORT=5174 python serve.py`, then open `/proxy/5174/`. |
-
-**Changing the frontend code** (only if you edit files in `frontend/src/`):
-you then need Node.js 20.19+ to rebuild `dist/`. See `frontend/README.md`:
-
-```bash
-cd frontend
-npm install       # once
-npm run dev       # live development server
-npm run build     # rebuild dist/ before committing
-```
-
----
-
-## 6. Available endpoints
-
-All routes are prefixed with `/api`. For overall progress, see the
-`ex_libris_endpoints.xlsx` spreadsheet in the drive.
-
-| Method | Route | Auth | Status |
-|---|---|---|---|
-| `POST` | `/api/auth/register` | no | :white_check_mark: done and tested |
-
-### `POST /api/auth/register` — create an account
-
-**Request body**
-
-```json
-{
-  "username": "yazid",
-  "email": "yazid@ensai.fr",
-  "password": "motdepasse123"
-}
-```
-
-| Field | Rule |
-|---|---|
-| `username` | 3 to 30 characters, unique |
-| `email` | valid email format, unique |
-| `password` | 8 to 72 characters (72 is bcrypt's limit) |
-
-**Responses**
-
-| Code | When | Body |
+| Variable | Default | Purpose |
 |---|---|---|
-| `201` | account created | `{"id_user": 1, "username": "yazid", "email": "yazid@ensai.fr", "bio": null, "profile_picture": null}` |
-| `409` | username already taken | `{"detail": "Username already used."}` |
-| `409` | email already used | `{"detail": "Email already used."}` |
-| `422` | invalid data (email, length…) | Pydantic error details |
-| `500` | database error | `{"detail": "Could not register user."}` (full cause in the terminal) |
+| `VITE_BACKEND_URL` | `http://127.0.0.1:8000` | Where the FastAPI server runs. The dev server forwards every `/api` request there. |
+| `VITE_API_URL` | *(empty)* | Only for a deployed build that calls a backend on another domain (needs CORS on the backend). Leave it empty. |
+| `VITE_PORT` | `5173` | Port of the dev server. |
+| `VITE_BASE_PATH` | `/` | Sub-path in development. On Onyxia, use `/absproxy/5173/` and open `<your VSCode URL>/absproxy/5173/`. |
 
-The password is hashed with **bcrypt** before being stored, and **neither the password
-nor its hash is ever returned** (filtered by `response_model=UserRead`).
+### Run
+
+```bash
+npm run dev -- --host
+```
+
+Open <http://localhost:5173> (or `<VSCode URL>/absproxy/5173/` on Onyxia).
+Changes in `src/` appear instantly.
+
+| Command | What it does |
+|---|---|
+| `npm run build` | Rebuilds `dist/` (then `python serve.py` serves the new version) |
+| `npm run preview` | Serves `dist/` with Node instead of Python |
+| `npm run lint` | Checks the code with ESLint |
+
+### Why a proxy?
+
+The backend has no CORS middleware, so a browser page on `localhost:5173`
+cannot call `localhost:8000` directly. Both `serve.py` and Vite's dev server
+forward `/api/*` to the backend instead, so the browser only ever talks to one
+origin.
 
 ---
 
-## 7. Tests
+## 3. Features
 
-| Folder | Type | Database | Count |
-|---|---|---|---|
-| `tests/unit/` | **service** tests, the DAO is replaced by a mock | no | 7 |
-| `tests/integration/` | **DAO** tests on a real database | yes (the one in `.env`) | 12 |
+| Page | What you can do |
+|---|---|
+| **Sign in / Create account** | Validated forms; errors from the API (taken username, wrong password…) shown on the right field. |
+| **Home** | Your current book with a one-click “Mark as finished”, library counts, next quests, personalised recommendations. |
+| **Discover** | Search Open Library by title or author (“Show more results” loads up to 50). Without a search: recommendations by genre, sorted by rating, date or title. |
+| **Catalog** | All books saved locally, filtered by genre and author (server-side), sorted and paginated. |
+| **Book** | Cover, details, add to library with a status, change status, like, favorite, save to shelves, remove (with confirmation). Reviews: average rating, write / edit / delete your review. |
+| **My library** | Tabs by status and favorites, genre filter, sorting, pagination, inline status change, like, favorite, remove (with confirmation). |
+| **Shelves** | Create, rename, delete (with confirmation) shelves, see their covers, remove books. |
+| **Readers** | Search users, follow / unfollow, see who you follow and who follows you. |
+| **Reader profile** | Their library, reviews, shelves, followers, following, and stats (shown once you follow them, as the API requires). |
+| **Progress** | Books finished, genre and rating breakdowns, quests with XP. |
+| **Settings** | Edit username, email, bio and picture link; change password. |
 
-Commands (same everywhere):
-
-```bash
-uv run pytest tests/unit -v          # fast, no database needed
-uv run pytest tests/integration -v   # needs a running PostgreSQL database
-uv run pytest -v                     # everything
-```
-
-**Integration tests leave no trace**: each test runs inside a transaction
-that is rolled back at the end (see `tests/integration/conftest.py`).
-
-**From the VSCode interface**: *Testing* panel (flask icon) → ↻ button, then ▶.
-
----
-
-## 8. Code quality (ruff, mypy)
-
-```bash
-uv run ruff check src tests          # analyse
-uv run ruff check src tests --fix    # fix what can be fixed automatically
-uv run mypy src                      # type checking
-```
+Every action gives feedback (toast message, inline error or loading state),
+lists have skeleton loaders, and empty and error states offer a next step.
 
 ---
 
-## 9. Adding a new endpoint: the recipe
+## 4. Backend endpoints used
 
-### Before you start: create your own branch
+All paths are relative to `/api`. Every route except register and login needs
+the `Authorization: Bearer <token>` header, which the client adds automatically.
 
-Never work directly on `main`. Each endpoint gets its own branch, so your work
-doesn't break anyone else's and can be reviewed in a Pull Request.
+| Method | Path | Used in |
+|---|---|---|
+| POST | `/auth/register` | Create account |
+| POST | `/auth/login` (form data) | Sign in |
+| POST | `/auth/logout` | Sign out |
+| GET | `/users/me` | Session check, sidebar |
+| PATCH | `/users/me` | Settings, profile |
+| PUT | `/users/me/password` | Settings, password |
+| GET | `/users/me/stats` | Progress, own profile |
+| GET | `/users/me/quests?status=` | Home, Progress |
+| GET | `/users/search?username=&limit=` | Readers |
+| POST / DELETE | `/users/{id}/follow` | Follow buttons |
+| GET | `/users/{id}/followers` | Readers, profile |
+| GET | `/users/{id}/following` | Readers, profile |
+| GET | `/users/{id}/library?status=` | Profile |
+| GET | `/users/{id}/playlists` | Profile |
+| GET | `/users/{id}/stats` | Profile (403 if not followed) |
+| GET | `/users/{id}/reviews` | Profile |
+| GET | `/books/search?q=&limit=` | Discover, sidebar search |
+| GET | `/books?category=&author=` | Catalog |
+| GET | `/books/{id}` | Book page |
+| GET / POST | `/books/{id}/reviews` | Book page |
+| PUT / DELETE | `/reviews/{id}` | Book page |
+| GET | `/library/books?status=` | Library (loaded once, shared by all pages) |
+| GET | `/library/favorites` | Library, favorites tab |
+| POST | `/library/books` | Add to library |
+| DELETE | `/library/books/{id}` | Remove from library |
+| PATCH | `/library/books/{id}/status` | Change status |
+| POST | `/library/books/{id}/like` | Like toggle |
+| POST | `/library/books/{id}/favorite` | Favorite toggle |
+| GET / POST | `/playlists` | Shelves |
+| GET / PATCH / DELETE | `/playlists/{id}` | Shelf page |
+| POST | `/playlists/{id}/books` | Save to shelf |
+| DELETE | `/playlists/{id}/books/{bookId}` | Remove from shelf |
+| GET | `/recommendations?genre=&sort=&limit=` | Home, Discover |
 
-Same commands on Windows, Mac and Linux:
+---
 
-```bash
-git checkout main                    # go back to the main branch
-git pull                             # get the latest version of the project
-git checkout -b feature/books-search # create your branch and switch to it
+## 5. Project structure
+
+```
+frontend/
+├── serve.py                Python server for dist/ (no Node.js needed)
+├── dist/                   Compiled app, generated by `npm run build`
+├── index.html              HTML entry, fonts
+├── vite.config.js          Dev server + /api proxy
+├── eslint.config.js
+├── .env.example
+├── public/favicon.svg
+└── src/
+    ├── main.jsx            Mounts the app with router and providers
+    ├── App.jsx             Routes
+    ├── config.js           Reads environment variables
+    ├── api/                One file per backend area; all HTTP calls live here
+    │   └── client.js       fetch wrapper: base URL, token, error parsing
+    ├── context/            App-wide state: session, toasts, the user's library
+    ├── hooks/              Reusable logic (async data, pagination, URL state…)
+    ├── components/
+    │   ├── ui/             Design-system pieces: Button, Field, Modal, Menu…
+    │   ├── layout/         Sidebar layout, auth guard
+    │   ├── books/          Covers, cards, grids, library and shelf controls
+    │   ├── reviews/        Review form and review item
+    │   ├── users/          Reader rows, follow button
+    │   └── stats/          Bars, stats panels, quest cards
+    ├── pages/              One component per screen (+ its CSS module)
+    ├── styles/
+    │   ├── tokens.css      Colours, type scale, spacing, radii, motion
+    │   └── base.css        Global element styles
+    └── utils/              Formatting, sorting, form validation
 ```
 
-Name the branch after what you build: `feature/<short-description>`,
-for example `feature/auth-login` or `feature/library-add-book`.
+Conventions:
 
-Check which branch you are on at any time with `git branch`
-(the current one has a `*`).
+- Pages never call `fetch` directly: they use functions from `src/api/`.
+- Each component has its own `*.module.css`; values come from `tokens.css`.
+- Filters, sort orders and tabs are kept in the URL, so reloads and the back
+  button keep them.
 
-### The steps
+---
 
-Example with books. Work in this order, from the bottom layer up:
+## 6. Known limitations (backend-side)
 
-1. **Table**: add `CREATE TABLE IF NOT EXISTS books (...)` at the end of `data/init.sql`.
-   :warning: **Never use `DROP TABLE`**: this file runs every time the API starts.
-2. **Models**: `src/models/books.py` (input, output, database row).
-3. **Exceptions**: add yours to `src/utils/exceptions.py`.
-4. **DAO**: `src/dao/books_dao.py`, class `BookDAO(cursor)`.
-   Always use `%s` parameters, **never f-strings** with user-provided values.
-5. **Service**: `src/services/books_service.py`, class `BookService(dao)`.
-6. **Unit tests**: `tests/unit/services/test_books_service.py` (mocked DAO).
-7. **Dependency**: at the end of `src/api/deps.py`:
+These come from the current API; the frontend does not invent endpoints for them.
 
-```python
-   def get_book_service(cursor: CursorDep) -> BookService:
-       """Build a BookService bound to the request cursor."""
-       return BookService(BookDAO(cursor))
-
-
-   BookServiceDep = Annotated[BookService, Depends(get_book_service)]
-```
-
-8. **Route**: `src/api/routes/books_routes.py`, then plug it into `src/api/main.py`
-   (`api_router.include_router(books_routes.router)`).
-9. **Protected route?** Just add the `current_user: CurrentUser` parameter.
-10. **Integration tests**: `tests/integration/dao/test_books_dao.py`
-    (the `cursor` fixture from the conftest is reusable).
-11. Test in `/docs`, run `ruff` and `pytest`.
-
-`auth_routes.py`, `users_service.py`, `users_dao.py` and their tests are a complete example.
-
-### When you're done: commit, push and open a Pull Request
-
-Commit regularly while you work, not only at the end:
-
-```bash
-git add -A
-git status                           # check that .env is NOT in the list
-git commit -m "feat(books): add GET /books/search endpoint"
-```
-
-The first time, push your branch to GitHub:
-
-```bash
-git push -u origin feature/books-search
-```
-
-After that, a simple `git push` is enough.
-
-Then, on GitHub:
-
-1. Click **Compare & pull request** (or go to *Pull requests* → *New pull request*).
-2. Choose your branch → `main`.
-3. In the description, explain what you did and write `Closes #<issue number>`
-   so the issue closes automatically when the PR is merged.
-4. Ask a teammate to review it before merging.
-
-**If `main` changed while you were working**, bring those changes into your branch
-before opening the PR:
-
-```bash
-git checkout main
-git pull
-git checkout feature/books-search
-git merge main
-```
+- **No “get user by id” route.** Reviews and profiles only carry a user id, so a
+  reader’s name is shown when the app has already seen it (search results,
+  followers, following). Otherwise it reads “Reader #12”.
+- **Other readers’ shelves** are listed by name only: `GET /playlists/{id}` is
+  restricted to the owner.
+- **Book search needs Open Library.** If the backend cannot reach
+  openlibrary.org, search shows the backend’s “Open Library service is
+  unavailable” error, and recommendations fall back to the best-rated local
+  books.
+- **Book descriptions** are not filled in by the Open Library search, so book
+  pages link to the Open Library page instead.
+- **Quest titles** are written in French by the backend and shown as-is.
+- **No account deletion** endpoint exists, so the settings page doesn’t offer it.
+- **Docker:** `docker-compose.yml` at the project root still builds the old
+  Streamlit frontend; it was not changed.

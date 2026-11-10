@@ -1,7 +1,7 @@
 """Dependency injection utilities for FastAPI routes.
 
-Provides database cursor, service, token, and user authentication
-dependencies.
+Provides database cursor, service, token, user authentication and
+admin dependencies.
 """
 
 from collections.abc import Generator
@@ -26,6 +26,7 @@ from src.dao.stats_dao import StatsDAO
 from src.dao.tokens_dao import TokenDAO
 from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
+from src.services.admin_service import AdminService
 from src.services.books_service import BookService
 from src.services.library_service import LibraryService
 from src.services.playlists_service import PlaylistService
@@ -35,7 +36,11 @@ from src.services.reviews_service import ReviewService
 from src.services.stats_service import StatsService
 from src.services.tokens_service import TokenService
 from src.services.users_service import UserService
-from src.utils.exceptions import UserNotFoundError
+from src.utils.exceptions import (
+    AccountBannedError,
+    AccountSuspendedError,
+    UserNotFoundError,
+)
 
 if TYPE_CHECKING:
     from psycopg2.pool import ThreadedConnectionPool
@@ -101,8 +106,8 @@ def get_user(
     :param service: User service dependency
     :param tokens: Token service dependency
     :param token: JWT token dependency
-    :raises HTTPException: Raised if the token is revoked or invalid,
-        or if the user is not found
+    :raises HTTPException: 403 if the token is revoked or invalid, or if
+        the account is banned or suspended, 404 if the user is not found
     :return: The authenticated User object
     """
     if tokens.is_revoked(token):
@@ -124,7 +129,7 @@ def get_user(
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return service.read(user_id=int(token_data.sub))
+        user = service.read(user_id=int(token_data.sub))
 
     except (InvalidTokenError, ValidationError):
         raise HTTPException(
@@ -139,8 +144,36 @@ def get_user(
             detail="No such user in database",
         ) from None  # Should i use a 404 ? I mean it's auth
 
+    # A token issued before a ban or a suspension must stop working too.
+    try:
+        UserService.ensure_active(user)
+    except (AccountBannedError, AccountSuspendedError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        ) from None
+    return user
+
 
 CurrentUser = Annotated[User, Depends(get_user)]
+
+
+def get_admin_user(current_user: CurrentUser) -> User:
+    """Make sure the authenticated user is an administrator.
+
+    :param current_user: The authenticated user
+    :raises HTTPException: 403 if the user is not an admin
+    :return: The admin user
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator rights required.",
+        )
+    return current_user
+
+
+AdminUser = Annotated[User, Depends(get_admin_user)]
 
 
 def get_book_service(cursor: CursorDep) -> BookService:
@@ -224,3 +257,11 @@ RecommendationServiceDep = Annotated[
     RecommendationService,
     Depends(get_recommendation_service),
 ]
+
+
+def get_admin_service(cursor: CursorDep) -> AdminService:
+    """Build an AdminService bound to the request cursor."""
+    return AdminService(UserDAO(cursor), ReviewDAO(cursor))
+
+
+AdminServiceDep = Annotated[AdminService, Depends(get_admin_service)]

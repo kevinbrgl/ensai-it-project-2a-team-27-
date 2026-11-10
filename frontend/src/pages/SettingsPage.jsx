@@ -1,15 +1,26 @@
 import { useState } from 'react';
-import { changePassword, updateMe } from '../api/users';
+import { changePassword, updateMe, updateSettings } from '../api/users';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { PageHeader } from '../components/ui/PageHeader';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { collectErrors, validateEmail, validatePassword, validateUrl, validateUsername } from '../utils/validation';
 import page from './Page.module.css';
 import styles from './SettingsPage.module.css';
+
+const THEME_OPTIONS = [
+  { value: 'day', label: 'Day' },
+  { value: 'night', label: 'Night' },
+];
+
+const VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+];
 
 export function SettingsPage() {
   useDocumentTitle('Settings');
@@ -20,6 +31,7 @@ export function SettingsPage() {
       <PageHeader title="Account settings" />
       <div className={styles.layout}>
         <ProfileForm key={user.id_user} />
+        <PreferencesForm />
         <PasswordForm />
       </div>
     </>
@@ -65,7 +77,8 @@ function ProfileForm() {
     setBusy(true);
     try {
       const updated = await updateMe(changes);
-      setUser(updated);
+      // PATCH /users/me has no settings fields: keep theme, is_admin…
+      setUser((current) => ({ ...current, ...updated }));
       toast.success('Profile saved.');
     } catch (err) {
       if (err.status === 409) {
@@ -122,6 +135,54 @@ function ProfileForm() {
         </Button>
       </div>
     </form>
+  );
+}
+
+function PreferencesForm() {
+  const { user, setUser } = useAuth();
+  const toast = useToast();
+
+  // Saved on change; applied optimistically so the theme switches at once.
+  const save = async (field, value) => {
+    if (user[field] === value) return;
+    const previous = user;
+    setUser((current) => ({ ...current, [field]: value }));
+    try {
+      const updated = await updateSettings({ [field]: value });
+      setUser((current) => ({ ...current, ...updated }));
+      toast.success('Preferences saved.');
+    } catch (err) {
+      setUser(previous);
+      toast.error(err.message);
+    }
+  };
+
+  return (
+    <section className={`${page.card} ${styles.form}`}>
+      <div>
+        <h2 className={styles.title}>Preferences</h2>
+        <p className={styles.text}>Changes are saved right away.</p>
+      </div>
+      <div className={styles.setting}>
+        <div>
+          <h3 className={styles.settingLabel}>Theme</h3>
+          <p className={styles.text}>Night is easier on the eyes in the dark.</p>
+        </div>
+        <SegmentedControl label="Theme" options={THEME_OPTIONS} value={user.theme || 'day'} onChange={(value) => save('theme', value)} />
+      </div>
+      <div className={styles.setting}>
+        <div>
+          <h3 className={styles.settingLabel}>Profile visibility</h3>
+          <p className={styles.text}>Choose whether your profile is public or private.</p>
+        </div>
+        <SegmentedControl
+          label="Profile visibility"
+          options={VISIBILITY_OPTIONS}
+          value={user.profile_visibility || 'public'}
+          onChange={(value) => save('profile_visibility', value)}
+        />
+      </div>
+    </section>
   );
 }
 

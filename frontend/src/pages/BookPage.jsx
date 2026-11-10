@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { moderateReview } from '../api/admin';
 import { getBook } from '../api/books';
 import * as reviewsApi from '../api/reviews';
 import { getFollowers, getFollowing } from '../api/users';
@@ -132,6 +133,7 @@ function Reviews({ book }) {
   const { data, error, loading, reload, setData } = useAsync(() => reviewsApi.getBookReviews(book.id_book), [book.id_book]);
   const [editing, setEditing] = useState(false);
   const [toDelete, setToDelete] = useState(null);
+  const [toModerate, setToModerate] = useState(null);
   const [, setNamesReady] = useState(false);
 
   // Reviews only carry user ids; loading the people around me lets the
@@ -176,6 +178,16 @@ function Reviews({ book }) {
       await reviewsApi.deleteReview(toDelete.id_review);
       await refreshSummary();
       toast.success('Review deleted.');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const moderate = async () => {
+    try {
+      await moderateReview(toModerate.id_review);
+      await refreshSummary();
+      toast.success('Review removed.');
     } catch (err) {
       toast.error(err.message);
     }
@@ -245,7 +257,19 @@ function Reviews({ book }) {
             {others.length > 0 ? (
               <div>
                 {others.map((review) => (
-                  <ReviewItem key={review.id_review} review={review} />
+                  <ReviewItem
+                    key={review.id_review}
+                    review={review}
+                    actions={
+                      user.is_admin && (
+                        <Menu
+                          align="end"
+                          trigger={({ toggle }) => <Button variant="ghost" size="sm" icon="alert" onClick={toggle} aria-label="Moderate review" />}
+                          items={[{ label: 'Remove review', icon: 'trash', tone: 'danger', onSelect: () => setToModerate(review) }]}
+                        />
+                      )
+                    }
+                  />
                 ))}
               </div>
             ) : (
@@ -262,6 +286,14 @@ function Reviews({ book }) {
         confirmLabel="Delete review"
         onConfirm={remove}
         onClose={() => setToDelete(null)}
+      />
+      <ConfirmDialog
+        open={Boolean(toModerate)}
+        title="Remove this review?"
+        message="The review will be deleted for every reader. This can’t be undone."
+        confirmLabel="Remove review"
+        onConfirm={moderate}
+        onClose={() => setToModerate(null)}
       />
     </section>
   );

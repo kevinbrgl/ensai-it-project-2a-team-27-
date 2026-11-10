@@ -5,7 +5,7 @@
 const explicitApiUrl = (import.meta.env.VITE_API_URL || '').trim();
 
 /**
- * Path the app is served under, e.g. "/" or "/proxy/5173/".
+ * Path the app is served under, e.g. "/" or "/proxy/5000/".
  * In development it comes from VITE_BASE_PATH; in the built app it is
  * detected from the URL by the small script in index.html.
  */

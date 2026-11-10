@@ -29,6 +29,11 @@ export function AuthProvider({ children }) {
       .catch(() => clearSession());
   }, [clearSession]);
 
+  // Night theme: tokens.css overrides the colour tokens under [data-theme='night'].
+  useEffect(() => {
+    document.documentElement.dataset.theme = user?.theme === 'night' ? 'night' : 'day';
+  }, [user?.theme]);
+
   const login = useCallback(async (username, password) => {
     const { access_token: accessToken } = await authApi.login({ username, password });
     setToken(accessToken);

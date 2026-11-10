@@ -114,15 +114,15 @@ compiled in `frontend/dist/`, so **you only need Python**: no Node.js, no npm.
 
    ```bash
    cd frontend
-   python serve.py
+   python app.py
    ```
 
-   (`uv run python serve.py` works too.)
+   (`uv run python app.py` works too.)
 
 3. **Open the app**:
-   - on your computer: <http://localhost:5173>
-   - on Onyxia: your VSCode URL followed by `/proxy/5173/`,
-     for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5173/`
+   - on your computer: <http://localhost:5000>
+   - on Onyxia: your VSCode URL followed by `/proxy/5000/`,
+     for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5000/`
 
 4. Create an account on the sign-up page, and you're in.
 
@@ -133,29 +133,18 @@ Stop it with `Ctrl+C`. Both terminals must stay open while you use the app.
 can't call it directly). To change the defaults:
 
 ```bash
-BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5173 python serve.py
+BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5000 python app.py
 ```
 
 **Troubleshooting**
 
 | Message | Fix |
 |---|---|
-| `connect ECONNREFUSED 0.0.0.0:5173` in the browser | `serve.py` isn't running: start it (step 2) and keep its terminal open. |
+| `connect ECONNREFUSED 0.0.0.0:5000` in the browser | `app.py` isn't running: start it (step 2) and keep its terminal open. |
 | “Cannot reach the server” in the app | The API isn't running: start `uv run src/main.py`. |
 | “Open Library service is unavailable” when searching | The API can't reach openlibrary.org (network). |
-| `Address already in use` | Another server uses port 5173: `FRONTEND_PORT=5174 python serve.py`, then open `/proxy/5174/`. |
+| `Address already in use` | Another server uses port 5000 (on a Mac, often AirPlay Receiver): `FRONTEND_PORT=5001 python app.py`, then open `/proxy/5001/`. |
 
-**Changing the frontend code** (only if you edit files in `frontend/src/`):
-you then need Node.js 20.19+ to rebuild `dist/`. See `frontend/README.md`:
-
-```bash
-cd frontend
-npm install       # once
-npm run dev       # live development server
-npm run build     # rebuild dist/ before committing
-```
-
----
 
 ## 6. Available endpoints
 
@@ -224,9 +213,9 @@ that is rolled back at the end (see `tests/integration/conftest.py`).
 ## 8. Code quality (ruff, mypy)
 
 ```bash
-uv run ruff check src tests          # analyse
-uv run ruff check src tests --fix    # fix what can be fixed automatically
-uv run mypy src                      # type checking
+uv run ruff check          # analyse
+uv run ruff check --fix    # fix what can be fixed automatically
+uv run mypy src tests frontend/app.py                     # type checking
 ```
 
 ---
