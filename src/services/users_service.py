@@ -2,10 +2,10 @@
 
 This module provides business logic for user-related operations.
 Exceptions are raised for not found, duplicates, authentication,
-social actions, or password errors.
+social actions, password errors, or blocked accounts.
 """
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from src.core.config import settings
 from src.core.security import (
@@ -19,11 +19,14 @@ from src.models.users import (
     User,
     UserCreate,
     UserRegister,
+    UserSettingsUpdate,
     UserUpdate,
     UserUpdateFull,
     UserUpdatePassword,
 )
 from src.utils.exceptions import (
+    AccountBannedError,
+    AccountSuspendedError,
     AuthError,
     EmailAlreadyExistsError,
     IncorrectPasswordError,
@@ -71,9 +74,12 @@ class UserService:
         :param password: Plain password of the user
         :raises UserNotFoundError: Raised if user is not found
         :raises AuthError: Raised if password is incorrect
+        :raises AccountBannedError: Raised if the account is banned
+        :raises AccountSuspendedError: Raised if the account is suspended
         :return: Token containing the JWT and its type
         """
         user = self.authenticate(username, password)
+        self.ensure_active(user)
         access_token = create_access_token(
             user.id_user,
             expires_delta=timedelta(
@@ -237,6 +243,46 @@ class UserService:
             user_id,
             UserUpdateFull(**user_in.model_dump(exclude_unset=True)),
         )
+        if user is None:
+            raise UserNotFoundError(user_id=user_id)
+        return user
+
+    @staticmethod
+    def ensure_active(user: User) -> None:
+        """Check that an account is neither banned nor suspended.
+
+        :param user: The user to check
+        :raises AccountBannedError: If the account is banned
+        :raises AccountSuspendedError: If the suspension is still running
+        """
+        if user.is_banned:
+            raise AccountBannedError
+        if (
+            user.suspended_until is not None
+            and user.suspended_until > datetime.now(UTC)
+        ):
+            raise AccountSuspendedError(user.suspended_until)
+
+    def update_settings(
+        self,
+        user_id: int,
+        settings_in: UserSettingsUpdate,
+    ) -> User:
+        """Update the theme and/or profile visibility of a user.
+
+        :param user_id: ID of the user
+        :param settings_in: New settings
+        :raises ValueError: If no setting is given
+        :raises UserNotFoundError: If the user does not exist
+        :return: The updated User object
+        """
+        if (
+            settings_in.theme is None
+            and settings_in.profile_visibility is None
+        ):
+            msg = "Nothing to update."
+            raise ValueError(msg)
+        user = self.dao.update_settings(user_id, settings_in)
         if user is None:
             raise UserNotFoundError(user_id=user_id)
         return user

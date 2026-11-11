@@ -17,6 +17,8 @@ from src.api.deps import (
 )
 from src.models import Token, User, UserRead, UserRegister
 from src.utils.exceptions import (
+    AccountBannedError,
+    AccountSuspendedError,
     AuthError,
     DAOError,
     EmailAlreadyExistsError,
@@ -77,7 +79,7 @@ def login(
     :param service: User service dependency
     :param form_data: Login form (username and password fields)
     :raises HTTPException: 401 if the username or password is incorrect,
-        500 if the login fails
+        403 if the account is banned or suspended, 500 if the login fails
     :return: The access token and its type
     """
     try:
@@ -87,6 +89,11 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password.",
             headers={"WWW-Authenticate": "Bearer"},
+        ) from None
+    except (AccountBannedError, AccountSuspendedError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
         ) from None
     except DAOError:
         logger.exception("Login failed for username=%s", form_data.username)

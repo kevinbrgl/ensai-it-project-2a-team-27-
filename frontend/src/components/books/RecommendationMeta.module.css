@@ -1,0 +1,4 @@
+.meta { display: flex; flex-direction: column; gap: 2px; }
+.score { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; font-size: var(--text-sm); }
+.score svg { color: var(--star); }
+.reason { font-size: var(--text-xs); color: var(--text-muted); }

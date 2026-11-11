@@ -1,0 +1,31 @@
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-6); }
+
+/* Card radius 14px with 16px padding → the inner shelf area uses a small 6px radius. */
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out), border-color 200ms;
+}
+.shelf:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--border-strong); }
+
+.covers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: end;
+  gap: var(--space-2);
+  min-height: 140px;
+  padding: var(--space-4) var(--space-3) 0;
+  border-radius: var(--radius-sm);
+  background: var(--paper-100);
+  box-shadow: inset 0 -6px 0 var(--paper-300);
+  padding-bottom: 6px;
+}
+.emptyShelf { grid-column: 1 / -1; align-self: center; text-align: center; font-size: var(--text-sm); color: var(--text-muted); }
+.shelfText { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1); }
+.shelfName { font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelfCount { font-size: var(--text-sm); color: var(--text-muted); flex-shrink: 0; }

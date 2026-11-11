@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // Detect an Onyxia/VSCode sub-path such as /proxy/5000/ so the built app
+      // finds its files and routes wherever it is served from.
+      (function () {
+        var match = window.location.pathname.match(/^\/(?:abs)?proxy\/\d+\//);
+        window.__EXLIBRIS_BASE__ = match ? match[0] : '/';
+        document.write('<base href="' + window.__EXLIBRIS_BASE__ + '" />');
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Ex-Libris — track what you read, find what to read next." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap"
+      rel="stylesheet"
+    />
+    <title>Ex-Libris</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

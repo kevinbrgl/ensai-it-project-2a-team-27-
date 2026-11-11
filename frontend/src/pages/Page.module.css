@@ -1,0 +1,39 @@
+/* Layout pieces shared by pages. */
+.section { margin-top: var(--space-12); }
+.section:first-child { margin-top: 0; }
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.sectionHeader h2 { font-size: var(--text-lg); }
+.sectionLink { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); font-weight: 500; color: var(--accent-600); }
+.sectionLink:hover { color: var(--accent-700); text-decoration: underline; text-underline-offset: 3px; }
+.muted { color: var(--text-muted); }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.toolbarGroup { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.filters { display: flex; flex-direction: column; gap: var(--space-4); margin-bottom: var(--space-8); }
+.resultCount { font-size: var(--text-sm); color: var(--text-muted); }
+
+.card {
+  padding: var(--space-6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.cardTitle { font-size: var(--text-md); font-weight: 600; font-family: var(--font-sans); margin-bottom: var(--space-4); }
+
+.sortSelect { width: auto; min-width: 160px; }
+.inlineSelect { width: auto; }
+.list { margin: 0; padding: 0; list-style: none; }

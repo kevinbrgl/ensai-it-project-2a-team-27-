@@ -1,7 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
 Provides endpoints for profile reading, search, follow, unfollow,
-followers, following, quests, and updates.
+followers, following, quests, settings, and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -30,6 +30,7 @@ from src.models import (
 from src.models.library import LibraryBookDetails
 from src.models.playlists import PlaylistRead
 from src.models.stats import UserStats
+from src.models.users import UserMe, UserSettingsUpdate
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
@@ -56,6 +57,58 @@ def read_self(current_user: CurrentUser) -> User:
     :return: The user information
     """
     return current_user
+
+
+@router.get("/me/settings", response_model=UserMe)
+def read_my_settings(current_user: CurrentUser) -> User:
+    """Read the current user's profile with their private settings.
+
+    Includes the theme, the profile visibility and the admin flag.
+
+    :param current_user: The current authenticated user
+    :return: The user information and settings
+    """
+    return current_user
+
+
+@router.patch("/me/settings", response_model=UserMe)
+def update_my_settings(
+    service: UserServiceDep,
+    current_user: CurrentUser,
+    settings_in: UserSettingsUpdate,
+) -> User:
+    """Set the theme (day/night) and profile visibility (public/private).
+
+    Only the given fields are changed.
+
+    :param service: User service dependency
+    :param current_user: The current authenticated user
+    :param settings_in: New settings
+    :raises HTTPException: 400 if there is nothing to update,
+        404 if the user is not found, 500 on database error
+    :return: The updated user, with their settings
+    """
+    try:
+        return service.update_settings(current_user.id_user, settings_in)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nothing to update.",
+        ) from None
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception(
+            "Failed to update settings of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update the settings.",
+        ) from None
 
 
 @router.get(

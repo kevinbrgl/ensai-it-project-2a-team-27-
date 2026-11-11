@@ -3,6 +3,8 @@
 Defines exceptions for user, item, authentication, and DAO errors.
 """
 
+from datetime import UTC, datetime
+
 
 class UserNotFoundError(Exception):
     """Raised when a user is not found.
@@ -285,3 +287,40 @@ class NotFollowingError(Exception):
     def __init__(self) -> None:
         """Initialize NotFollowingError."""
         super().__init__("User is not following this user.")
+
+
+class AccountBannedError(Exception):
+    """Raised when a banned user logs in or uses a token."""
+
+    def __init__(self) -> None:
+        """Initialize AccountBannedError."""
+        super().__init__("This account has been banned.")
+
+
+class AccountSuspendedError(Exception):
+    """Raised when a suspended user logs in or uses a token.
+
+    :param until: End of the suspension
+    """
+
+    def __init__(self, until: datetime) -> None:
+        """Initialize the exception with the end of the suspension."""
+        self.until = until
+        when = until.astimezone(UTC).strftime("%Y-%m-%d %H:%M")
+        super().__init__(f"This account is suspended until {when} UTC.")
+
+
+class SelfModerationError(Exception):
+    """Raised when an admin tries to suspend or ban themself."""
+
+    def __init__(self) -> None:
+        """Initialize SelfModerationError."""
+        super().__init__("Admins cannot moderate their own account.")
+
+
+class AdminModerationError(Exception):
+    """Raised when an admin tries to suspend or ban another admin."""
+
+    def __init__(self) -> None:
+        """Initialize AdminModerationError."""
+        super().__init__("Admins cannot moderate another admin.")

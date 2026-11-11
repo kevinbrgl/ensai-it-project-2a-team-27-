@@ -1,0 +1,3 @@
+.questsTitle { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-3); }
+.xp { font-size: var(--text-sm); color: var(--text-muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }

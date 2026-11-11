@@ -67,3 +67,16 @@ CREATE TABLE IF NOT EXISTS reviews (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (id_user, id_book)
 );
+
+-- Optional features: user settings (theme, visibility) and moderation.
+-- ALTER ... IF NOT EXISTS so existing databases get the new columns too.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS theme VARCHAR(5) NOT NULL
+    DEFAULT 'day' CHECK (theme IN ('day', 'night'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_visibility VARCHAR(7)
+    NOT NULL DEFAULT 'public'
+    CHECK (profile_visibility IN ('public', 'private'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL
+    DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL
+    DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_until TIMESTAMPTZ;

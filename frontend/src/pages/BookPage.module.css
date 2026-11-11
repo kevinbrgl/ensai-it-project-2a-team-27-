@@ -1,0 +1,33 @@
+.header { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--space-12); align-items: start; }
+.cover { position: sticky; top: var(--space-8); }
+.info { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-4); }
+.category { align-self: flex-start; font-size: var(--text-sm); font-weight: 600; color: var(--accent-600); }
+.category:hover { text-decoration: underline; text-underline-offset: 3px; }
+.title { font-size: var(--text-2xl); line-height: 1.1; max-width: 22ch; }
+.byline { font-size: var(--text-md); color: var(--text-muted); }
+.author { color: var(--text); font-weight: 500; }
+.author:hover { color: var(--accent-600); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-6) 0 var(--space-4); }
+.liked, .liked:hover { color: var(--accent-600); }
+.liked svg { fill: currentColor; }
+.favorite, .favorite:hover { color: var(--star); }
+.favorite svg { fill: currentColor; }
+.description { max-width: 64ch; color: var(--ink-700); font-size: var(--text-md); line-height: 1.7; white-space: pre-line; }
+.external { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; font-size: var(--text-sm); font-weight: 500; color: var(--accent-600); }
+.external:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.reviews { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--space-12); padding-top: var(--space-10); border-top: 1px solid var(--border); }
+.reviewsAside { display: flex; flex-direction: column; gap: var(--space-4); }
+.average { display: flex; align-items: center; gap: var(--space-4); }
+.averageValue { font-family: var(--font-serif); font-size: 3rem; line-height: 1; }
+.reviewCount { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
+.reviewsMain { min-width: 0; display: flex; flex-direction: column; gap: var(--space-6); max-width: 720px; }
+.myReview article { padding: 0; border: 0; }
+.reviewSkeleton { display: flex; flex-direction: column; gap: var(--space-3); }
+.noOthers { font-size: var(--text-sm); }
+
+@media (max-width: 900px) {
+  .header, .reviews { grid-template-columns: 1fr; gap: var(--space-6); }
+  .cover { position: static; width: 180px; }
+  .title { font-size: var(--text-xl); }
+}

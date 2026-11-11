@@ -1,0 +1,20 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-8) var(--space-6);
+}
+/* A single horizontal row that scrolls, used on the home page. */
+.row {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 150px;
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+  scroll-snap-type: x proximity;
+}
+.row > * { scroll-snap-align: start; }
+.skeletonCard { display: flex; flex-direction: column; gap: var(--space-3); }
+@media (max-width: 640px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: var(--space-6) var(--space-4); }
+  .row { grid-auto-columns: 128px; }
+}

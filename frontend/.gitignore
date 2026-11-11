@@ -1,0 +1,6 @@
+# dist/ is committed on purpose: app.py runs it without Node.js.
+node_modules
+.env
+.env.local
+*.log
+.DS_Store

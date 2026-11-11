@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from src.api.routes import (
+    admin_routes,
     auth_routes,
     books_routes,
     library_routes,
@@ -22,3 +23,4 @@ api_router.include_router(library_routes.router)
 api_router.include_router(playlists_routes.router)
 api_router.include_router(reviews_routes.router)
 api_router.include_router(recommendations_routes.router)
+api_router.include_router(admin_routes.router)

@@ -1,10 +1,16 @@
 """Pydantic models for user entities.
 
 Defines schemas for user registration, reading, creation, update,
-password change, database representation, and user follows.
+password change, settings, database representation, and user follows.
 """
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
+
+Theme = Literal["day", "night"]
+ProfileVisibility = Literal["public", "private"]
 
 
 class UserBase(BaseModel):
@@ -26,6 +32,17 @@ class UserRead(UserBase):
     id_user: int
     bio: str | None = None
     profile_picture: str | None = None
+
+
+class UserMe(UserRead):
+    """Own account with its private settings.
+
+    Returned by GET and PATCH /users/me/settings.
+    """
+
+    theme: Theme = "day"
+    profile_visibility: ProfileVisibility = "public"
+    is_admin: bool = False
 
 
 class UserCreate(UserBase):
@@ -56,8 +73,18 @@ class UserUpdatePassword(BaseModel):
     new_password: str = Field(min_length=8, max_length=72)
 
 
-class User(UserCreate, UserRead):
+class UserSettingsUpdate(BaseModel):
+    """Body of PATCH /users/me/settings (all fields optional)."""
+
+    theme: Theme | None = None
+    profile_visibility: ProfileVisibility | None = None
+
+
+class User(UserCreate, UserMe):
     """User as stored in the database (includes password_hash)."""
+
+    is_banned: bool = False
+    suspended_until: datetime | None = None
 
 
 class UserFollow(BaseModel):

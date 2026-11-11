@@ -1,11 +1,13 @@
 """Data Access Object for user operations.
 
 This module provides CRUD operations for users in the database,
-as well as user follow management.
+as well as user follow management, settings and moderation.
 All database errors are wrapped in DAOError, UserAlreadyExistsError,
 EmailAlreadyExistsError, SelfFollowError, AlreadyFollowingError,
 or NotFollowingError.
 """
+
+from datetime import datetime
 
 from psycopg2 import Error as DBError
 from psycopg2.errors import (
@@ -15,7 +17,12 @@ from psycopg2.errors import (
 )
 from psycopg2.extras import RealDictCursor
 
-from src.models.users import User, UserCreate, UserUpdateFull
+from src.models.users import (
+    User,
+    UserCreate,
+    UserSettingsUpdate,
+    UserUpdateFull,
+)
 from src.utils.exceptions import (
     AlreadyFollowingError,
     DAOError,
@@ -83,7 +90,8 @@ class UserDAO:
             self.cur.execute(
                 """
                 SELECT id_user, username, email, password_hash,
-                       bio, profile_picture
+                       bio, profile_picture, theme, profile_visibility,
+                       is_admin, is_banned, suspended_until
                 FROM users
                 WHERE id_user = %s
                 """,
@@ -105,7 +113,8 @@ class UserDAO:
             self.cur.execute(
                 """
                 SELECT id_user, username, email, password_hash,
-                       bio, profile_picture
+                       bio, profile_picture, theme, profile_visibility,
+                       is_admin, is_banned, suspended_until
                 FROM users
                 WHERE username = %s
                 """,
@@ -127,7 +136,8 @@ class UserDAO:
             self.cur.execute(
                 """
                 SELECT id_user, username, email, password_hash,
-                       bio, profile_picture
+                       bio, profile_picture, theme, profile_visibility,
+                       is_admin, is_banned, suspended_until
                 FROM users
                 WHERE email = %s
                 """,
@@ -327,6 +337,90 @@ class UserDAO:
             if exc.diag.constraint_name == "users_email_key":
                 raise EmailAlreadyExistsError(str(user_in.email)) from exc
             raise UserAlreadyExistsError(str(user_in.username)) from exc
+        except DBError as exc:
+            raise DAOError from exc
+        return User(**row) if row else None
+
+    def update_settings(
+        self,
+        user_id: int,
+        settings_in: UserSettingsUpdate,
+    ) -> User | None:
+        """Update the theme and/or profile visibility of a user.
+
+        Fields left to None keep their current value.
+
+        :param user_id: ID of the user
+        :param settings_in: New settings
+        :raises DAOError: If a DB error occurs
+        :return: The updated User object or None if not found
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE users
+                SET theme = COALESCE(%s, theme),
+                    profile_visibility = COALESCE(%s, profile_visibility)
+                WHERE id_user = %s
+                RETURNING *
+                """,
+                (
+                    settings_in.theme,
+                    settings_in.profile_visibility,
+                    user_id,
+                ),
+            )
+            row = self.cur.fetchone()
+        except DBError as exc:
+            raise DAOError from exc
+        return User(**row) if row else None
+
+    def set_suspended_until(
+        self,
+        user_id: int,
+        until: datetime | None,
+    ) -> User | None:
+        """Suspend a user until a date (None lifts the suspension).
+
+        :param user_id: ID of the user
+        :param until: End of the suspension, or None
+        :raises DAOError: If a DB error occurs
+        :return: The updated User object or None if not found
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE users
+                SET suspended_until = %s
+                WHERE id_user = %s
+                RETURNING *
+                """,
+                (until, user_id),
+            )
+            row = self.cur.fetchone()
+        except DBError as exc:
+            raise DAOError from exc
+        return User(**row) if row else None
+
+    def set_banned(self, user_id: int, *, banned: bool) -> User | None:
+        """Ban or unban a user.
+
+        :param user_id: ID of the user
+        :param banned: True to ban, False to unban
+        :raises DAOError: If a DB error occurs
+        :return: The updated User object or None if not found
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE users
+                SET is_banned = %s
+                WHERE id_user = %s
+                RETURNING *
+                """,
+                (banned, user_id),
+            )
+            row = self.cur.fetchone()
         except DBError as exc:
             raise DAOError from exc
         return User(**row) if row else None
