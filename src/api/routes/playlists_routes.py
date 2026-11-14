@@ -29,14 +29,36 @@ logger = logging.getLogger(__name__)
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    summary="➕ Create a playlist",
+    responses={
+        409: {"description": "A playlist with this name already exists"},
+        500: {"description": "Database error"},
+    },
 )
 def create_playlist(
     service: PlaylistServiceDep,
     current_user: CurrentUser,
     playlist_in: PlaylistCreate,
 ) -> PlaylistRead:
-    """Create a playlist for the authenticated user.
+    """Create a new **playlist** to group books together.
 
+    🔒 Authentication required
+
+    **Rules:**
+
+    - 🏷️ `name`: 1 to 100 characters
+    - You cannot have **two playlists with the same name**
+
+    **Behaviour:** the playlist is created **empty**.
+
+    **Example request:**
+
+    ```json
+    {
+      "name": "Summer reads"
+    }
+    ```
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :param playlist_in: Name of the playlist to create
@@ -64,15 +86,25 @@ def create_playlist(
         ) from None
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="🎵 List my playlists",
+    responses={500: {"description": "Database error"}},
+)
 def list_playlists(
     service: PlaylistServiceDep,
     current_user: CurrentUser,
 ) -> list[PlaylistRead]:
-    """List the playlists of the authenticated user.
+    """List **your playlists**, in creation order.
 
-    Returns an empty list when the user has no playlists.
+    🔒 Authentication required
 
+    **Returns:** the ID and the name of each playlist, without its
+    books. Open one playlist to see its books.
+
+    **Good to know:** the list is **empty** when you have no playlist
+    yet.
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :raises HTTPException: 500 on database error
@@ -92,15 +124,41 @@ def list_playlists(
         ) from None
 
 
-@router.patch("/{id_playlist}")
+@router.patch(
+    "/{id_playlist}",
+    summary="✏️ Rename a playlist",
+    responses={
+        404: {"description": "Playlist not found"},
+        409: {"description": "A playlist with this name already exists"},
+        500: {"description": "Database error"},
+    },
+)
 def rename_playlist(
     service: PlaylistServiceDep,
     current_user: CurrentUser,
     id_playlist: int,
     playlist_in: PlaylistUpdate,
 ) -> PlaylistRead:
-    """Rename one of the authenticated user's playlists.
+    """Change the **name** of one of your playlists.
 
+    🔒 Authentication required
+
+    **Rules:**
+
+    - 🏷️ `name`: 1 to 100 characters
+    - The new name must not be used by **another of your playlists**
+
+    **Good to know:** you can only rename **your own** playlists. The
+    books of the playlist are not changed.
+
+    **Example request:**
+
+    ```json
+    {
+      "name": "Winter reads"
+    }
+    ```
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :param id_playlist: ID of the playlist to rename
@@ -144,16 +202,28 @@ def rename_playlist(
 @router.delete(
     "/{id_playlist}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="🗑️ Delete a playlist",
+    responses={
+        404: {"description": "Playlist not found"},
+        500: {"description": "Database error"},
+    },
 )
 def delete_playlist(
     service: PlaylistServiceDep,
     current_user: CurrentUser,
     id_playlist: int,
 ) -> None:
-    """Delete one of the authenticated user's playlists.
+    """Delete one of **your playlists**.
 
-    Returns 204 No Content with an empty body when the playlist is deleted.
+    🔒 Authentication required
 
+    **Behaviour:** only the playlist is deleted. Its books stay in
+    the catalog and in your library.
+
+    **Good to know:** you can only delete **your own** playlists.
+
+    **Response:** `204 No Content`, with an empty body.
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :param id_playlist: ID of the playlist to delete
@@ -184,6 +254,12 @@ def delete_playlist(
 @router.post(
     "/{id_playlist}/books",
     status_code=status.HTTP_201_CREATED,
+    summary="➕ Add a book to a playlist",
+    responses={
+        404: {"description": "Playlist or book not found"},
+        409: {"description": "Book already in the playlist"},
+        500: {"description": "Database error"},
+    },
 )
 def add_book_to_playlist(
     service: PlaylistServiceDep,
@@ -191,8 +267,25 @@ def add_book_to_playlist(
     id_playlist: int,
     book_in: PlaylistBookAdd,
 ) -> PlaylistBookRead:
-    """Add a book to one of the authenticated user's playlists.
+    """Add a **book** to one of your playlists.
 
+    🔒 Authentication required
+
+    **Rules:**
+
+    - 📖 `id_book`: database ID of a book of the **local catalog**
+    - A book can only be in the same playlist **once**
+
+    **Good to know:** you can only fill **your own** playlists.
+
+    **Example request:**
+
+    ```json
+    {
+      "id_book": 12
+    }
+    ```
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :param id_playlist: ID of the playlist
@@ -239,14 +332,29 @@ def add_book_to_playlist(
         ) from None
 
 
-@router.get("/{id_playlist}")
+@router.get(
+    "/{id_playlist}",
+    summary="🎵 Get a playlist with its books",
+    responses={
+        404: {"description": "Playlist not found"},
+        500: {"description": "Database error"},
+    },
+)
 def get_playlist(
     service: PlaylistServiceDep,
     current_user: CurrentUser,
     id_playlist: int,
 ) -> PlaylistDetails:
-    """Return one of the authenticated user's playlists, with its books.
+    """Return one of **your playlists**, with the details of its books.
 
+    🔒 Authentication required
+
+    **Returns:** the name of the playlist and the full list of its
+    books (title, author, category, cover image...).
+
+    **Good to know:** a playlist that belongs to **another user** is
+    answered as **not found**.
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :param id_playlist: ID of the playlist
@@ -278,6 +386,11 @@ def get_playlist(
 @router.delete(
     "/{id_playlist}/books/{id_book}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="🗑️ Remove a book from a playlist",
+    responses={
+        404: {"description": "Playlist not found or book not in it"},
+        500: {"description": "Database error"},
+    },
 )
 def remove_book_from_playlist(
     service: PlaylistServiceDep,
@@ -285,10 +398,15 @@ def remove_book_from_playlist(
     id_playlist: int,
     id_book: int,
 ) -> None:
-    """Remove a book from one of the authenticated user's playlists.
+    """Remove a **book** from one of your playlists.
 
-    Returns 204 No Content with an empty body when the book is removed.
+    🔒 Authentication required
 
+    **Behaviour:** the book only leaves the playlist. It stays in the
+    catalog and in your library.
+
+    **Response:** `204 No Content`, with an empty body.
+    \f
     :param service: Playlist service dependency
     :param current_user: The authenticated user
     :param id_playlist: ID of the playlist

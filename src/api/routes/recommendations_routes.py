@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 @router.get(
     "",
     status_code=status.HTTP_200_OK,
+    summary="✨ Get book recommendations",
+    responses={500: {"description": "Database error"}},
 )
 def get_recommendations(
     service: RecommendationServiceDep,
@@ -37,10 +39,42 @@ def get_recommendations(
         Query(ge=1, le=50, description="Max books to return"),
     ] = 10,
 ) -> list[Recommendation]:
-    """Recommend books to the authenticated user.
+    """Suggest **books you may like**, each with a score and a reason.
 
-    Books already in the user's library are never recommended.
+    🔒 Authentication required
 
+    **How it works:**
+
+    - 🎯 With `genre`: popular books of **this genre**
+    - 📚 Without `genre`: books of **your favorite genres**, found
+      from your library and from the books you rated 4 or more
+    - 🏆 If nothing is found: the **best rated** books of Ex-Libris
+
+    **Parameters:**
+
+    - 🔀 `sort`: `rating` (default), `new` or `title`
+    - 🔢 `limit`: number of books to return, from 1 to 50 (default 10)
+
+    **Good to know:** books **already in your library** are never
+    recommended.
+
+    **Example response:**
+
+    ```json
+    [
+      {
+        "book": {
+          "id_book": 42,
+          "title": "Dune",
+          "author": "Frank Herbert",
+          "category": "Science Fiction"
+        },
+        "score": 4.3,
+        "reason": "Because you like Science Fiction"
+      }
+    ]
+    ```
+    \f
     :param service: Recommendation service dependency
     :param current_user: The authenticated user
     :param genre: Optional genre to recommend

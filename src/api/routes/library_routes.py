@@ -26,14 +26,39 @@ logger = logging.getLogger(__name__)
 @router.post(
     "/books",
     status_code=status.HTTP_201_CREATED,
+    summary="➕ Add a book to my library",
+    responses={
+        404: {"description": "Book not found in the local catalog"},
+        409: {"description": "Book already in the library"},
+        500: {"description": "Database error"},
+    },
 )
 def add_book(
     service: LibraryServiceDep,
     current_user: CurrentUser,
     book_in: LibraryBookAdd,
 ) -> LibraryBookRead:
-    """Add a book to the authenticated user's library.
+    """Add a book to **your library** with a reading status.
 
+    🔒 Authentication required
+
+    **Fields:**
+
+    - 📖 `id_book`: database ID of the book (find it with the search)
+    - 🚦 `state`: `WANT_TO_READ`, `READING` or `COMPLETED`
+
+    **Behaviour:** the book starts **not liked** and **not favorite**.
+    A book can only be in your library **once**.
+
+    **Example request:**
+
+    ```json
+    {
+      "id_book": 12,
+      "state": "WANT_TO_READ"
+    }
+    ```
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :param book_in: Data for the book to add
@@ -70,16 +95,26 @@ def add_book(
 @router.delete(
     "/books/{id_book}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="🗑️ Remove a book from my library",
+    responses={
+        404: {"description": "Book is not in the library"},
+        500: {"description": "Database error"},
+    },
 )
 def remove_book(
     service: LibraryServiceDep,
     current_user: CurrentUser,
     id_book: int,
 ) -> None:
-    """Remove a book from the authenticated user's library.
+    """Remove a book from **your library**.
 
-    Returns 204 No Content with an empty body when the book is removed.
+    🔒 Authentication required
 
+    **Behaviour:** its reading status, like and favorite flag are
+    **lost**. The book itself stays in the catalog.
+
+    **Response:** `204 No Content`, with an empty body.
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :param id_book: ID of the book to remove
@@ -106,14 +141,31 @@ def remove_book(
         ) from None
 
 
-@router.post("/books/{id_book}/like")
+@router.post(
+    "/books/{id_book}/like",
+    summary="❤️ Like or unlike a book",
+    responses={
+        404: {"description": "Book is not in the library"},
+        500: {"description": "Database error"},
+    },
+)
 def toggle_like(
     service: LibraryServiceDep,
     current_user: CurrentUser,
     id_book: int,
 ) -> LibraryBookRead:
-    """Toggle the like on a book in the authenticated user's library.
+    """Switch the **like** on a book of your library.
 
+    🔒 Authentication required
+
+    **Behaviour:** this route is a **toggle**.
+
+    - Book not liked → it becomes **liked**
+    - Book already liked → the like is **removed**
+
+    **Good to know:** the book must already be **in your library**.
+    The new value is returned in `is_liked`.
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :param id_book: ID of the book to like or unlike
@@ -141,14 +193,31 @@ def toggle_like(
         ) from None
 
 
-@router.post("/books/{id_book}/favorite")
+@router.post(
+    "/books/{id_book}/favorite",
+    summary="⭐ Add or remove a favorite",
+    responses={
+        404: {"description": "Book is not in the library"},
+        500: {"description": "Database error"},
+    },
+)
 def toggle_favorite(
     service: LibraryServiceDep,
     current_user: CurrentUser,
     id_book: int,
 ) -> LibraryBookRead:
-    """Toggle the favorite flag on a book in the user's library.
+    """Switch the **favorite** flag on a book of your library.
 
+    🔒 Authentication required
+
+    **Behaviour:** this route is a **toggle**.
+
+    - Book not in favorites → it is **added** to your favorites
+    - Book already in favorites → it is **removed** from them
+
+    **Good to know:** the book must already be **in your library**.
+    The new value is returned in `is_favorite`.
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :param id_book: ID of the book to add to or remove from favorites
@@ -176,15 +245,41 @@ def toggle_favorite(
         ) from None
 
 
-@router.patch("/books/{id_book}/status")
+@router.patch(
+    "/books/{id_book}/status",
+    summary="🚦 Change the reading status of a book",
+    responses={
+        404: {"description": "Book is not in the library"},
+        500: {"description": "Database error"},
+    },
+)
 def update_book_status(
     service: LibraryServiceDep,
     current_user: CurrentUser,
     id_book: int,
     status_in: LibraryBookUpdateStatus,
 ) -> LibraryBookRead:
-    """Update the reading status of a book in the authenticated user's library.
+    """Change the **reading status** of a book of your library.
 
+    🔒 Authentication required
+
+    **Available statuses:**
+
+    - 🔖 `WANT_TO_READ`: on your reading list
+    - 📖 `READING`: you are reading it
+    - ✅ `COMPLETED`: you finished it
+
+    **Good to know:** finished books count in your **statistics** and
+    your **quests**.
+
+    **Example request:**
+
+    ```json
+    {
+      "state": "COMPLETED"
+    }
+    ```
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :param id_book: ID of the book to update
@@ -217,7 +312,11 @@ def update_book_status(
         ) from None
 
 
-@router.get("/books")
+@router.get(
+    "/books",
+    summary="📚 List the books of my library",
+    responses={500: {"description": "Database error"}},
+)
 def list_books(
     service: LibraryServiceDep,
     current_user: CurrentUser,
@@ -230,11 +329,19 @@ def list_books(
         ),
     ] = None,
 ) -> list[LibraryBookDetails]:
-    """List the books in the authenticated user's library.
+    """List the books of **your library**, with their details.
 
-    Supports an optional 'status' query parameter to filter the results.
-    Returns an empty list when the user has no books matching the criteria.
+    🔒 Authentication required
 
+    **Filter:** `status` keeps only the books in one reading status
+    (`WANT_TO_READ`, `READING` or `COMPLETED`). Without it, **all**
+    your books are returned.
+
+    **Returns:** for each book, its details plus your reading status,
+    like and favorite flag.
+
+    **Good to know:** the list is **empty** when no book matches.
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :param status_filter: Optional status to filter by
@@ -255,15 +362,24 @@ def list_books(
         ) from None
 
 
-@router.get("/favorites")
+@router.get(
+    "/favorites",
+    summary="⭐ List my favorite books",
+    responses={500: {"description": "Database error"}},
+)
 def list_favorites(
     service: LibraryServiceDep,
     current_user: CurrentUser,
 ) -> list[LibraryBookDetails]:
-    """List the favorite books of the authenticated user's library.
+    """List the **favorite books** of your library.
 
-    Returns an empty list when the user has no favorites.
+    🔒 Authentication required
 
+    **Returns:** the books you marked as favorite, with their details.
+
+    **Good to know:** the list is **empty** when you have no favorite
+    yet.
+    \f
     :param service: Library service dependency
     :param current_user: The authenticated user
     :raises HTTPException: 500 on database error

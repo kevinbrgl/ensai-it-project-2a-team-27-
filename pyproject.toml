@@ -46,6 +46,7 @@ ignore=[
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"src/api/routes/**" = ["escape-sequence-in-docstring"]
 "src/models/__init__.py" = ["unused-import"]
 "tests/**" = [
     "assert",

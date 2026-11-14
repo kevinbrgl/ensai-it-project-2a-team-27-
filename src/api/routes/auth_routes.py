@@ -34,10 +34,35 @@ logger = logging.getLogger(__name__)
     "/register",
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
+    summary="📝 Create an account",
+    responses={
+        409: {"description": "Username or email already used"},
+        500: {"description": "Database error"},
+    },
 )
 def register(service: UserServiceDep, user_in: UserRegister) -> User:
-    """Register a new user.
+    """Create a new **user account**.
 
+    🔓 Public route, no authentication needed
+
+    **Rules:**
+
+    - 👤 `username`: 3 to 30 characters, must be **unique**
+    - 📧 `email`: a valid address, must be **unique**
+    - 🔑 `password`: 8 to 72 characters
+
+    **Good to know:** the password is never returned by the API.
+
+    **Example request:**
+
+    ```json
+    {
+      "username": "alice",
+      "email": "alice@example.com",
+      "password": "my-secret-password"
+    }
+    ```
+    \f
     :param service: User service dependency
     :param user_in: User registration data (username, email, password)
     :raises HTTPException: 409 if the username or email is already used,
@@ -67,15 +92,35 @@ def register(service: UserServiceDep, user_in: UserRegister) -> User:
         ) from None
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    summary="🔑 Log in",
+    responses={
+        401: {"description": "Incorrect username or password"},
+        403: {"description": "Account banned or suspended"},
+        500: {"description": "Database error"},
+    },
+)
 def login(
     service: UserServiceDep,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> Token:
-    """Log a user in and return an access token.
+    """Log in and get an **access token**.
 
-    Compatible with the "Authorize" button of /docs (OAuth2 password flow).
+    🔓 Public route, no authentication needed
 
+    **How to use it:**
+
+    - Send `username` and `password` as **form data** (not JSON)
+    - Put the returned `access_token` in the header
+      `Authorization: Bearer <token>` of your next requests
+
+    **In this page:** the **Authorize** button (top right) does it
+    for you.
+
+    **Access refused:** a **banned** or **suspended** account cannot
+    log in.
+    \f
     :param service: User service dependency
     :param form_data: Login form (username and password fields)
     :raises HTTPException: 401 if the username or password is incorrect,
@@ -103,17 +148,26 @@ def login(
         ) from None
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="🚪 Log out",
+    responses={500: {"description": "Database error"}},
+)
 def logout(
     service: TokenServiceDep,
     token: TokenDep,
     _current_user: CurrentUser,
 ) -> None:
-    """Log the current user out by revoking the token.
+    """Log out by **revoking** the current access token.
 
-    Returns 204 No Content with an empty body. Once revoked, the token
-    is rejected with 403 on every protected route.
+    🔒 Authentication required
 
+    **Behaviour:** once revoked, the token is **rejected** on every
+    protected route. Log in again to get a new one.
+
+    **Response:** `204 No Content`, with an empty body.
+    \f
     :param service: Token service dependency
     :param token: The token sent with the request
     :param _current_user: The authenticated user (checks the token)

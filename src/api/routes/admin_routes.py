@@ -40,18 +40,45 @@ def _moderation_error(exc: Exception) -> HTTPException:
     )
 
 
-@router.post("/users/{user_id}/suspend")
+@router.post(
+    "/users/{user_id}/suspend",
+    summary="⏸️ Suspend a user",
+    responses={
+        400: {"description": "You cannot moderate your own account"},
+        403: {"description": "Not an admin, or the target is an admin"},
+        404: {"description": "User not found"},
+        500: {"description": "Database error"},
+    },
+)
 def suspend_user(
     user_id: UserId,
     suspension: SuspendRequest,
     service: AdminServiceDep,
     admin: AdminUser,
 ) -> ModerationStatus:
-    """Temporarily suspend an account (admin only).
+    """**Temporarily suspend** a user account.
 
-    The user cannot log in nor use their tokens until the end of the
-    suspension.
+    🛡️ Admin only
 
+    **Field:** `days`, the length of the suspension, from **1** to
+    **365** days.
+
+    **Behaviour:** until the end of the suspension, the user cannot
+    **log in** nor use their **existing tokens**.
+
+    **Rules:**
+
+    - You cannot suspend **yourself**
+    - You cannot suspend **another admin**
+
+    **Example request:**
+
+    ```json
+    {
+      "days": 7
+    }
+    ```
+    \f
     :param user_id: ID of the user to suspend
     :param suspension: Length of the suspension in days
     :param service: Admin service dependency
@@ -81,14 +108,37 @@ def suspend_user(
         ) from None
 
 
-@router.post("/users/{user_id}/ban")
+@router.post(
+    "/users/{user_id}/ban",
+    summary="⛔ Ban a user",
+    responses={
+        400: {"description": "You cannot moderate your own account"},
+        403: {"description": "Not an admin, or the target is an admin"},
+        404: {"description": "User not found"},
+        500: {"description": "Database error"},
+    },
+)
 def ban_user(
     user_id: UserId,
     service: AdminServiceDep,
     admin: AdminUser,
 ) -> ModerationStatus:
-    """Permanently ban an account (admin only).
+    """**Permanently ban** a user account.
 
+    🛡️ Admin only
+
+    **Behaviour:** the user can no longer **log in** nor use their
+    **existing tokens**. Unlike a suspension, a ban has **no end
+    date**.
+
+    **Rules:**
+
+    - You cannot ban **yourself**
+    - You cannot ban **another admin**
+
+    **Returns:** the new moderation status of the user
+    (`is_banned`, `suspended_until`).
+    \f
     :param user_id: ID of the user to ban
     :param service: Admin service dependency
     :param admin: The authenticated admin
@@ -116,16 +166,26 @@ def ban_user(
 @router.delete(
     "/reviews/{review_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="🗑️ Remove a review",
+    responses={
+        403: {"description": "Administrator rights required"},
+        404: {"description": "Review not found"},
+        500: {"description": "Database error"},
+    },
 )
 def moderate_review(
     review_id: ReviewId,
     service: AdminServiceDep,
     _admin: AdminUser,
 ) -> None:
-    """Remove any review (admin only).
+    """Remove **any review**, whoever wrote it.
 
-    Returns 204 No Content with an empty body.
+    🛡️ Admin only
 
+    **Use case:** moderate a review that is offensive or off topic.
+
+    **Response:** `204 No Content`, with an empty body.
+    \f
     :param review_id: ID of the review
     :param service: Admin service dependency
     :param _admin: The authenticated admin

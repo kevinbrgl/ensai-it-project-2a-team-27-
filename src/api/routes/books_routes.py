@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 @router.get(
     "/search",
     status_code=status.HTTP_200_OK,
+    summary="🔍 Search books",
+    responses={
+        500: {"description": "Database error"},
+        502: {"description": "Open Library is unavailable"},
+    },
 )
 def search_books(
     service: BookServiceDep,
@@ -33,8 +38,24 @@ def search_books(
         Query(ge=1, le=50, description="Max books to return"),
     ] = 10,
 ) -> list[Book]:
-    """Search Open Library by title or author and synchronize local records.
+    """Search books by **title** or **author** on Open Library.
 
+    🔒 Authentication required
+
+    **Behaviour:** the books found are **saved in the local catalog**,
+    so they get an ID you can use in the other routes (library,
+    playlists, reviews).
+
+    **Parameters:**
+
+    - 🔤 `q`: the text to search for
+    - 🔢 `limit`: number of books to return, from 1 to 50 (default 10)
+
+    **Use cases:**
+
+    - Find a book before adding it to your library
+    - Discover the books of an author
+    \f
     :param service: Book service dependency
     :param _current_user: Authenticated user dependency
     :param q: Search query parameter
@@ -62,6 +83,8 @@ def search_books(
 @router.get(
     "",
     status_code=status.HTTP_200_OK,
+    summary="📚 Browse the local catalog",
+    responses={500: {"description": "Database error"}},
 )
 def get_books(
     service: BookServiceDep,
@@ -75,10 +98,18 @@ def get_books(
         Query(description="Filter books by author"),
     ] = None,
 ) -> list[Book]:
-    """Filter locally stored books by category and/or author.
+    """List the books of the **local catalog**, with optional filters.
 
-    If neither parameter is supplied, returns the full local catalog.
+    🔒 Authentication required
 
+    **Filters:**
+
+    - 🏷️ `category`: keep only the books of this category
+    - ✍️ `author`: keep only the books of this author
+
+    **Behaviour:** both filters can be combined. Without any filter,
+    the **whole catalog** is returned.
+    \f
     :param service: Book service dependency
     :param _current_user: Authenticated user dependency
     :param category: Optional category filter
@@ -99,6 +130,11 @@ def get_books(
 @router.get(
     "/{book_id}",
     status_code=status.HTTP_200_OK,
+    summary="📖 Get a book",
+    responses={
+        404: {"description": "Book not found"},
+        500: {"description": "Database error"},
+    },
 )
 def get_book_details(
     book_id: Annotated[
@@ -108,8 +144,16 @@ def get_book_details(
     service: BookServiceDep,
     _current_user: CurrentUser,
 ) -> Book:
-    """Retrieve details for a single book by its internal identifier.
+    """Return the **details** of one book of the local catalog.
 
+    🔒 Authentication required
+
+    **Returns:** title, author, category, publication date,
+    description and cover image.
+
+    **Good to know:** `book_id` is the **database ID** of the book,
+    as returned by the search route.
+    \f
     :param book_id: Unique database identifier of the book
     :param service: Book service dependency
     :param _current_user: Authenticated user dependency
