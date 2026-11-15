@@ -1,7 +1,7 @@
 import { request } from './client';
 
 /** Reading states accepted by the backend. */
-export const READING_STATES = ['WANT_TO_READ', 'READING', 'COMPLETED'];
+export const READING_STATES = ['WANT_TO_READ', 'READING', 'COMPLETED', 'ABANDONED'];
 
 /** GET /library/books?status= → LibraryBookDetails[] */
 export function listMyLibrary(status) {
@@ -26,6 +26,15 @@ export function removeFromLibrary(idBook) {
 /** PATCH /library/books/{id}/status → LibraryBookRead */
 export function updateStatus(idBook, state) {
   return request(`/library/books/${idBook}/status`, { method: 'PATCH', json: { state } });
+}
+
+/**
+ * PATCH /library/books/{id}/dates → LibraryBookRead
+ * `dates` holds started_at and/or finished_at ("YYYY-MM-DD", or null to
+ * erase). Only the fields that are sent are changed.
+ */
+export function updateDates(idBook, dates) {
+  return request(`/library/books/${idBook}/dates`, { method: 'PATCH', json: dates });
 }
 
 /** POST /library/books/{id}/like → LibraryBookRead (toggles) */

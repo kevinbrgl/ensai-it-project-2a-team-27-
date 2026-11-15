@@ -17,6 +17,9 @@ from src.models.books import BookCreate
 from src.models.library import LibraryBookAdd
 from src.models.users import UserCreate
 
+SHORT_BOOK_PAGES = 120
+LONG_BOOK_PAGES = 480
+
 
 def create_user(user_dao: UserDAO) -> int:
     """Insert a test user with a unique name and return its ID.
@@ -35,23 +38,33 @@ def create_user(user_dao: UserDAO) -> int:
     return user.id_user
 
 
-def add_book(
+def add_book(  # ruff: ignore[too-many-arguments]
     book_dao: BookDAO,
     library_dao: LibraryDAO,
     id_user: int,
     state: str,
     category: str | None = None,
+    *,
+    num_pages: int | None = None,
 ) -> int:
     """Create a book and add it to a user's library with a reading state.
 
     :param book_dao: DAO used to create the book
     :param library_dao: DAO used to add the book to the library
     :param id_user: ID of the user
-    :param state: Reading state (READING, WANT_TO_READ or COMPLETED)
+    :param state: Reading state (READING, WANT_TO_READ, COMPLETED
+        or ABANDONED)
     :param category: Category of the book
+    :param num_pages: Number of pages of the book
     :return: ID of the created book
     """
-    book = book_dao.create(BookCreate(title="Test book", category=category))
+    book = book_dao.create(
+        BookCreate(
+            title="Test book",
+            category=category,
+            num_pages=num_pages,
+        ),
+    )
     library_dao.add_book(
         id_user,
         LibraryBookAdd(id_book=book.id_book, state=state),
@@ -118,7 +131,13 @@ class TestCountFinishedBooks:
         id_user: int,
     ) -> None:
         """Only the books with the COMPLETED state are counted."""
-        states = ("COMPLETED", "COMPLETED", "READING", "WANT_TO_READ")
+        states = (
+            "COMPLETED",
+            "COMPLETED",
+            "READING",
+            "WANT_TO_READ",
+            "ABANDONED",
+        )
         for state in states:
             add_book(book_dao, library_dao, id_user, state)
 
@@ -138,6 +157,108 @@ class TestCountFinishedBooks:
         add_book(book_dao, library_dao, id_other_user, "COMPLETED")
 
         assert stats_dao.count_finished_books(id_user) == 0
+
+
+class TestSumPagesRead:
+    """Tests for StatsDAO.sum_pages_read."""
+
+    def test_no_books(self, stats_dao: StatsDAO, id_user: int) -> None:
+        """A user without books has read 0 pages."""
+        assert stats_dao.sum_pages_read(id_user) == 0
+
+    def test_completed_books_are_summed(
+        self,
+        stats_dao: StatsDAO,
+        book_dao: BookDAO,
+        library_dao: LibraryDAO,
+        id_user: int,
+    ) -> None:
+        """The pages of every completed book are added up."""
+        for num_pages in (SHORT_BOOK_PAGES, LONG_BOOK_PAGES):
+            add_book(
+                book_dao,
+                library_dao,
+                id_user,
+                "COMPLETED",
+                num_pages=num_pages,
+            )
+
+        result = stats_dao.sum_pages_read(id_user)
+
+        assert result == SHORT_BOOK_PAGES + LONG_BOOK_PAGES
+
+    @pytest.mark.parametrize(
+        "state",
+        ["READING", "WANT_TO_READ", "ABANDONED"],
+    )
+    def test_non_completed_book_not_counted(
+        self,
+        stats_dao: StatsDAO,
+        book_dao: BookDAO,
+        library_dao: LibraryDAO,
+        id_user: int,
+        state: str,
+    ) -> None:
+        """A book that is not completed does not count."""
+        add_book(
+            book_dao,
+            library_dao,
+            id_user,
+            state,
+            num_pages=LONG_BOOK_PAGES,
+        )
+
+        assert stats_dao.sum_pages_read(id_user) == 0
+
+    def test_book_without_page_count_counts_as_zero(
+        self,
+        stats_dao: StatsDAO,
+        book_dao: BookDAO,
+        library_dao: LibraryDAO,
+        id_user: int,
+    ) -> None:
+        """A completed book without a page count adds 0 pages."""
+        add_book(book_dao, library_dao, id_user, "COMPLETED")
+        add_book(
+            book_dao,
+            library_dao,
+            id_user,
+            "COMPLETED",
+            num_pages=SHORT_BOOK_PAGES,
+        )
+
+        assert stats_dao.sum_pages_read(id_user) == SHORT_BOOK_PAGES
+
+    def test_only_books_without_page_count(
+        self,
+        stats_dao: StatsDAO,
+        book_dao: BookDAO,
+        library_dao: LibraryDAO,
+        id_user: int,
+    ) -> None:
+        """Completed books that all lack a page count give 0, not None."""
+        add_book(book_dao, library_dao, id_user, "COMPLETED")
+
+        assert stats_dao.sum_pages_read(id_user) == 0
+
+    def test_other_user_not_counted(
+        self,
+        stats_dao: StatsDAO,
+        book_dao: BookDAO,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_other_user: int,
+    ) -> None:
+        """The pages read by another user are not counted."""
+        add_book(
+            book_dao,
+            library_dao,
+            id_other_user,
+            "COMPLETED",
+            num_pages=LONG_BOOK_PAGES,
+        )
+
+        assert stats_dao.sum_pages_read(id_user) == 0
 
 
 class TestCountGenres:

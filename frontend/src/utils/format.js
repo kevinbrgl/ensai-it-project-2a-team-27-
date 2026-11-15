@@ -2,6 +2,7 @@ export const STATUS_LABELS = {
   WANT_TO_READ: 'Want to read',
   READING: 'Reading',
   COMPLETED: 'Finished',
+  ABANDONED: 'Abandoned',
 };
 
 /** Year of a "YYYY-MM-DD" date, or null. */

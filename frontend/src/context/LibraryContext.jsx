@@ -61,6 +61,21 @@ export function LibraryProvider({ children }) {
     [merge, toast],
   );
 
+  // `dates` holds started_at and/or finished_at ("YYYY-MM-DD", or null to erase).
+  const setDates = useCallback(
+    async (idBook, dates) => {
+      try {
+        merge(await libraryApi.updateDates(idBook, dates));
+        toast.success('Reading dates saved.');
+        return true;
+      } catch (err) {
+        toast.error(err.message);
+        return false;
+      }
+    },
+    [merge, toast],
+  );
+
   const remove = useCallback(
     async (idBook) => {
       try {
@@ -112,11 +127,12 @@ export function LibraryProvider({ children }) {
       get: (idBook) => entries.get(Number(idBook)) || null,
       add,
       setStatus,
+      setDates,
       remove,
       toggleLike,
       toggleFavorite,
     }),
-    [entries, books, loading, error, refresh, add, setStatus, remove, toggleLike, toggleFavorite],
+    [entries, books, loading, error, refresh, add, setStatus, setDates, remove, toggleLike, toggleFavorite],
   );
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>;

@@ -20,6 +20,7 @@ from src.models.users import User
 from src.services.reviews_service import ReviewService
 from src.utils.exceptions import (
     BookNotFoundError,
+    BookNotInLibraryError,
     DAOError,
     NotReviewAuthorError,
     ReviewAlreadyExistsError,
@@ -173,6 +174,23 @@ class TestCreateReviewRoute:
         response = client.post(BOOK_REVIEWS_URL, json={"rating": 4})
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_book_not_in_library(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Book outside the user's library returns 403."""
+        mock_service.create_review.side_effect = BookNotInLibraryError(
+            ID_BOOK,
+        )
+
+        response = client.post(BOOK_REVIEWS_URL, json={"rating": 4})
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == (
+            "You can only review a book from your library."
+        )
 
     def test_already_reviewed(
         self,

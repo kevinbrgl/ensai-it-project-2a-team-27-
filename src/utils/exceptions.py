@@ -170,6 +170,14 @@ class BookNotInLibraryError(Exception):
         super().__init__(f"Book {book_id} is not in the library.")
 
 
+class InvalidReadingDatesError(Exception):
+    """Raised when a reading end date is before the start date."""
+
+    def __init__(self) -> None:
+        """Initialize InvalidReadingDatesError."""
+        super().__init__("The end date cannot be before the start date.")
+
+
 class SelfFollowError(Exception):
     """Raised when a user attempts to follow themselves."""
 

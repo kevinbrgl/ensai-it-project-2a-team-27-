@@ -12,9 +12,34 @@ import pytest
 from pytest_mock import MockerFixture
 
 from src.dao.books_dao import BookDAO
-from src.models.books import Book, BookCreate
-from src.services.books_service import OPEN_LIBRARY_FIELDS, BookService
+from src.models.books import Book, BookCreate, BookDetails, Edition
+from src.services.books_service import (
+    EDITIONS_LIMIT,
+    OPEN_LIBRARY_FIELDS,
+    BookService,
+)
 from src.utils.exceptions import BookNotFoundError, ExternalServiceError
+
+NB_PAGES = 310
+EDITIONS_URL = "https://openlibrary.org/works/OL123W/editions.json"
+EDITIONS_PAYLOAD = {
+    "entries": [
+        {
+            "title": "The Hobbit",
+            "publishers": ["Allen & Unwin"],
+            "publish_date": "September 21, 1937",
+            "number_of_pages": NB_PAGES,
+            "isbn_13": ["9780261102217"],
+            "isbn_10": ["0261102214"],
+            "languages": [{"key": "/languages/eng"}],
+        },
+        {
+            "title": "Bilbo le Hobbit",
+            "isbn_10": ["2253049417"],
+        },
+        {},
+    ],
+}
 
 
 @pytest.fixture
@@ -41,6 +66,7 @@ def fake_book() -> Book:
         publish_date=date(1937, 1, 1),
         description=None,
         cover_image="https://covers.openlibrary.org/b/id/12345-M.jpg",
+        num_pages=NB_PAGES,
     )
 
 
@@ -76,6 +102,7 @@ class TestSearchBooks:
                     "subject": ["Fantasy"],
                     "first_publish_year": 1937,
                     "cover_i": 12345,
+                    "number_of_pages_median": NB_PAGES,
                 },
             ],
         }
@@ -97,6 +124,32 @@ class TestSearchBooks:
         assert inserted_data.category == "Fantasy"
         assert inserted_data.publish_date == date(1937, 1, 1)
         assert inserted_data.id_book_api == "/works/OL123W"
+        assert inserted_data.num_pages == NB_PAGES
+
+    @pytest.mark.parametrize("pages", [None, 0, -5, "310", 310.5])
+    def test_search_books_invalid_pages_ignored(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        mocker: MockerFixture,
+        pages: object,
+    ) -> None:
+        """A missing or invalid page count is stored as None."""
+        doc: dict[str, object] = {"key": "/works/OL123W", "title": "Hobbit"}
+        if pages is not None:
+            doc["number_of_pages_median"] = pages
+        mocker.patch.object(
+            service,
+            "_fetch_open_library",
+            return_value={"docs": [doc]},
+        )
+        mock_dao.upsert.return_value = fake_book
+
+        service.search_books("hobbit")
+
+        inserted_data: BookCreate = mock_dao.upsert.call_args[0][0]
+        assert inserted_data.num_pages is None
 
     def test_search_empty_query(
         self,
@@ -157,19 +210,158 @@ class TestGetBook:
         with pytest.raises(BookNotFoundError):
             service.get_book(999)
 
-    def test_get_book_details(
+
+class TestGetBookDetails:
+    """Tests for BookService.get_book_details and get_editions."""
+
+    def test_returns_book_with_editions(
         self,
         service: BookService,
         mock_dao: Mock,
         fake_book: Book,
+        mocker: MockerFixture,
     ) -> None:
-        """get_book_details delegates to get_book."""
+        """The book is returned with its editions, mapped correctly."""
+        mock_dao.read.return_value = fake_book
+        mock_fetch = mocker.patch.object(
+            service,
+            "_fetch_editions",
+            return_value=EDITIONS_PAYLOAD,
+        )
+
+        details = service.get_book_details(1)
+
+        assert isinstance(details, BookDetails)
+        assert details.id_book == fake_book.id_book
+        assert details.title == fake_book.title
+        assert details.num_pages == NB_PAGES
+        assert details.editions == [
+            Edition(
+                title="The Hobbit",
+                publishers=["Allen & Unwin"],
+                publish_date="September 21, 1937",
+                num_pages=NB_PAGES,
+                isbn="9780261102217",
+                language="eng",
+            ),
+            Edition(title="Bilbo le Hobbit", isbn="2253049417"),
+            Edition(),
+        ]
+        mock_dao.read.assert_called_once_with(1)
+        mock_fetch.assert_called_once_with("/works/OL123W")
+
+    def test_book_not_found(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        mocker: MockerFixture,
+    ) -> None:
+        """Unknown book: BookNotFoundError, Open Library is not called."""
+        mock_dao.read.return_value = None
+        mock_fetch = mocker.patch.object(service, "_fetch_editions")
+
+        with pytest.raises(BookNotFoundError):
+            service.get_book_details(999)
+
+        mock_fetch.assert_not_called()
+
+    def test_open_library_down_gives_no_editions(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        mocker: MockerFixture,
+    ) -> None:
+        """Open Library unavailable: the book comes with an empty list."""
+        mock_dao.read.return_value = fake_book
+        mocker.patch.object(
+            service,
+            "_fetch_editions",
+            side_effect=ExternalServiceError(),
+        )
+
+        details = service.get_book_details(1)
+
+        assert details.title == fake_book.title
+        assert details.editions == []
+
+    @pytest.mark.parametrize("id_book_api", [None, "", "openlib_123"])
+    def test_no_work_key_gives_no_editions(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        mocker: MockerFixture,
+        id_book_api: str | None,
+    ) -> None:
+        """Without a work key, Open Library is not called."""
+        mock_dao.read.return_value = fake_book.model_copy(
+            update={"id_book_api": id_book_api},
+        )
+        mock_fetch = mocker.patch.object(service, "_fetch_editions")
+
+        details = service.get_book_details(1)
+
+        assert details.editions == []
+        mock_fetch.assert_not_called()
+
+    @pytest.mark.parametrize("payload", [{}, {"entries": None}])
+    def test_payload_without_entries(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        mocker: MockerFixture,
+        payload: dict[str, object],
+    ) -> None:
+        """A payload without entries gives an empty list."""
+        mock_dao.read.return_value = fake_book
+        mocker.patch.object(service, "_fetch_editions", return_value=payload)
+
+        assert service.get_book_details(1).editions == []
+
+    def test_sends_work_key_and_limit(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        http_get: Mock,
+    ) -> None:
+        """The editions URL is built from the work key, with a limit."""
         mock_dao.read.return_value = fake_book
 
-        book = service.get_book_details(1)
+        service.get_book_details(1)
 
-        assert book == fake_book
-        mock_dao.read.assert_called_once_with(1)
+        assert http_get.call_args.args[0] == EDITIONS_URL
+        assert http_get.call_args.kwargs["params"] == {
+            "limit": EDITIONS_LIMIT,
+        }
+
+    def test_http_error_status_gives_no_editions(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        http_get: Mock,
+    ) -> None:
+        """An HTTP error status from Open Library gives an empty list."""
+        mock_dao.read.return_value = fake_book
+        http_get.return_value.status_code = 503
+
+        assert service.get_book_details(1).editions == []
+
+    def test_network_error_gives_no_editions(
+        self,
+        service: BookService,
+        mock_dao: Mock,
+        fake_book: Book,
+        http_get: Mock,
+    ) -> None:
+        """A network error gives an empty list."""
+        mock_dao.read.return_value = fake_book
+        http_get.side_effect = httpx2.HTTPError("boom")
+
+        assert service.get_book_details(1).editions == []
 
 
 class TestGetBooks:
@@ -281,6 +473,10 @@ class TestFetchOpenLibrary:
         """The Open Library rating is requested."""
         assert "ratings_average" in OPEN_LIBRARY_FIELDS.split(",")
 
+    def test_fields_include_number_of_pages(self) -> None:
+        """The median number of pages is requested."""
+        assert "number_of_pages_median" in OPEN_LIBRARY_FIELDS.split(",")
+
     def test_search_books_sends_query(
         self,
         service: BookService,
@@ -332,6 +528,17 @@ class TestFetchOpenLibrary:
         with pytest.raises(ExternalServiceError):
             service.search_by_subject("Fantasy")
 
+    def test_invalid_json_raises(
+        self,
+        service: BookService,
+        http_get: Mock,
+    ) -> None:
+        """A response that is not JSON raises ExternalServiceError."""
+        http_get.return_value.json.side_effect = ValueError("not json")
+
+        with pytest.raises(ExternalServiceError):
+            service.search_by_subject("Fantasy")
+
 
 class TestSearchBySubject:
     """Tests for BookService.search_by_subject."""
@@ -356,6 +563,7 @@ class TestSearchBySubject:
                         "first_publish_year": 1937,
                         "cover_i": 12345,
                         "ratings_average": 4.256,
+                        "number_of_pages_median": NB_PAGES,
                     },
                     {
                         "key": "/works/OL2W",
@@ -389,6 +597,8 @@ class TestSearchBySubject:
         assert hobbit.cover_image == (
             "https://covers.openlibrary.org/b/id/12345-M.jpg"
         )
+        assert hobbit.num_pages == NB_PAGES
+        assert result[1][0].num_pages is None
         mock_dao.upsert.assert_not_called()
         mock_dao.create.assert_not_called()
 

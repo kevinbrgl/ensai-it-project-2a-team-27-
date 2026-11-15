@@ -1,5 +1,7 @@
 """Data Access Object for library operations."""
 
+from datetime import date
+
 from psycopg2 import Error as DBError
 from psycopg2.errors import ForeignKeyViolation, UniqueViolation
 from psycopg2.extras import RealDictCursor
@@ -63,6 +65,32 @@ class LibraryDAO:
             msg = "Adding book to library failed"
             raise DAOError(msg)
         return LibraryBookRead(**row)
+
+    def read(self, id_user: int, id_book: int) -> LibraryBookRead | None:
+        """Read one book of a user's library.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book
+        :raises DAOError: If a DB error occurs
+        :return: The library activity, or None if the book is not in
+            the user's library
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT id_user, id_book, state, is_liked, is_favorite,
+                       started_at, finished_at
+                FROM user_book_activities
+                WHERE id_user = %s AND id_book = %s
+                """,
+                (id_user, id_book),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        return LibraryBookRead(**row) if row else None
 
     def remove_book(self, id_user: int, id_book: int) -> None:
         """Remove a book from a user's library.
@@ -183,6 +211,45 @@ class LibraryDAO:
             raise BookNotInLibraryError(id_book)
         return LibraryBookRead(**row)
 
+    def update_dates(
+        self,
+        id_user: int,
+        id_book: int,
+        started_at: date | None,
+        finished_at: date | None,
+    ) -> LibraryBookRead:
+        """Set the reading dates of a book in a user's library.
+
+        Both dates are written: pass the stored value for a date that
+        must not change, and None to erase a date.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book to update
+        :param started_at: Date the user started the book, or None
+        :param finished_at: Date the user finished the book, or None
+        :raises BookNotInLibraryError: If the book is not in the library
+        :raises DAOError: If a DB error occurs
+        :return: The updated library activity
+        """
+        try:
+            self.cur.execute(
+                """
+                UPDATE user_book_activities
+                SET started_at = %s, finished_at = %s
+                WHERE id_user = %s AND id_book = %s
+                RETURNING *
+                """,
+                (started_at, finished_at, id_user, id_book),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        if row is None:
+            raise BookNotInLibraryError(id_book)
+        return LibraryBookRead(**row)
+
     def find_favorites_by_user_id(
         self,
         id_user: int,
@@ -198,6 +265,7 @@ class LibraryDAO:
                 """
                 SELECT uba.id_user, uba.id_book, uba.state,
                        uba.is_liked, uba.is_favorite,
+                       uba.started_at, uba.finished_at,
                        b.title, b.author, b.category, b.publish_date,
                        b.description, b.cover_image
                 FROM user_book_activities AS uba
@@ -229,6 +297,7 @@ class LibraryDAO:
         query = """
             SELECT uba.id_user, uba.id_book, uba.state,
                    uba.is_liked, uba.is_favorite,
+                   uba.started_at, uba.finished_at,
                    b.title, b.author, b.category, b.publish_date,
                    b.description, b.cover_image
             FROM user_book_activities AS uba

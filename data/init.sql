@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS revoked_tokens (
     token_hash VARCHAR(64) PRIMARY KEY,
     expires_at TIMESTAMPTZ NOT NULL
 );
- 
+
 
 
 CREATE TABLE IF NOT EXISTS user_follows (
@@ -80,3 +80,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL
     DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_until TIMESTAMPTZ;
+
+-- Number of pages of a book and reading dates of a library entry.
+ALTER TABLE books ADD COLUMN IF NOT EXISTS num_pages INT;
+ALTER TABLE user_book_activities ADD COLUMN IF NOT EXISTS started_at DATE;
+ALTER TABLE user_book_activities ADD COLUMN IF NOT EXISTS finished_at DATE;

@@ -27,6 +27,7 @@ class StatsService:
         ratings = self.dao.count_ratings(id_user)
         return UserStats(
             books_finished=self.dao.count_finished_books(id_user),
+            pages_read=self.dao.sum_pages_read(id_user),
             genres=self.dao.count_genres(id_user),
             ratings=[
                 RatingCount(rating=rating, count=ratings.get(rating, 0))

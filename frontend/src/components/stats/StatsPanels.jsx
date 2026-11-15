@@ -1,7 +1,9 @@
 import { BarList } from './BarList';
 import styles from './StatsPanels.module.css';
 
-/** Renders a UserStats object: books finished, genres and ratings. */
+const numberFormatter = new Intl.NumberFormat('en-GB');
+
+/** Renders a UserStats object: books finished, pages read, genres and ratings. */
 export function StatsPanels({ stats, libraryCount }) {
   const genres = stats.genres.map((g) => ({ label: g.category || 'Uncategorised', value: g.count })).slice(0, 8);
   const ratings = [...stats.ratings].sort((a, b) => b.rating - a.rating).map((r) => ({ label: `${r.rating} ★`, value: r.count }));
@@ -12,6 +14,7 @@ export function StatsPanels({ stats, libraryCount }) {
     <div className={styles.grid}>
       <div className={`${styles.card} ${styles.figures}`}>
         <Figure value={stats.books_finished} label="Books finished" />
+        <Figure value={numberFormatter.format(stats.pages_read || 0)} label="Pages read" />
         {libraryCount !== undefined && <Figure value={libraryCount} label="In the library" />}
         <Figure value={totalRatings} label="Books rated" />
         <Figure value={average ? average.toFixed(1) : '–'} label="Average rating given" />

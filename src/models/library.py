@@ -9,13 +9,20 @@ class LibraryBookAdd(BaseModel):
     """Body of POST /library/books."""
 
     id_book: int
-    state: str = Field(pattern="^(READING|WANT_TO_READ|COMPLETED)$")
+    state: str = Field(pattern="^(READING|WANT_TO_READ|COMPLETED|ABANDONED)$")
 
 
 class LibraryBookUpdateStatus(BaseModel):
     """Body of PATCH /library/books/{id_book}/status."""
 
-    state: str = Field(pattern="^(READING|WANT_TO_READ|COMPLETED)$")
+    state: str = Field(pattern="^(READING|WANT_TO_READ|COMPLETED|ABANDONED)$")
+
+
+class LibraryBookUpdateDates(BaseModel):
+    """Body of PATCH /library/books/{id_book}/dates (all fields optional)."""
+
+    started_at: date | None = None
+    finished_at: date | None = None
 
 
 class LibraryBookRead(BaseModel):
@@ -26,6 +33,8 @@ class LibraryBookRead(BaseModel):
     state: str
     is_liked: bool
     is_favorite: bool
+    started_at: date | None = None
+    finished_at: date | None = None
 
 
 class LibraryBookDetails(LibraryBookRead):

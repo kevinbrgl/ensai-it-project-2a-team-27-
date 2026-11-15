@@ -1,6 +1,7 @@
 """Pydantic models for book entities.
 
-Defines schemas for book creation, reading, and database representation.
+Defines schemas for book creation, reading, database representation,
+and the editions fetched from Open Library.
 """
 
 from datetime import date
@@ -18,6 +19,7 @@ class BookBase(BaseModel):
     description: str | None = None
     cover_image: str | None = None
     id_book_api: str | None = Field(default=None, max_length=100)
+    num_pages: int | None = None
 
 
 class BookCreate(BookBase):
@@ -35,3 +37,20 @@ class Book(BookRead):
 
     model_config = ConfigDict(from_attributes=True)
     id_book: int
+
+
+class Edition(BaseModel):
+    """One edition of a book, fetched live from Open Library."""
+
+    title: str | None = None
+    publishers: list[str] = Field(default_factory=list)
+    publish_date: str | None = None
+    num_pages: int | None = None
+    isbn: str | None = None
+    language: str | None = None
+
+
+class BookDetails(Book):
+    """A book with its editions, returned by GET /books/{book_id}."""
+
+    editions: list[Edition] = Field(default_factory=list)

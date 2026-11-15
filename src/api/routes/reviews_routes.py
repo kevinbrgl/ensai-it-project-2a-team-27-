@@ -14,6 +14,7 @@ from src.models.reviews import (
 )
 from src.utils.exceptions import (
     BookNotFoundError,
+    BookNotInLibraryError,
     DAOError,
     NotReviewAuthorError,
     ReviewAlreadyExistsError,
@@ -101,6 +102,7 @@ def get_book_reviews(
     status_code=status.HTTP_201_CREATED,
     summary="✍️ Write a review",
     responses={
+        403: {"description": "The book is not in your library"},
         404: {"description": "Book not found"},
         409: {"description": "You have already reviewed this book"},
         500: {"description": "Database error"},
@@ -121,8 +123,11 @@ def create_review(
     - ⭐ `rating`: a whole number from **1** to **5**
     - 💬 `comment`: optional text, up to 2000 characters
 
-    **Rule:** only **one review per book** for each user. To change
-    it, edit your existing review.
+    **Rules:**
+
+    - the book must be **in your library**
+    - only **one review per book** for each user. To change it, edit
+      your existing review.
 
     **Example request:**
 
@@ -138,6 +143,7 @@ def create_review(
     :param service: Review service dependency
     :param current_user: The authenticated user
     :raises HTTPException: 404 if the book does not exist,
+        403 if the book is not in the user's library,
         409 if the user already reviewed it, 500 on database error
     :return: The created review
     """
@@ -152,6 +158,12 @@ def create_review(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Book not found.",
+        ) from None
+
+    except BookNotInLibraryError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only review a book from your library.",
         ) from None
 
     except ReviewAlreadyExistsError:

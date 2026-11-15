@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from src.api.deps import BookServiceDep, CurrentUser
-from src.models.books import Book
+from src.models.books import Book, BookDetails
 from src.utils.exceptions import (
     BookNotFoundError,
     DAOError,
@@ -143,26 +143,35 @@ def get_book_details(
     ],
     service: BookServiceDep,
     _current_user: CurrentUser,
-) -> Book:
-    """Return the **details** of one book of the local catalog.
+) -> BookDetails:
+    """Return the **details** of one book, with its **editions**.
 
     🔒 Authentication required
 
     **Returns:** title, author, category, publication date,
-    description and cover image.
+    description, cover image, number of pages and the list of
+    `editions`.
 
-    **Good to know:** `book_id` is the **database ID** of the book,
-    as returned by the search route.
+    **Editions:** they are read live on Open Library (up to 20) and
+    are **not stored**. For each edition: title, publishers,
+    publication date, number of pages, ISBN and language.
+
+    **Good to know:**
+
+    - `book_id` is the **database ID** of the book, as returned by
+      the search route
+    - if Open Library is unavailable, the book is still returned,
+      with an **empty** `editions` list
     \f
     :param book_id: Unique database identifier of the book
     :param service: Book service dependency
     :param _current_user: Authenticated user dependency
     :raises HTTPException: 404 if the book is not found in database,
         500 if a database error occurs
-    :return: The Book object with all metadata
+    :return: The book with all metadata and its editions
     """
     try:
-        return service.get_book(book_id)
+        return service.get_book_details(book_id)
     except BookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

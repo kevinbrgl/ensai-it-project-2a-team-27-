@@ -5,6 +5,11 @@ from src.models.library import (
     LibraryBookAdd,
     LibraryBookDetails,
     LibraryBookRead,
+    LibraryBookUpdateDates,
+)
+from src.utils.exceptions import (
+    BookNotInLibraryError,
+    InvalidReadingDatesError,
 )
 
 
@@ -75,6 +80,51 @@ class LibraryService:
         :return: The updated library activity
         """
         return self.dao.update_status(id_user, id_book, state)
+
+    def update_book_dates(
+        self,
+        id_user: int,
+        id_book: int,
+        dates_in: LibraryBookUpdateDates,
+    ) -> LibraryBookRead:
+        """Update the reading dates of a book in the user's library.
+
+        Only the dates that were sent are changed. A date that was not
+        sent keeps its stored value, which is used for the comparison.
+
+        :param id_user: ID of the user
+        :param id_book: ID of the book
+        :param dates_in: New start and/or end date
+        :raises ValueError: If no date is given
+        :raises BookNotInLibraryError: If the book is not in the library
+        :raises InvalidReadingDatesError: If the resulting end date is
+            before the resulting start date
+        :return: The updated library activity
+        """
+        changes = dates_in.model_dump(exclude_unset=True)
+        if not changes:
+            msg = "Nothing to update."
+            raise ValueError(msg)
+
+        current = self.dao.read(id_user, id_book)
+        if current is None:
+            raise BookNotInLibraryError(id_book)
+
+        started_at = changes.get("started_at", current.started_at)
+        finished_at = changes.get("finished_at", current.finished_at)
+        if (
+            started_at is not None
+            and finished_at is not None
+            and finished_at < started_at
+        ):
+            raise InvalidReadingDatesError
+
+        return self.dao.update_dates(
+            id_user,
+            id_book,
+            started_at,
+            finished_at,
+        )
 
     def list_favorites(self, id_user: int) -> list[LibraryBookDetails]:
         """List the favorite books of the user's library.

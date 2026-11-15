@@ -16,6 +16,7 @@ from src.core.config import settings
 
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
+LIBRARY_BOOKS_URL = f"{settings.API_STR}/library/books"
 PASSWORD = "password123"
 UNKNOWN_ID = 999_999_999
 NB_REVIEWS = 2
@@ -39,6 +40,20 @@ def _register_and_login(client: TestClient, prefix: str) -> dict[str, str]:
     )
     token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def _add_to_library(
+    client: TestClient,
+    headers: dict[str, str],
+    id_book: int,
+) -> None:
+    """Add a book to the library of a user, so that they can review it."""
+    response = client.post(
+        LIBRARY_BOOKS_URL,
+        headers=headers,
+        json={"id_book": id_book, "state": "COMPLETED"},
+    )
+    assert response.status_code == status.HTTP_201_CREATED
 
 
 @pytest.fixture
@@ -93,6 +108,10 @@ class TestReviewsScenario:
     ) -> None:
         """Run every review endpoint with two different users."""
         url = _book_reviews_url(id_book)
+
+        # A review can only be written on a book of the user's library
+        _add_to_library(client, auth_headers, id_book)
+        _add_to_library(client, other_auth_headers, id_book)
 
         # 18: A and B review the same book
         resp_a = client.post(
@@ -158,6 +177,95 @@ class TestReviewsScenario:
 
         resp = client.get(_user_reviews_url(id_user_a), headers=auth_headers)
         assert resp.json() == []
+
+
+class TestReviewsLibraryRule:
+    """A review can only be written on a book of the user's library."""
+
+    def test_create_review_book_not_in_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book outside my library: 403, and no review is created."""
+        url = _book_reviews_url(id_book)
+
+        resp = client.post(url, headers=auth_headers, json={"rating": 4})
+
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        assert resp.json()["detail"] == (
+            "You can only review a book from your library."
+        )
+        assert client.get(url, headers=auth_headers).json()[
+            "review_count"
+        ] == 0
+
+    def test_book_in_another_library_is_not_enough(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """The book is in someone else's library only: still 403."""
+        _add_to_library(client, other_auth_headers, id_book)
+
+        resp = client.post(
+            _book_reviews_url(id_book),
+            headers=auth_headers,
+            json={"rating": 4},
+        )
+
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_create_review_after_adding_to_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Once the book is in my library, the review is accepted."""
+        _add_to_library(client, auth_headers, id_book)
+
+        resp = client.post(
+            _book_reviews_url(id_book),
+            headers=auth_headers,
+            json={"rating": 4},
+        )
+
+        assert resp.status_code == status.HTTP_201_CREATED
+
+    def test_edit_and_delete_after_leaving_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """An existing review can still be edited and deleted."""
+        _add_to_library(client, auth_headers, id_book)
+        created = client.post(
+            _book_reviews_url(id_book),
+            headers=auth_headers,
+            json={"rating": 3},
+        )
+        review_url = _review_url(created.json()["id_review"])
+        removed = client.delete(
+            f"{LIBRARY_BOOKS_URL}/{id_book}",
+            headers=auth_headers,
+        )
+        assert removed.status_code == status.HTTP_204_NO_CONTENT
+
+        edited = client.put(
+            review_url,
+            headers=auth_headers,
+            json={"rating": NEW_RATING},
+        )
+        deleted = client.delete(review_url, headers=auth_headers)
+
+        assert edited.status_code == status.HTTP_200_OK
+        assert edited.json()["rating"] == NEW_RATING
+        assert deleted.status_code == status.HTTP_204_NO_CONTENT
 
 
 class TestReviewsErrors:

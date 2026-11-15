@@ -11,19 +11,44 @@ from typing import Any
 import httpx2
 
 from src.dao.books_dao import BookDAO
-from src.models.books import Book, BookCreate
+from src.models.books import Book, BookCreate, BookDetails, Edition
 from src.utils.exceptions import BookNotFoundError, ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
-OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
+OPEN_LIBRARY_URL = "https://openlibrary.org"
+OPEN_LIBRARY_SEARCH_URL = f"{OPEN_LIBRARY_URL}/search.json"
 OPEN_LIBRARY_FIELDS = (
     "key,title,author_name,subject,first_publish_year,cover_i,"
-    "ratings_average"
+    "ratings_average,number_of_pages_median"
 )
+OPEN_LIBRARY_WORK_PREFIX = "/works/"
+EDITIONS_LIMIT = 20
 HTTP_ERROR_STATUS = 400
 MIN_VALID_YEAR = 1
 MAX_VALID_YEAR = 9999
+
+
+def _valid_pages(value: object) -> int | None:
+    """Keep a number of pages only if it is a positive integer.
+
+    :param value: Value received from Open Library
+    :return: The number of pages, or None if it is missing or invalid
+    """
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return value
+    return None
+
+
+def _first(values: object) -> object | None:
+    """Return the first element of a list received from Open Library.
+
+    :param values: Value received from Open Library
+    :return: The first element, or None if it is not a non-empty list
+    """
+    if isinstance(values, list) and values:
+        return values[0]
+    return None
 
 
 class BookService:
@@ -42,39 +67,24 @@ class BookService:
         self.dao = book_dao
         self.timeout = timeout
 
-    def _fetch_open_library(
+    def _get_json(
         self,
-        query: str | None = None,
-        limit: int = 10,
-        *,
-        subject: str | None = None,
-        sort: str | None = None,
+        url: str,
+        params: dict[str, str | int],
     ) -> dict[str, Any]:
-        """Fetch search results from Open Library.
+        """Send a GET request to Open Library and return its JSON payload.
 
-        :param query: Free-text search query (title or author)
-        :param limit: Maximum number of results to fetch
-        :param subject: Optional subject (genre) filter
-        :param sort: Optional Open Library sort order (e.g. "rating")
+        :param url: Open Library URL to call
+        :param params: Query string parameters
         :raises ExternalServiceError: If Open Library is unreachable or fails
         :return: JSON payload returned by Open Library
         """
         headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
-        params: dict[str, str | int] = {
-            "limit": limit,
-            "fields": OPEN_LIBRARY_FIELDS,
-        }
-        if query:
-            params["q"] = query
-        if subject:
-            params["subject"] = subject
-        if sort:
-            params["sort"] = sort
 
         try:
             with httpx2.Client(timeout=self.timeout) as client:
                 response = client.get(
-                    OPEN_LIBRARY_SEARCH_URL,
+                    url,
                     params=params,
                     headers=headers,
                 )
@@ -92,7 +102,63 @@ class BookService:
             )
             raise ExternalServiceError
 
-        return response.json()
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            logger.warning("Open Library returned invalid JSON: %s", exc)
+            raise ExternalServiceError from exc
+
+        if not isinstance(payload, dict):
+            logger.warning("Open Library returned an unexpected payload")
+            raise ExternalServiceError
+        return payload
+
+    def _fetch_open_library(
+        self,
+        query: str | None = None,
+        limit: int = 10,
+        *,
+        subject: str | None = None,
+        sort: str | None = None,
+    ) -> dict[str, Any]:
+        """Fetch search results from Open Library.
+
+        :param query: Free-text search query (title or author)
+        :param limit: Maximum number of results to fetch
+        :param subject: Optional subject (genre) filter
+        :param sort: Optional Open Library sort order (e.g. "rating")
+        :raises ExternalServiceError: If Open Library is unreachable or fails
+        :return: JSON payload returned by Open Library
+        """
+        params: dict[str, str | int] = {
+            "limit": limit,
+            "fields": OPEN_LIBRARY_FIELDS,
+        }
+        if query:
+            params["q"] = query
+        if subject:
+            params["subject"] = subject
+        if sort:
+            params["sort"] = sort
+
+        return self._get_json(OPEN_LIBRARY_SEARCH_URL, params)
+
+    def _fetch_editions(
+        self,
+        work_key: str,
+        limit: int = EDITIONS_LIMIT,
+    ) -> dict[str, Any]:
+        """Fetch the editions of a work from Open Library.
+
+        :param work_key: Open Library work key (e.g. "/works/OL123W")
+        :param limit: Maximum number of editions to fetch
+        :raises ExternalServiceError: If Open Library is unreachable or fails
+        :return: JSON payload returned by Open Library
+        """
+        return self._get_json(
+            f"{OPEN_LIBRARY_URL}{work_key}/editions.json",
+            {"limit": limit},
+        )
 
     @staticmethod
     def _doc_to_book_create(doc: dict[str, Any]) -> BookCreate | None:
@@ -134,6 +200,40 @@ class BookService:
             publish_date=publish_date,
             description=None,
             cover_image=cover_image,
+            num_pages=_valid_pages(doc.get("number_of_pages_median")),
+        )
+
+    @staticmethod
+    def _entry_to_edition(entry: dict[str, Any]) -> Edition:
+        """Convert one Open Library edition into an Edition.
+
+        :param entry: An item of the "entries" list returned by Open Library
+        :return: The Edition, with None for every missing field
+        """
+        title = entry.get("title")
+        publishers = entry.get("publishers")
+        publish_date = entry.get("publish_date")
+        isbn = _first(entry.get("isbn_13")) or _first(entry.get("isbn_10"))
+        language = _first(entry.get("languages"))
+        language_key = (
+            language.get("key") if isinstance(language, dict) else None
+        )
+
+        return Edition(
+            title=title if isinstance(title, str) else None,
+            publishers=(
+                [name for name in publishers if isinstance(name, str)]
+                if isinstance(publishers, list)
+                else []
+            ),
+            publish_date=str(publish_date) if publish_date else None,
+            num_pages=_valid_pages(entry.get("number_of_pages")),
+            isbn=str(isbn) if isbn else None,
+            language=(
+                language_key.rsplit("/", 1)[-1]
+                if isinstance(language_key, str)
+                else None
+            ),
         )
 
     def search_books(self, query: str, limit: int = 10) -> list[Book]:
@@ -222,14 +322,54 @@ class BookService:
             raise BookNotFoundError(book_id=book_id)
         return book
 
-    def get_book_details(self, book_id: int) -> Book:
-        """Retrieve details of a book by its internal ID.
+    def get_editions(self, book: Book) -> list[Edition]:
+        """Fetch the editions of a book live from Open Library.
+
+        The editions are not stored. If the book has no Open Library
+        work key or if Open Library is unavailable, a warning is logged
+        and an empty list is returned.
+
+        :param book: The book whose editions are wanted
+        :return: The editions, or an empty list
+        """
+        work_key = book.id_book_api
+        if not work_key or not work_key.startswith(OPEN_LIBRARY_WORK_PREFIX):
+            logger.warning(
+                "Book %s has no Open Library work key: no editions",
+                book.id_book,
+            )
+            return []
+
+        try:
+            payload = self._fetch_editions(work_key)
+        except ExternalServiceError:
+            logger.warning(
+                "Open Library unavailable: no editions for book %s",
+                book.id_book,
+            )
+            return []
+
+        entries = payload.get("entries")
+        if not isinstance(entries, list):
+            return []
+        return [
+            self._entry_to_edition(entry)
+            for entry in entries
+            if isinstance(entry, dict)
+        ]
+
+    def get_book_details(self, book_id: int) -> BookDetails:
+        """Retrieve a book by its internal ID, with its editions.
 
         :param book_id: ID of the book
         :raises BookNotFoundError: Raised if the book does not exist
-        :return: The Book object
+        :return: The book and its list of editions
         """
-        return self.get_book(book_id)
+        book = self.get_book(book_id)
+        return BookDetails(
+            **book.model_dump(),
+            editions=self.get_editions(book),
+        )
 
     def get_books(
         self,

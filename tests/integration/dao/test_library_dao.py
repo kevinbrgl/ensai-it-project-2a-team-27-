@@ -4,6 +4,8 @@ Each test is rolled back (see tests/integration/conftest.py),
 so the database is left unchanged.
 """
 
+from datetime import date
+
 import pytest
 from psycopg2.extras import RealDictCursor
 
@@ -16,6 +18,9 @@ from src.utils.exceptions import (
     BookNotFoundError,
     BookNotInLibraryError,
 )
+
+START = date(2026, 1, 5)
+END = date(2026, 1, 20)
 
 
 @pytest.fixture
@@ -99,6 +104,21 @@ class TestAddBook:
         assert result.state == "READING"
         assert result.is_liked is False
         assert result.is_favorite is False
+        assert result.started_at is None
+        assert result.finished_at is None
+
+    def test_abandoned(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book can be added with the ABANDONED state."""
+        book_in = LibraryBookAdd(id_book=id_book, state="ABANDONED")
+
+        result = library_dao.add_book(id_user, book_in)
+
+        assert result.state == "ABANDONED"
 
     def test_duplicate(
         self,
@@ -124,6 +144,48 @@ class TestAddBook:
 
         with pytest.raises(BookNotFoundError):
             library_dao.add_book(id_user, book_in)
+
+
+class TestRead:
+    """Tests for LibraryDAO.read."""
+
+    def test_found(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book of the library is returned with its activity data."""
+        added = library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        assert library_dao.read(id_user, id_book) == added
+
+    def test_not_in_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book the user does not have gives None."""
+        assert library_dao.read(id_user, id_book) is None
+
+    def test_other_user_book_not_returned(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_other_user: int,
+        id_book: int,
+    ) -> None:
+        """A book of another user's library gives None."""
+        library_dao.add_book(
+            id_other_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        assert library_dao.read(id_user, id_book) is None
 
 
 class TestRemoveBook:
@@ -342,6 +404,25 @@ class TestFindFavoritesByUserId:
         assert result[0].state == "READING"
         assert result[0].title == "The Hobbit"
 
+    def test_favorite_has_reading_dates(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """The reading dates of a favorite book are listed."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="COMPLETED"),
+        )
+        library_dao.toggle_favorite(id_user, id_book)
+        library_dao.update_dates(id_user, id_book, START, END)
+
+        result = library_dao.find_favorites_by_user_id(id_user)
+
+        assert result[0].started_at == START
+        assert result[0].finished_at == END
+
     def test_only_favorites(
         self,
         library_dao: LibraryDAO,
@@ -457,6 +538,30 @@ class TestFindBooksByUserId:
         assert result[0].id_book == id_book
         assert result[0].state == "READING"
 
+    def test_filter_abandoned(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """The ABANDONED filter returns only the abandoned books."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="ABANDONED"),
+        )
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_other_book, state="READING"),
+        )
+
+        result = library_dao.find_books_by_user_id(
+            id_user,
+            status="ABANDONED",
+        )
+
+        assert [b.id_book for b in result] == [id_book]
+
     def test_filter_no_match_returns_empty(
         self,
         library_dao: LibraryDAO,
@@ -475,6 +580,29 @@ class TestFindBooksByUserId:
         )
 
         assert result == []
+
+    def test_reading_dates_listed(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """Each book is listed with its own reading dates."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="COMPLETED"),
+        )
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_other_book, state="WANT_TO_READ"),
+        )
+        library_dao.update_dates(id_user, id_book, START, END)
+
+        result = library_dao.find_books_by_user_id(id_user)
+
+        dates = {b.id_book: (b.started_at, b.finished_at) for b in result}
+        assert dates == {id_book: (START, END), id_other_book: (None, None)}
 
     def test_other_user_books_not_listed(
         self,
@@ -513,6 +641,22 @@ class TestUpdateStatus:
         assert result.id_book == id_book
         assert result.state == "COMPLETED"
 
+    def test_update_status_abandoned(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """A book in the library can be marked as abandoned."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+
+        result = library_dao.update_status(id_user, id_book, "ABANDONED")
+
+        assert result.state == "ABANDONED"
+
     def test_other_fields_unchanged(
         self,
         library_dao: LibraryDAO,
@@ -542,3 +686,95 @@ class TestUpdateStatus:
         """Updating a book the user does not have raises an error."""
         with pytest.raises(BookNotInLibraryError):
             library_dao.update_status(id_user, id_book, "COMPLETED")
+
+
+class TestUpdateDates:
+    """Tests for LibraryDAO.update_dates."""
+
+    def test_update_dates_success(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Both reading dates are stored and returned."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="COMPLETED"),
+        )
+
+        result = library_dao.update_dates(id_user, id_book, START, END)
+
+        assert result.id_user == id_user
+        assert result.id_book == id_book
+        assert result.started_at == START
+        assert result.finished_at == END
+        assert library_dao.read(id_user, id_book) == result
+
+    def test_none_erases_a_date(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Passing None erases a stored date."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.update_dates(id_user, id_book, START, END)
+
+        result = library_dao.update_dates(id_user, id_book, START, None)
+
+        assert result.started_at == START
+        assert result.finished_at is None
+
+    def test_other_fields_unchanged(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Updating the dates does not alter the state, like or favorite."""
+        library_dao.add_book(
+            id_user,
+            LibraryBookAdd(id_book=id_book, state="READING"),
+        )
+        library_dao.toggle_like(id_user, id_book)
+
+        result = library_dao.update_dates(id_user, id_book, START, None)
+
+        assert result.state == "READING"
+        assert result.is_liked is True
+        assert result.is_favorite is False
+
+    def test_not_in_library(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_book: int,
+    ) -> None:
+        """Updating a book the user does not have raises an error."""
+        with pytest.raises(BookNotInLibraryError):
+            library_dao.update_dates(id_user, id_book, START, END)
+
+    def test_other_user_dates_unchanged(
+        self,
+        library_dao: LibraryDAO,
+        id_user: int,
+        id_other_user: int,
+        id_book: int,
+    ) -> None:
+        """The dates of another user's copy of the book are not changed."""
+        for user in (id_user, id_other_user):
+            library_dao.add_book(
+                user,
+                LibraryBookAdd(id_book=id_book, state="READING"),
+            )
+
+        library_dao.update_dates(id_user, id_book, START, END)
+
+        other = library_dao.read(id_other_user, id_book)
+        assert other is not None
+        assert other.started_at is None
+        assert other.finished_at is None
