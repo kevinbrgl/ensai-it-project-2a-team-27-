@@ -18,6 +18,7 @@
 }
 .READING { color: var(--accent-600); }
 .COMPLETED { color: var(--success-600); }
+.ABANDONED { color: var(--ink-400); }
 
 .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .title {

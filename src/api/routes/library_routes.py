@@ -10,6 +10,7 @@ from src.models.library import (
     LibraryBookAdd,
     LibraryBookDetails,
     LibraryBookRead,
+    LibraryBookUpdateDates,
     LibraryBookUpdateStatus,
 )
 from src.utils.exceptions import (
@@ -17,6 +18,7 @@ from src.utils.exceptions import (
     BookNotFoundError,
     BookNotInLibraryError,
     DAOError,
+    InvalidReadingDatesError,
 )
 
 router = APIRouter(prefix="/library", tags=["Library"])
@@ -45,7 +47,7 @@ def add_book(
     **Fields:**
 
     - 📖 `id_book`: database ID of the book (find it with the search)
-    - 🚦 `state`: `WANT_TO_READ`, `READING` or `COMPLETED`
+    - 🚦 `state`: `WANT_TO_READ`, `READING`, `COMPLETED` or `ABANDONED`
 
     **Behaviour:** the book starts **not liked** and **not favorite**.
     A book can only be in your library **once**.
@@ -268,6 +270,7 @@ def update_book_status(
     - 🔖 `WANT_TO_READ`: on your reading list
     - 📖 `READING`: you are reading it
     - ✅ `COMPLETED`: you finished it
+    - 🚫 `ABANDONED`: you stopped reading it
 
     **Good to know:** finished books count in your **statistics** and
     your **quests**.
@@ -312,6 +315,91 @@ def update_book_status(
         ) from None
 
 
+@router.patch(
+    "/books/{id_book}/dates",
+    summary="📅 Set the reading dates of a book",
+    responses={
+        400: {"description": "Nothing to update, or end before start"},
+        404: {"description": "Book is not in the library"},
+        500: {"description": "Database error"},
+    },
+)
+def update_book_dates(
+    service: LibraryServiceDep,
+    current_user: CurrentUser,
+    id_book: int,
+    dates_in: LibraryBookUpdateDates,
+) -> LibraryBookRead:
+    """Set the **start** and **end dates** of a book of your library.
+
+    🔒 Authentication required
+
+    **Fields:**
+
+    - 🟢 `started_at`: the day you started the book (`YYYY-MM-DD`)
+    - 🏁 `finished_at`: the day you finished it (`YYYY-MM-DD`)
+
+    **Behaviour:** only the fields you send are changed, the others
+    keep their current value. Send `null` to **erase** a date.
+
+    **Rule:** the end date cannot be **before** the start date. When
+    you send only one date, it is compared with the stored one.
+
+    **Example request:**
+
+    ```json
+    {
+      "started_at": "2026-01-05",
+      "finished_at": "2026-01-20"
+    }
+    ```
+    \f
+    :param service: Library service dependency
+    :param current_user: The authenticated user
+    :param id_book: ID of the book to update
+    :param dates_in: The new reading dates
+    :raises HTTPException: 400 if there is nothing to update or if the
+        end date is before the start date, 404 if not in library,
+        500 on database error
+    :return: The updated reading activity
+    """
+    try:
+        return service.update_book_dates(
+            current_user.id_user,
+            id_book,
+            dates_in,
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nothing to update.",
+        ) from None
+
+    except InvalidReadingDatesError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The end date cannot be before the start date.",
+        ) from None
+
+    except BookNotInLibraryError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book is not in the library.",
+        ) from None
+
+    except DAOError:
+        logger.exception(
+            "Failed to update dates of book %s for user %s",
+            id_book,
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update the reading dates.",
+        ) from None
+
+
 @router.get(
     "/books",
     summary="📚 List the books of my library",
@@ -324,7 +412,7 @@ def list_books(
         str | None,
         Query(
             alias="status",
-            pattern="^(READING|WANT_TO_READ|COMPLETED)$",
+            pattern="^(READING|WANT_TO_READ|COMPLETED|ABANDONED)$",
             description="Filter by reading state",
         ),
     ] = None,
@@ -334,11 +422,11 @@ def list_books(
     🔒 Authentication required
 
     **Filter:** `status` keeps only the books in one reading status
-    (`WANT_TO_READ`, `READING` or `COMPLETED`). Without it, **all**
-    your books are returned.
+    (`WANT_TO_READ`, `READING`, `COMPLETED` or `ABANDONED`). Without
+    it, **all** your books are returned.
 
     **Returns:** for each book, its details plus your reading status,
-    like and favorite flag.
+    like, favorite flag and reading dates.
 
     **Good to know:** the list is **empty** when no book matches.
     \f
@@ -375,7 +463,8 @@ def list_favorites(
 
     🔒 Authentication required
 
-    **Returns:** the books you marked as favorite, with their details.
+    **Returns:** the books you marked as favorite, with their details
+    and reading dates.
 
     **Good to know:** the list is **empty** when you have no favorite
     yet.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { moderateReview } from '../api/admin';
-import { getBook } from '../api/books';
+import { getBookDetails } from '../api/books';
 import * as reviewsApi from '../api/reviews';
 import { getFollowers, getFollowing } from '../api/users';
 import { AddToShelfDialog } from '../components/books/AddToShelfDialog';
@@ -27,7 +27,8 @@ import styles from './BookPage.module.css';
 
 export function BookPage() {
   const { bookId } = useParams();
-  const { data: book, error, loading, reload } = useAsync(() => getBook(bookId), [bookId]);
+  // GET /books/{id} returns the book plus its editions (BookDetails).
+  const { data: book, error, loading, reload } = useAsync(() => getBookDetails(bookId), [bookId]);
   useDocumentTitle(book?.title || 'Book');
 
   if (error) {
@@ -44,6 +45,7 @@ export function BookPage() {
   return (
     <>
       <BookHeader book={book} />
+      <Editions editions={book.editions || []} />
       <Reviews book={book} />
     </>
   );
@@ -76,6 +78,7 @@ function BookHeader({ book }) {
             'Unknown author'
           )}
           {year && <span className="tabular"> · first published {year}</span>}
+          {book.num_pages > 0 && <span className="tabular"> · {plural(book.num_pages, 'page')}</span>}
         </p>
 
         <div className={styles.actions}>
@@ -127,9 +130,50 @@ function BookHeader({ book }) {
   );
 }
 
+/** Editions of the book, read live from Open Library by the backend. */
+function Editions({ editions }) {
+  return (
+    <section className={`${page.section} ${styles.editions}`}>
+      <div className={styles.editionsAside}>
+        <h2>Editions</h2>
+        {editions.length > 0 && <p className={`${styles.editionCount} tabular`}>{plural(editions.length, 'edition')}</p>}
+      </div>
+      <div className={styles.editionsMain}>
+        {editions.length > 0 ? (
+          <ul className={`${page.list} ${styles.editionList}`}>
+            {editions.map((edition, index) => (
+              <EditionItem key={`${edition.isbn || edition.title || 'edition'}-${index}`} edition={edition} />
+            ))}
+          </ul>
+        ) : (
+          <p className={`${page.muted} ${styles.noEditions}`}>No edition is available from Open Library for this book right now.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function EditionItem({ edition }) {
+  const details = [
+    edition.publishers?.length ? edition.publishers.join(', ') : null,
+    edition.publish_date,
+    edition.num_pages ? plural(edition.num_pages, 'page') : null,
+    edition.language ? edition.language.toUpperCase() : null,
+    edition.isbn ? `ISBN ${edition.isbn}` : null,
+  ].filter(Boolean);
+
+  return (
+    <li className={styles.edition}>
+      <span className={styles.editionTitle}>{edition.title || 'Untitled edition'}</span>
+      {details.length > 0 && <span className={`${styles.editionMeta} tabular`}>{details.join(' · ')}</span>}
+    </li>
+  );
+}
+
 function Reviews({ book }) {
   const { user } = useAuth();
   const toast = useToast();
+  const library = useLibrary();
   const { data, error, loading, reload, setData } = useAsync(() => reviewsApi.getBookReviews(book.id_book), [book.id_book]);
   const [editing, setEditing] = useState(false);
   const [toDelete, setToDelete] = useState(null);
@@ -145,6 +189,8 @@ function Reviews({ book }) {
   const reviews = data?.reviews || [];
   const mine = reviews.find((r) => r.id_user === user.id_user);
   const others = reviews.filter((r) => r.id_user !== user.id_user);
+  // The backend only accepts a new review on a book of the user's library.
+  const inLibrary = Boolean(library.get(book.id_book));
 
   const refreshSummary = async () => setData(await reviewsApi.getBookReviews(book.id_book));
 
@@ -224,10 +270,18 @@ function Reviews({ book }) {
         {data && (
           <>
             <div className={`${page.card} ${styles.myReview}`}>
-              {!mine && (
+              {!mine && inLibrary && (
                 <>
                   <h3 className={page.cardTitle}>Rate this book</h3>
                   <ReviewForm onSubmit={create} />
+                </>
+              )}
+              {!mine && !inLibrary && (
+                <>
+                  <h3 className={page.cardTitle}>Rate this book</h3>
+                  <p className={`${page.muted} ${styles.reviewLocked}`}>
+                    You can only review a book from your library. Add this book to your library to rate it.
+                  </p>
                 </>
               )}
               {mine && editing && (

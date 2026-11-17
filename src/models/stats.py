@@ -21,5 +21,6 @@ class UserStats(BaseModel):
     """Reading statistics of a user, returned by GET /users/me/stats."""
 
     books_finished: int
+    pages_read: int
     genres: list[GenreCount]
     ratings: list[RatingCount]

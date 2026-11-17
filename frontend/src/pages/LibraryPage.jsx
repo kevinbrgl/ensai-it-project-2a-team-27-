@@ -26,6 +26,7 @@ const EMPTY_COPY = {
   READING: ['Nothing in progress', 'Books you mark as “Reading” show up here.'],
   WANT_TO_READ: ['No books waiting', 'Save books for later by adding them as “Want to read”.'],
   COMPLETED: ['No finished books yet', 'Mark a book as finished to count it in your progress.'],
+  ABANDONED: ['No abandoned books', 'Books you stopped reading show up here when you mark them as “Abandoned”.'],
   favorites: ['No favorites yet', 'Open a book in your library and choose “Add to favorites”.'],
 };
 
@@ -61,7 +62,7 @@ export function LibraryPage() {
   const pagination = usePagination(visible, PAGE_SIZE, `${tab}|${genre}|${sort}`);
 
   const counts = useMemo(() => {
-    const c = { all: library.books.length, favorites: 0, READING: 0, WANT_TO_READ: 0, COMPLETED: 0 };
+    const c = { all: library.books.length, favorites: 0, READING: 0, WANT_TO_READ: 0, COMPLETED: 0, ABANDONED: 0 };
     for (const b of library.books) {
       c[b.state] += 1;
       if (b.is_favorite) c.favorites += 1;
@@ -74,6 +75,7 @@ export function LibraryPage() {
     { value: 'READING', label: 'Reading', count: counts.READING },
     { value: 'WANT_TO_READ', label: 'Want to read', count: counts.WANT_TO_READ },
     { value: 'COMPLETED', label: 'Finished', count: counts.COMPLETED },
+    { value: 'ABANDONED', label: 'Abandoned', count: counts.ABANDONED },
     { value: 'favorites', label: 'Favorites', count: counts.favorites },
   ];
 
@@ -157,6 +159,16 @@ export function LibraryPage() {
 
 function LibraryRow({ book, library, onRemove }) {
   const [busy, setBusy] = useState(false);
+
+  // Saves one reading date through PATCH /library/books/{id}/dates. An empty
+  // field erases the date. If the backend refuses (end before start), the
+  // field goes back to the stored value.
+  const saveDate = async (field, value) => {
+    setBusy(true);
+    await library.setDates(book.id_book, { [field]: value || null });
+    setBusy(false);
+  };
+
   return (
     <BookRow
       book={book}
@@ -202,6 +214,33 @@ function LibraryRow({ book, library, onRemove }) {
           <Button size="sm" variant="ghost" icon="trash" aria-label={`Remove ${book.title}`} title="Remove from library" onClick={onRemove} />
         </>
       }
-    />
+    >
+      <div className={styles.dates}>
+        <label className={styles.dateField}>
+          Started
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={book.started_at || ''}
+            max={book.finished_at || undefined}
+            disabled={busy}
+            aria-label={`Start date of ${book.title}`}
+            onChange={(e) => saveDate('started_at', e.target.value)}
+          />
+        </label>
+        <label className={styles.dateField}>
+          Finished
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={book.finished_at || ''}
+            min={book.started_at || undefined}
+            disabled={busy}
+            aria-label={`End date of ${book.title}`}
+            onChange={(e) => saveDate('finished_at', e.target.value)}
+          />
+        </label>
+      </div>
+    </BookRow>
   );
 }

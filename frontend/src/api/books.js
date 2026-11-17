@@ -19,7 +19,7 @@ export async function listBooks({ category, author } = {}, signal) {
   return remember(await request('/books', { query: { category, author }, signal }));
 }
 
-/** GET /books/{id} */
+/** GET /books/{id} — the book alone; served from the session cache when possible. */
 export function getBook(bookId) {
   const id = Number(bookId);
   if (!bookCache.has(id)) {
@@ -30,4 +30,17 @@ export function getBook(bookId) {
     bookCache.set(id, promise);
   }
   return bookCache.get(id);
+}
+
+/**
+ * GET /books/{id} → BookDetails: the book plus `editions`, read live from
+ * Open Library by the backend. Never served from the cache, because cached
+ * search results have no editions and the list is empty when Open Library
+ * is down.
+ */
+export async function getBookDetails(bookId) {
+  const id = Number(bookId);
+  const details = await request(`/books/${id}`);
+  bookCache.set(id, Promise.resolve(details));
+  return details;
 }

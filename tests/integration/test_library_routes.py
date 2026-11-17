@@ -21,7 +21,12 @@ LIBRARY_BOOKS_URL = f"{settings.API_STR}/library/books"
 FAVORITES_URL = f"{settings.API_STR}/library/favorites"
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
+USERS_URL = f"{settings.API_STR}/users"
+ME_URL = f"{settings.API_STR}/users/me"
 PASSWORD = "password123"
+START = "2026-01-05"
+END = "2026-01-20"
+BEFORE_START = "2026-01-01"
 
 
 @pytest.fixture
@@ -91,6 +96,21 @@ def id_book(cursor: RealDictCursor) -> int:
     return row["id_book"]
 
 
+@pytest.fixture
+def id_other_book(cursor: RealDictCursor) -> int:
+    """Insert a second test book in the database and return its ID."""
+    cursor.execute(
+        """
+        INSERT INTO books (id_book_api, title)
+        VALUES ('openlib_test_route_2', 'Other Test Book API')
+        RETURNING id_book
+        """,
+    )
+    row = cursor.fetchone()
+    assert row is not None
+    return row["id_book"]
+
+
 class TestAddBookRoute:
     """Integration tests for POST /api/library/books."""
 
@@ -113,6 +133,24 @@ class TestAddBookRoute:
         assert data["id_book"] == id_book
         assert data["state"] == "READING"
         assert data["is_favorite"] is False
+        assert data["started_at"] is None
+        assert data["finished_at"] is None
+
+    def test_add_book_abandoned(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """The ABANDONED state is accepted: 201 Created."""
+        response = client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "ABANDONED"},
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["state"] == "ABANDONED"
 
     def test_unauthorized(self, client: TestClient, id_book: int) -> None:
         """Missing token: the authentication dependency rejects with 401."""
@@ -593,6 +631,69 @@ class TestListFavoritesRoute:
         assert len(theirs.json()) == 1
 
 
+class TestListBooksRoute:
+    """Integration tests for GET /api/library/books."""
+
+    def test_filter_abandoned(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+        id_other_book: int,
+    ) -> None:
+        """The ABANDONED filter keeps only the abandoned books."""
+        books = ((id_book, "ABANDONED"), (id_other_book, "READING"))
+        for book, state in books:
+            client.post(
+                LIBRARY_BOOKS_URL,
+                headers=auth_headers,
+                json={"id_book": book, "state": state},
+            )
+
+        response = client.get(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            params={"status": "ABANDONED"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert [book["id_book"] for book in data] == [id_book]
+        assert data[0]["state"] == "ABANDONED"
+
+    def test_invalid_status(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Unknown status value: 422 Unprocessable Content."""
+        response = client.get(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            params={"status": "FINISHED"},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_new_book_has_no_dates(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """A book just added is listed with both dates set to null."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        data = client.get(LIBRARY_BOOKS_URL, headers=auth_headers).json()
+
+        assert data[0]["started_at"] is None
+        assert data[0]["finished_at"] is None
+
+
 class TestUpdateBookStatusRoute:
     """Integration tests for PATCH /api/library/books/{id_book}/status."""
 
@@ -619,6 +720,28 @@ class TestUpdateBookStatusRoute:
         data = response.json()
         assert data["id_book"] == id_book
         assert data["state"] == "COMPLETED"
+
+    def test_update_status_abandoned(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """A book can be marked as abandoned: 200 OK."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/status",
+            headers=auth_headers,
+            json={"state": "ABANDONED"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["state"] == "ABANDONED"
 
     def test_invalid_state_rejected(
         self,
@@ -689,3 +812,283 @@ class TestUpdateBookStatusRoute:
 
         mine = client.get(LIBRARY_BOOKS_URL, headers=auth_headers)
         assert mine.json()[0]["state"] == "READING"
+
+
+class TestUpdateBookDatesRoute:
+    """Integration tests for PATCH /api/library/books/{id_book}/dates."""
+
+    def test_update_dates_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book in library: returns 200 OK and both dates."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "COMPLETED"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=auth_headers,
+            json={"started_at": START, "finished_at": END},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_book"] == id_book
+        assert data["state"] == "COMPLETED"
+        assert data["started_at"] == START
+        assert data["finished_at"] == END
+
+    def test_partial_update(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Only the field that is sent changes, the other one is kept."""
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}/dates"
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        first = client.patch(
+            url,
+            headers=auth_headers,
+            json={"started_at": START},
+        )
+        assert first.status_code == status.HTTP_200_OK
+        assert first.json()["started_at"] == START
+        assert first.json()["finished_at"] is None
+
+        response = client.patch(
+            url,
+            headers=auth_headers,
+            json={"finished_at": END},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["started_at"] == START
+        assert data["finished_at"] == END
+
+    def test_null_erases_a_date(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """A date sent as null is erased, the other one is kept."""
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}/dates"
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+        client.patch(
+            url,
+            headers=auth_headers,
+            json={"started_at": START, "finished_at": END},
+        )
+
+        response = client.patch(
+            url,
+            headers=auth_headers,
+            json={"finished_at": None},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["started_at"] == START
+        assert data["finished_at"] is None
+
+    def test_book_not_in_library(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Book not in library: Exception is mapped to 404 Not Found."""
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=auth_headers,
+            json={"started_at": START},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Book is not in the library."
+
+    def test_end_before_start(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """End date before start date: 400, and nothing is saved."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "COMPLETED"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=auth_headers,
+            json={"started_at": END, "finished_at": START},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == (
+            "The end date cannot be before the start date."
+        )
+        mine = client.get(LIBRARY_BOOKS_URL, headers=auth_headers).json()
+        assert mine[0]["started_at"] is None
+        assert mine[0]["finished_at"] is None
+
+    def test_end_before_stored_start(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Only the end is sent, before the stored start date: 400."""
+        url = f"{LIBRARY_BOOKS_URL}/{id_book}/dates"
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "COMPLETED"},
+        )
+        client.patch(url, headers=auth_headers, json={"started_at": START})
+
+        response = client.patch(
+            url,
+            headers=auth_headers,
+            json={"finished_at": BEFORE_START},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        mine = client.get(LIBRARY_BOOKS_URL, headers=auth_headers).json()
+        assert mine[0]["started_at"] == START
+        assert mine[0]["finished_at"] is None
+
+    def test_empty_body(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Nothing to update: 400 Bad Request."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=auth_headers,
+            json={},
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["detail"] == "Nothing to update."
+
+    def test_invalid_date(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Badly formatted date: 422 Unprocessable Content."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=auth_headers,
+            json={"started_at": "05/01/2026"},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_unauthorized(self, client: TestClient, id_book: int) -> None:
+        """Missing token: the authentication dependency rejects with 401."""
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            json={"started_at": START},
+        )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_other_user_cannot_update(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """Another user gets 404 and does not change my reading dates."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "READING"},
+        )
+
+        response = client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=other_auth_headers,
+            json={"started_at": START},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        mine = client.get(LIBRARY_BOOKS_URL, headers=auth_headers)
+        assert mine.json()[0]["started_at"] is None
+
+    def test_dates_listed_everywhere(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_auth_headers: dict[str, str],
+        id_book: int,
+    ) -> None:
+        """The dates appear in my library, my favorites and my profile."""
+        client.post(
+            LIBRARY_BOOKS_URL,
+            headers=auth_headers,
+            json={"id_book": id_book, "state": "COMPLETED"},
+        )
+        client.post(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/favorite",
+            headers=auth_headers,
+        )
+        client.patch(
+            f"{LIBRARY_BOOKS_URL}/{id_book}/dates",
+            headers=auth_headers,
+            json={"started_at": START, "finished_at": END},
+        )
+        my_id = client.get(ME_URL, headers=auth_headers).json()["id_user"]
+
+        responses = (
+            client.get(LIBRARY_BOOKS_URL, headers=auth_headers),
+            client.get(FAVORITES_URL, headers=auth_headers),
+            client.get(
+                f"{USERS_URL}/{my_id}/library",
+                headers=other_auth_headers,
+            ),
+        )
+
+        for response in responses:
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert len(data) == 1
+            assert data[0]["id_book"] == id_book
+            assert data[0]["started_at"] == START
+            assert data[0]["finished_at"] == END

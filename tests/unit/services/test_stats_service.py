@@ -13,6 +13,7 @@ from src.models.stats import GenreCount, RatingCount, UserStats
 from src.services.stats_service import StatsService
 
 ID_USER = 1
+PAGES_READ = 950
 
 
 @pytest.fixture
@@ -20,6 +21,7 @@ def mock_dao(mocker: MockerFixture) -> Mock:
     """Return a fake StatsDAO with the same methods as the real one."""
     dao = mocker.Mock(spec=StatsDAO)
     dao.count_finished_books.return_value = 0
+    dao.sum_pages_read.return_value = 0
     dao.count_genres.return_value = []
     dao.count_ratings.return_value = {}
     return dao
@@ -39,9 +41,10 @@ class TestGetStats:
         service: StatsService,
         mock_dao: Mock,
     ) -> None:
-        """The three statistics of the DAO are put together."""
+        """The four statistics of the DAO are put together."""
         genres = [GenreCount(category="Fantasy", count=2)]
         mock_dao.count_finished_books.return_value = 3
+        mock_dao.sum_pages_read.return_value = PAGES_READ
         mock_dao.count_genres.return_value = genres
         mock_dao.count_ratings.return_value = {4: 2, 5: 1}
 
@@ -49,6 +52,7 @@ class TestGetStats:
 
         assert result == UserStats(
             books_finished=3,
+            pages_read=PAGES_READ,
             genres=genres,
             ratings=[
                 RatingCount(rating=1, count=0),
@@ -58,6 +62,16 @@ class TestGetStats:
                 RatingCount(rating=5, count=1),
             ],
         )
+
+    def test_no_finished_book_gives_zero_pages(
+        self,
+        service: StatsService,
+    ) -> None:
+        """Without finished books, no page has been read."""
+        result = service.get_stats(ID_USER)
+
+        assert result.books_finished == 0
+        assert result.pages_read == 0
 
     def test_no_reviews_gives_five_zero_ratings(
         self,
@@ -83,5 +97,6 @@ class TestGetStats:
         service.get_stats(ID_USER)
 
         mock_dao.count_finished_books.assert_called_once_with(ID_USER)
+        mock_dao.sum_pages_read.assert_called_once_with(ID_USER)
         mock_dao.count_genres.assert_called_once_with(ID_USER)
         mock_dao.count_ratings.assert_called_once_with(ID_USER)

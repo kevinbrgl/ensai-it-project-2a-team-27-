@@ -3,23 +3,34 @@
 The LibraryDAO is replaced by a mock: no database is needed.
 """
 
+from datetime import date
 from unittest.mock import Mock
 
 import pytest
+from pydantic import ValidationError
 from pytest_mock import MockerFixture
 
 from src.dao.library_dao import LibraryDAO
-from src.models.library import LibraryBookAdd, LibraryBookRead
+from src.models.library import (
+    LibraryBookAdd,
+    LibraryBookRead,
+    LibraryBookUpdateDates,
+    LibraryBookUpdateStatus,
+)
 from src.services.library_service import LibraryService
 from src.utils.exceptions import (
     BookAlreadyInLibraryError,
     BookNotFoundError,
     BookNotInLibraryError,
+    InvalidReadingDatesError,
 )
 
 ID_USER = 1
 ID_BOOK = 100
 STATE = "READING"
+START = date(2026, 1, 5)
+END = date(2026, 1, 20)
+BEFORE_START = date(2026, 1, 1)
 
 
 @pytest.fixture
@@ -50,6 +61,26 @@ def book_read() -> LibraryBookRead:
         is_liked=False,
         is_favorite=False,
     )
+
+
+class TestReadingStates:
+    """Tests for the reading states accepted by the request models."""
+
+    @pytest.mark.parametrize(
+        "state",
+        ["WANT_TO_READ", "READING", "COMPLETED", "ABANDONED"],
+    )
+    def test_valid_states(self, state: str) -> None:
+        """The four reading states are accepted, ABANDONED included."""
+        assert LibraryBookAdd(id_book=ID_BOOK, state=state).state == state
+        assert LibraryBookUpdateStatus(state=state).state == state
+
+    def test_unknown_state_rejected(self) -> None:
+        """Any other state is refused by both models."""
+        with pytest.raises(ValidationError):
+            LibraryBookAdd(id_book=ID_BOOK, state="FINISHED")
+        with pytest.raises(ValidationError):
+            LibraryBookUpdateStatus(state="FINISHED")
 
 
 class TestAddBookToLibrary:
@@ -250,6 +281,21 @@ class TestListBooks:
             "READING",
         )
 
+    def test_abandoned_status(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """The ABANDONED filter is forwarded to the DAO like the others."""
+        mock_dao.find_books_by_user_id.return_value = []
+
+        service.list_books(ID_USER, status="ABANDONED")
+
+        mock_dao.find_books_by_user_id.assert_called_once_with(
+            ID_USER,
+            "ABANDONED",
+        )
+
 
 class TestUpdateBookStatus:
     """Tests for LibraryService.update_book_status."""
@@ -273,6 +319,25 @@ class TestUpdateBookStatus:
             "COMPLETED",
         )
 
+    def test_abandoned(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """A book can be marked as abandoned."""
+        abandoned = book_read.model_copy(update={"state": "ABANDONED"})
+        mock_dao.update_status.return_value = abandoned
+
+        result = service.update_book_status(ID_USER, ID_BOOK, "ABANDONED")
+
+        assert result.state == "ABANDONED"
+        mock_dao.update_status.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            "ABANDONED",
+        )
+
     def test_not_in_library(
         self,
         service: LibraryService,
@@ -289,3 +354,196 @@ class TestUpdateBookStatus:
             ID_BOOK,
             "COMPLETED",
         )
+
+
+class TestUpdateBookDates:
+    """Tests for LibraryService.update_book_dates."""
+
+    def test_both_dates(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Both dates are sent: both are written and returned."""
+        updated = book_read.model_copy(
+            update={"started_at": START, "finished_at": END},
+        )
+        mock_dao.read.return_value = book_read
+        mock_dao.update_dates.return_value = updated
+
+        result = service.update_book_dates(
+            ID_USER,
+            ID_BOOK,
+            LibraryBookUpdateDates(started_at=START, finished_at=END),
+        )
+
+        assert result == updated
+        mock_dao.read.assert_called_once_with(ID_USER, ID_BOOK)
+        mock_dao.update_dates.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            START,
+            END,
+        )
+
+    def test_partial_update_keeps_stored_date(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Only the end date is sent: the stored start date is kept."""
+        mock_dao.read.return_value = book_read.model_copy(
+            update={"started_at": START},
+        )
+
+        service.update_book_dates(
+            ID_USER,
+            ID_BOOK,
+            LibraryBookUpdateDates(finished_at=END),
+        )
+
+        mock_dao.update_dates.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            START,
+            END,
+        )
+
+    def test_null_erases_a_date(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """A date sent as null is erased, the other one is kept."""
+        mock_dao.read.return_value = book_read.model_copy(
+            update={"started_at": START, "finished_at": END},
+        )
+
+        service.update_book_dates(
+            ID_USER,
+            ID_BOOK,
+            LibraryBookUpdateDates(finished_at=None),
+        )
+
+        mock_dao.update_dates.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            START,
+            None,
+        )
+
+    def test_same_day_allowed(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """A book started and finished the same day is accepted."""
+        mock_dao.read.return_value = book_read
+
+        service.update_book_dates(
+            ID_USER,
+            ID_BOOK,
+            LibraryBookUpdateDates(started_at=START, finished_at=START),
+        )
+
+        mock_dao.update_dates.assert_called_once_with(
+            ID_USER,
+            ID_BOOK,
+            START,
+            START,
+        )
+
+    def test_empty_body(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """Nothing is sent: ValueError, the DAO is not called."""
+        with pytest.raises(ValueError, match="Nothing to update"):
+            service.update_book_dates(
+                ID_USER,
+                ID_BOOK,
+                LibraryBookUpdateDates(),
+            )
+
+        mock_dao.read.assert_not_called()
+        mock_dao.update_dates.assert_not_called()
+
+    def test_not_in_library(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+    ) -> None:
+        """Book not in the library: BookNotInLibraryError, no update."""
+        mock_dao.read.return_value = None
+
+        with pytest.raises(BookNotInLibraryError):
+            service.update_book_dates(
+                ID_USER,
+                ID_BOOK,
+                LibraryBookUpdateDates(started_at=START),
+            )
+
+        mock_dao.update_dates.assert_not_called()
+
+    def test_end_before_start(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Both dates sent, end before start: refused, no update."""
+        mock_dao.read.return_value = book_read
+
+        with pytest.raises(InvalidReadingDatesError):
+            service.update_book_dates(
+                ID_USER,
+                ID_BOOK,
+                LibraryBookUpdateDates(started_at=END, finished_at=START),
+            )
+
+        mock_dao.update_dates.assert_not_called()
+
+    def test_end_before_stored_start(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Only the end is sent, before the stored start: refused."""
+        mock_dao.read.return_value = book_read.model_copy(
+            update={"started_at": START},
+        )
+
+        with pytest.raises(InvalidReadingDatesError):
+            service.update_book_dates(
+                ID_USER,
+                ID_BOOK,
+                LibraryBookUpdateDates(finished_at=BEFORE_START),
+            )
+
+        mock_dao.update_dates.assert_not_called()
+
+    def test_start_after_stored_end(
+        self,
+        service: LibraryService,
+        mock_dao: Mock,
+        book_read: LibraryBookRead,
+    ) -> None:
+        """Only the start is sent, after the stored end: refused."""
+        mock_dao.read.return_value = book_read.model_copy(
+            update={"finished_at": START},
+        )
+
+        with pytest.raises(InvalidReadingDatesError):
+            service.update_book_dates(
+                ID_USER,
+                ID_BOOK,
+                LibraryBookUpdateDates(started_at=END),
+            )
+
+        mock_dao.update_dates.assert_not_called()

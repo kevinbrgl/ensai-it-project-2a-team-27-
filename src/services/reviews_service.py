@@ -1,6 +1,7 @@
 """Service layer for review operations."""
 
 from src.dao.books_dao import BookDAO
+from src.dao.library_dao import LibraryDAO
 from src.dao.reviews_dao import ReviewDAO
 from src.dao.users_dao import UserDAO
 from src.models.reviews import (
@@ -11,6 +12,7 @@ from src.models.reviews import (
 )
 from src.utils.exceptions import (
     BookNotFoundError,
+    BookNotInLibraryError,
     NotReviewAuthorError,
     UserNotFoundError,
 )
@@ -24,16 +26,19 @@ class ReviewService:
         review_dao: ReviewDAO,
         book_dao: BookDAO,
         user_dao: UserDAO,
+        library_dao: LibraryDAO,
     ) -> None:
         """Initialize the service with its DAOs.
 
         :param review_dao: The review data access object
         :param book_dao: The book data access object
         :param user_dao: The user data access object
+        :param library_dao: The library data access object
         """
         self.review_dao = review_dao
         self.book_dao = book_dao
         self.user_dao = user_dao
+        self.library_dao = library_dao
 
     def get_book_reviews(self, id_book: int) -> BookReviews:
         """Return the reviews of a book and its average rating.
@@ -60,13 +65,20 @@ class ReviewService:
         id_book: int,
         review_in: ReviewCreate,
     ) -> ReviewRead:
-        """Write a review on a book.
+        """Write a review on a book of the user's library.
 
         :param id_user: ID of the author
         :param id_book: ID of the book
         :param review_in: Rating and comment of the review
+        :raises BookNotFoundError: If the book does not exist
+        :raises BookNotInLibraryError: If the book is not in the
+            author's library
         :return: The created review
         """
+        if self.book_dao.read(id_book) is None:
+            raise BookNotFoundError(id_book)
+        if self.library_dao.read(id_user, id_book) is None:
+            raise BookNotInLibraryError(id_book)
         return self.review_dao.create(id_user, id_book, review_in)
 
     def _check_author(self, id_user: int, id_review: int) -> None:

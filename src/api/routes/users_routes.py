@@ -289,6 +289,53 @@ def search_users(
         ) from None
 
 
+# Declared after /me and /search, so that it does not shadow them.
+@router.get(
+    "/{user_id}",
+    response_model=UserRead,
+    status_code=status.HTTP_200_OK,
+    summary="👤 See the profile of a user",
+    responses={
+        404: {"description": "User not found"},
+        500: {"description": "Database error"},
+    },
+)
+def read_user(
+    service: UserServiceDep,
+    _current_user: CurrentUser,
+    user_id: int,
+) -> User:
+    """Return the **public profile** of any user.
+
+    🔒 Authentication required
+
+    **Returns:** their ID, username, email, bio and profile picture.
+
+    **Good to know:** the password and the private settings are
+    **never** returned.
+    \f
+    :param service: User service dependency
+    :param _current_user: Authenticated user making the request
+    :param user_id: ID of the user whose profile to retrieve
+    :raises HTTPException: 404 if the user is not found,
+        500 on database error
+    :return: The user's public profile
+    """
+    try:
+        return service.read(user_id)
+    except UserNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from None
+    except DAOError:
+        logger.exception("Failed to read the profile of user %s", user_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve the user.",
+        ) from None
+
+
 @router.post(
     "/{user_id}/follow",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -671,7 +718,7 @@ def get_user_library(
         str | None,
         Query(
             alias="status",
-            pattern="^(READING|WANT_TO_READ|COMPLETED)$",
+            pattern="^(READING|WANT_TO_READ|COMPLETED|ABANDONED)$",
             description="Filter by reading state",
         ),
     ] = None,
@@ -681,8 +728,11 @@ def get_user_library(
     🔒 Authentication required
 
     **Filter:** `status` keeps only the books in one reading status
-    (`WANT_TO_READ`, `READING` or `COMPLETED`). Without it, **all**
-    the books are returned.
+    (`WANT_TO_READ`, `READING`, `COMPLETED` or `ABANDONED`). Without
+    it, **all** the books are returned.
+
+    **Returns:** for each book, its details plus the reading status,
+    like, favorite flag and reading dates of the user.
 
     **Good to know:** every logged-in user can see the library of
     **any user**, even without following them.
@@ -776,6 +826,8 @@ def read_my_stats(
     **Returns:**
 
     - ✅ `books_finished`: number of books you **completed**
+    - 📄 `pages_read`: total pages of the books you **completed**
+      (a book without a page count counts as 0)
     - 🏷️ `genres`: number of books of your library **per category**
     - ⭐ `ratings`: number of your reviews **per rating**
 
@@ -784,6 +836,7 @@ def read_my_stats(
     ```json
     {
       "books_finished": 12,
+      "pages_read": 4310,
       "genres": [
         {"category": "Fantasy", "count": 7},
         {"category": "Science Fiction", "count": 5}
@@ -838,6 +891,7 @@ def get_user_stats(
     **Returns:**
 
     - ✅ `books_finished`: number of books they **completed**
+    - 📄 `pages_read`: total pages of the books they **completed**
     - 🏷️ `genres`: number of books of their library **per category**
     - ⭐ `ratings`: number of their reviews **per rating**
     \f

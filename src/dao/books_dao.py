@@ -36,11 +36,12 @@ class BookDAO:
                 """
                 INSERT INTO books (
                     id_book_api, title, author, category,
-                    publish_date, description, cover_image
+                    publish_date, description, cover_image, num_pages
                 )
                 VALUES (
                     %(id_book_api)s, %(title)s, %(author)s, %(category)s,
-                    %(publish_date)s, %(description)s, %(cover_image)s
+                    %(publish_date)s, %(description)s, %(cover_image)s,
+                    %(num_pages)s
                 )
                 RETURNING *
                 """,
@@ -70,11 +71,12 @@ class BookDAO:
                 """
                 INSERT INTO books (
                     id_book_api, title, author, category,
-                    publish_date, description, cover_image
+                    publish_date, description, cover_image, num_pages
                 )
                 VALUES (
                     %(id_book_api)s, %(title)s, %(author)s, %(category)s,
-                    %(publish_date)s, %(description)s, %(cover_image)s
+                    %(publish_date)s, %(description)s, %(cover_image)s,
+                    %(num_pages)s
                 )
                 ON CONFLICT (id_book_api) DO UPDATE SET
                     title = EXCLUDED.title,
@@ -88,6 +90,9 @@ class BookDAO:
                     ),
                     cover_image = COALESCE(
                         EXCLUDED.cover_image, books.cover_image
+                    ),
+                    num_pages = COALESCE(
+                        EXCLUDED.num_pages, books.num_pages
                     )
                 RETURNING *
                 """,
@@ -113,7 +118,8 @@ class BookDAO:
             self.cur.execute(
                 """
                 SELECT id_book, id_book_api, title, author,
-                       category, publish_date, description, cover_image
+                       category, publish_date, description, cover_image,
+                       num_pages
                 FROM books
                 WHERE id_book = %s
                 """,
@@ -135,7 +141,8 @@ class BookDAO:
             self.cur.execute(
                 """
                 SELECT id_book, id_book_api, title, author,
-                       category, publish_date, description, cover_image
+                       category, publish_date, description, cover_image,
+                       num_pages
                 FROM books
                 WHERE id_book_api = %s
                 """,
@@ -157,7 +164,8 @@ class BookDAO:
             self.cur.execute(
                 """
                 SELECT id_book, id_book_api, title, author,
-                       category, publish_date, description, cover_image
+                       category, publish_date, description, cover_image,
+                       num_pages
                 FROM books
                 WHERE author ILIKE %s
                 """,
@@ -179,7 +187,8 @@ class BookDAO:
             self.cur.execute(
                 """
                 SELECT id_book, id_book_api, title, author,
-                       category, publish_date, description, cover_image
+                       category, publish_date, description, cover_image,
+                       num_pages
                 FROM books
                 WHERE category ILIKE %s
                 """,
@@ -200,7 +209,8 @@ class BookDAO:
             self.cur.execute(
                 """
                 SELECT id_book, id_book_api, title, author,
-                       category, publish_date, description, cover_image
+                       category, publish_date, description, cover_image,
+                       num_pages
                 FROM books
                 ORDER BY id_book ASC
                 """,
@@ -226,7 +236,8 @@ class BookDAO:
         """
         query = """
             SELECT id_book, id_book_api, title, author,
-                   category, publish_date, description, cover_image
+                   category, publish_date, description, cover_image,
+                   num_pages
             FROM books
         """
         conditions: list[str] = []

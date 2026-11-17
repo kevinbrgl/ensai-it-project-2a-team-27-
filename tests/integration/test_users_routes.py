@@ -123,6 +123,139 @@ class TestReadSelf:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
+class TestReadUser:
+    """Integration tests for GET /api/users/{user_id}."""
+
+    def test_other_user(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """Existing user: 200 with their public profile."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        target_id = search_res.json()[0]["id_user"]
+
+        response = client.get(
+            f"{USERS_URL}/{target_id}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert body["id_user"] == target_id
+        assert body["username"] == other_username
+        assert body["email"] == f"{other_username}@ensai.fr"
+        assert body["bio"] is None
+
+    def test_only_public_fields(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+    ) -> None:
+        """The response holds the public fields only, never the password."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        target_id = search_res.json()[0]["id_user"]
+
+        body = client.get(
+            f"{USERS_URL}/{target_id}",
+            headers=auth_headers,
+        ).json()
+
+        assert set(body) == PUBLIC_FIELDS
+        assert "password_hash" not in body
+
+    def test_own_id(
+        self,
+        client: TestClient,
+        username: str,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """My own ID gives the same profile as GET /users/me."""
+        me = client.get(ME_URL, headers=auth_headers).json()
+
+        response = client.get(
+            f"{USERS_URL}/{me['id_user']}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == me
+        assert response.json()["username"] == username
+
+    def test_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Unknown user: 404 Not Found."""
+        response = client.get(
+            f"{USERS_URL}/999999999",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_invalid_id(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Non-integer user ID: 422 (validation error)."""
+        response = client.get(f"{USERS_URL}/abc", headers=auth_headers)
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_no_token(self, client: TestClient) -> None:
+        """No token: 401."""
+        response = client.get(f"{USERS_URL}/2")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_database_error(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+        mocker: MockerFixture,
+    ) -> None:
+        """Database error in DAO returns 500."""
+        search_res = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+        target_id = search_res.json()[0]["id_user"]
+        real_read = UserService.read
+
+        def read(service: UserService, user_id: int) -> object:
+            """Fail for the viewed user only, not for the logged-in one."""
+            if user_id == target_id:
+                msg = "Database error"
+                raise DAOError(msg)
+            return real_read(service, user_id)
+
+        mocker.patch.object(UserService, "read", read)
+
+        response = client.get(
+            f"{USERS_URL}/{target_id}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not retrieve the user."
+
+
 class TestSearchUsersRoute:
     """Integration tests for GET /api/users/search."""
 

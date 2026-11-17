@@ -34,6 +34,7 @@ from src.utils.exceptions import (
 
 USERS_URL = f"{settings.API_STR}/users"
 PUBLIC_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
+PAGES_READ = 3200
 
 
 @pytest.fixture
@@ -117,6 +118,7 @@ class TestSearchUsersUnitRoute:
             username="ali",
             limit=10,
         )
+        mock_service.read.assert_not_called()
 
     def test_search_users_empty_results(
         self,
@@ -192,6 +194,102 @@ class TestSearchUsersUnitRoute:
                 status.HTTP_401_UNAUTHORIZED,
                 status.HTTP_403_FORBIDDEN,
             }
+        finally:
+            app.dependency_overrides.clear()
+
+
+class TestReadUserUnitRoute:
+    """Unit tests for GET /api/users/{user_id}."""
+
+    def test_read_user_success_200(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_matched_user: User,
+    ) -> None:
+        """Existing user returns 200 with the public profile only."""
+        mock_service.read.return_value = fake_matched_user
+
+        response = client.get(f"{USERS_URL}/2")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id_user"] == fake_matched_user.id_user
+        assert data["username"] == "alicia"
+        assert data["email"] == "alicia@ensai.fr"
+        assert set(data.keys()) == PUBLIC_FIELDS
+        assert "password_hash" not in data
+        mock_service.read.assert_called_once_with(2)
+
+    def test_read_user_not_found_404(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Unknown user returns 404 Not Found."""
+        mock_service.read.side_effect = UserNotFoundError(user_id=999)
+
+        response = client.get(f"{USERS_URL}/999")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "User not found."
+
+    def test_read_user_dao_error_500(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """DAOError returns 500 Internal Server Error."""
+        mock_service.read.side_effect = DAOError("DB error")
+
+        response = client.get(f"{USERS_URL}/2")
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert response.json()["detail"] == "Could not retrieve the user."
+
+    def test_read_user_invalid_id_422(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """Non-integer user ID returns 422 and the service is not called."""
+        response = client.get(f"{USERS_URL}/not-a-number")
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        mock_service.read.assert_not_called()
+
+    def test_read_user_does_not_shadow_me(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_user: User,
+    ) -> None:
+        """GET /users/me still returns the logged-in user's profile."""
+        response = client.get(f"{USERS_URL}/me")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["username"] == fake_user.username
+        mock_service.read.assert_not_called()
+
+    def test_read_user_unauthenticated(
+        self,
+        mock_service: Mock,
+    ) -> None:
+        """Unauthenticated request is rejected with 401 or 403."""
+
+        def dummy_cursor() -> Generator[Mock]:
+            yield Mock()
+
+        app.dependency_overrides[get_cursor] = dummy_cursor
+        app.dependency_overrides[get_user_service] = lambda: mock_service
+        try:
+            unauth_client = TestClient(app)
+            response = unauth_client.get(f"{USERS_URL}/2")
+            assert response.status_code in {
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+            }
+            mock_service.read.assert_not_called()
         finally:
             app.dependency_overrides.clear()
 
@@ -577,11 +675,13 @@ class TestReadMyStatsUnitRoute:
     def test_read_my_stats_success_200(
         self,
         client: TestClient,
+        mock_service: Mock,
         mock_stats_service: Mock,
     ) -> None:
         """Retrieving own stats returns 200 with UserStats payload."""
         mock_stats_service.get_stats.return_value = UserStats(
             books_finished=10,
+            pages_read=PAGES_READ,
             genres=[GenreCount(category="Finance", count=10)],
             ratings=[RatingCount(rating=5, count=10)],
         )
@@ -591,7 +691,9 @@ class TestReadMyStatsUnitRoute:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["books_finished"] == 10  # ruff: ignore[magic-value-comparison]
+        assert data["pages_read"] == PAGES_READ
         mock_stats_service.get_stats.assert_called_once_with(1)
+        mock_service.read.assert_not_called()
 
     def test_read_my_stats_dao_error_500(
         self,
@@ -629,6 +731,7 @@ class TestGetUserStatsUnitRoute:
 
         mock_stats_service.get_stats.return_value = UserStats(
             books_finished=5,
+            pages_read=PAGES_READ,
             genres=[GenreCount(category="Finance", count=5)],
             ratings=[RatingCount(rating=5, count=5)],
         )
@@ -638,6 +741,7 @@ class TestGetUserStatsUnitRoute:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["books_finished"] == 5  # ruff: ignore[magic-value-comparison]
+        assert data["pages_read"] == PAGES_READ
         mock_service.read.assert_called_once_with(user_id=2)
         mock_service.get_following.assert_called_once_with(1)
         mock_stats_service.get_stats.assert_called_once_with(id_user=2)

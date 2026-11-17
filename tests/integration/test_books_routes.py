@@ -1,6 +1,7 @@
 """Integration tests for the book search routes.
 
 Uses FastAPI TestClient with the rolled-back test cursor.
+Open Library is always mocked: no external network access is needed.
 """
 
 from collections.abc import Generator
@@ -26,6 +27,21 @@ SEARCH_URL = f"{settings.API_STR}/books/search"
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 PASSWORD = "password123"
+NB_PAGES = 1193
+EDITION_PAGES = 255
+EDITIONS_PAYLOAD = {
+    "entries": [
+        {
+            "title": "Foundation",
+            "publishers": ["Gnome Press"],
+            "publish_date": "1951",
+            "number_of_pages": EDITION_PAGES,
+            "isbn_10": ["0553293354"],
+            "languages": [{"key": "/languages/eng"}],
+        },
+        {"title": "Fondation", "languages": [{"key": "/languages/fre"}]},
+    ],
+}
 
 
 @pytest.fixture
@@ -96,6 +112,7 @@ class TestSearchBooksRoute:
                     "subject": ["Fantasy"],
                     "first_publish_year": 1954,
                     "cover_i": 8231856,
+                    "number_of_pages_median": NB_PAGES,
                 },
             ],
         }
@@ -118,6 +135,36 @@ class TestSearchBooksRoute:
         assert data[0]["title"] == "The Lord of the Rings"
         assert data[0]["author"] == "J.R.R. Tolkien"
         assert data[0]["id_book"] is not None
+        assert data[0]["num_pages"] == NB_PAGES
+
+    def test_search_stores_num_pages(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+        mocker: MockerFixture,
+    ) -> None:
+        """The page count sent by Open Library is saved in the catalog."""
+        key = f"/works/OL{uuid4().hex[:8]}W"
+        mocker.patch.object(
+            BookService,
+            "_fetch_open_library",
+            return_value={
+                "docs": [
+                    {
+                        "key": key,
+                        "title": "Stored pages",
+                        "number_of_pages_median": NB_PAGES,
+                    },
+                ],
+            },
+        )
+
+        client.get(SEARCH_URL, params={"q": "pages"}, headers=auth_headers)
+
+        stored = book_dao.read_by_api_id(key)
+        assert stored is not None
+        assert stored.num_pages == NB_PAGES
 
     def test_search_ol_unavailable_502(
         self,
@@ -300,8 +347,14 @@ class TestGetBookDetailsRoute:
         client: TestClient,
         auth_headers: dict[str, str],
         book_dao: BookDAO,
+        mocker: MockerFixture,
     ) -> None:
         """Existing book returns 200 with full book details."""
+        mock_fetch = mocker.patch.object(
+            BookService,
+            "_fetch_editions",
+            return_value=EDITIONS_PAYLOAD,
+        )
         created = book_dao.create(
             BookCreate(
                 title="Foundation",
@@ -311,6 +364,7 @@ class TestGetBookDetailsRoute:
                 description="A galactic empire falls into chaos.",
                 cover_image="https://example.com/foundation.jpg",
                 id_book_api="/works/OL99999W",
+                num_pages=EDITION_PAGES,
             ),
         )
 
@@ -329,3 +383,75 @@ class TestGetBookDetailsRoute:
         assert data["description"] == "A galactic empire falls into chaos."
         assert data["cover_image"] == "https://example.com/foundation.jpg"
         assert data["id_book_api"] == "/works/OL99999W"
+        assert data["num_pages"] == EDITION_PAGES
+        assert data["editions"] == [
+            {
+                "title": "Foundation",
+                "publishers": ["Gnome Press"],
+                "publish_date": "1951",
+                "num_pages": EDITION_PAGES,
+                "isbn": "0553293354",
+                "language": "eng",
+            },
+            {
+                "title": "Fondation",
+                "publishers": [],
+                "publish_date": None,
+                "num_pages": None,
+                "isbn": None,
+                "language": "fre",
+            },
+        ]
+        mock_fetch.assert_called_once_with("/works/OL99999W")
+
+    def test_get_book_ol_unavailable_empty_editions(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+        mocker: MockerFixture,
+    ) -> None:
+        """Open Library down: 200 with the book and no editions."""
+        mocker.patch.object(
+            BookService,
+            "_fetch_editions",
+            side_effect=ExternalServiceError("Open Library down"),
+        )
+        created = book_dao.create(
+            BookCreate(
+                title="I, Robot",
+                id_book_api=f"/works/OL{uuid4().hex[:8]}W",
+            ),
+        )
+
+        response = client.get(
+            f"{BOOKS_URL}/{created.id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["title"] == "I, Robot"
+        assert data["editions"] == []
+
+    def test_get_book_without_work_key_empty_editions(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        book_dao: BookDAO,
+        mocker: MockerFixture,
+    ) -> None:
+        """Book without a work key: no editions, Open Library not called."""
+        mock_fetch = mocker.patch.object(BookService, "_fetch_editions")
+        created = book_dao.create(BookCreate(title="Local book"))
+
+        response = client.get(
+            f"{BOOKS_URL}/{created.id_book}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["num_pages"] is None
+        assert data["editions"] == []
+        mock_fetch.assert_not_called()

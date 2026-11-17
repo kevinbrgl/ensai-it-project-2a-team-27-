@@ -10,12 +10,14 @@ import pytest
 from pytest_mock import MockerFixture
 
 from src.dao.books_dao import BookDAO
+from src.dao.library_dao import LibraryDAO
 from src.dao.reviews_dao import ReviewDAO
 from src.dao.users_dao import UserDAO
 from src.models.reviews import ReviewCreate, ReviewRead, ReviewUpdate
 from src.services.reviews_service import ReviewService
 from src.utils.exceptions import (
     BookNotFoundError,
+    BookNotInLibraryError,
     NotReviewAuthorError,
     ReviewNotFoundError,
     UserNotFoundError,
@@ -48,13 +50,20 @@ def user_dao(mocker: MockerFixture) -> Mock:
 
 
 @pytest.fixture
+def library_dao(mocker: MockerFixture) -> Mock:
+    """Return a fake LibraryDAO."""
+    return mocker.Mock(spec=LibraryDAO)
+
+
+@pytest.fixture
 def service(
     review_dao: Mock,
     book_dao: Mock,
     user_dao: Mock,
+    library_dao: Mock,
 ) -> ReviewService:
     """Return a ReviewService using the mocked DAOs."""
-    return ReviewService(review_dao, book_dao, user_dao)
+    return ReviewService(review_dao, book_dao, user_dao, library_dao)
 
 
 @pytest.fixture
@@ -131,20 +140,58 @@ class TestCreateReview:
         self,
         service: ReviewService,
         review_dao: Mock,
+        book_dao: Mock,
+        library_dao: Mock,
         review: ReviewRead,
     ) -> None:
-        """The review is created by the DAO and returned."""
+        """Book in the library: the review is created and returned."""
         review_in = ReviewCreate(rating=4, comment="Very good book")
+        book_dao.read.return_value = Mock()
+        library_dao.read.return_value = Mock()
         review_dao.create.return_value = review
 
         result = service.create_review(AUTHOR_ID, ID_BOOK, review_in)
 
         assert result == review
+        library_dao.read.assert_called_once_with(AUTHOR_ID, ID_BOOK)
         review_dao.create.assert_called_once_with(
             AUTHOR_ID,
             ID_BOOK,
             review_in,
         )
+
+    def test_book_not_in_library_raises(
+        self,
+        service: ReviewService,
+        review_dao: Mock,
+        book_dao: Mock,
+        library_dao: Mock,
+    ) -> None:
+        """Book not in the library: refused, nothing is created."""
+        book_dao.read.return_value = Mock()
+        library_dao.read.return_value = None
+
+        with pytest.raises(BookNotInLibraryError):
+            service.create_review(AUTHOR_ID, ID_BOOK, ReviewCreate(rating=4))
+
+        library_dao.read.assert_called_once_with(AUTHOR_ID, ID_BOOK)
+        review_dao.create.assert_not_called()
+
+    def test_unknown_book_raises(
+        self,
+        service: ReviewService,
+        review_dao: Mock,
+        book_dao: Mock,
+        library_dao: Mock,
+    ) -> None:
+        """Unknown book: BookNotFoundError, the library is not read."""
+        book_dao.read.return_value = None
+
+        with pytest.raises(BookNotFoundError):
+            service.create_review(AUTHOR_ID, ID_BOOK, ReviewCreate(rating=4))
+
+        library_dao.read.assert_not_called()
+        review_dao.create.assert_not_called()
 
 
 class TestUpdateReview:
@@ -154,9 +201,10 @@ class TestUpdateReview:
         self,
         service: ReviewService,
         review_dao: Mock,
+        library_dao: Mock,
         review: ReviewRead,
     ) -> None:
-        """The author can edit the review."""
+        """The author can edit the review, whatever their library."""
         review_in = ReviewUpdate(rating=5)
         review_dao.find_by_id.return_value = review
         review_dao.update.return_value = review
@@ -165,6 +213,7 @@ class TestUpdateReview:
 
         assert result == review
         review_dao.update.assert_called_once_with(ID_REVIEW, review_in)
+        library_dao.read.assert_not_called()
 
     def test_other_user_cannot_update(
         self,
@@ -209,14 +258,16 @@ class TestDeleteReview:
         self,
         service: ReviewService,
         review_dao: Mock,
+        library_dao: Mock,
         review: ReviewRead,
     ) -> None:
-        """The author can delete the review."""
+        """The author can delete the review, whatever their library."""
         review_dao.find_by_id.return_value = review
 
         service.delete_review(AUTHOR_ID, ID_REVIEW)
 
         review_dao.delete.assert_called_once_with(ID_REVIEW)
+        library_dao.read.assert_not_called()
 
     def test_other_user_cannot_delete(
         self,

@@ -27,6 +27,7 @@ const LIBRARY_FILTERS = [
   { value: 'READING', label: STATUS_LABELS.READING },
   { value: 'WANT_TO_READ', label: STATUS_LABELS.WANT_TO_READ },
   { value: 'COMPLETED', label: STATUS_LABELS.COMPLETED },
+  { value: 'ABANDONED', label: STATUS_LABELS.ABANDONED },
 ];
 
 export function UserPage() {

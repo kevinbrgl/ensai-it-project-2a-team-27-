@@ -1,7 +1,8 @@
 import { request } from './client';
 
-// The backend has no "get user by id" route, so usernames are remembered
-// whenever a user object passes through the app (search, followers…).
+// Usernames are remembered whenever a user object passes through the app
+// (search, followers, profile…), so lists of reviews can show them without
+// one request per user.
 const knownUsers = new Map();
 
 function remember(users) {
@@ -12,6 +13,13 @@ function remember(users) {
 /** Returns a user seen earlier in the session, if any. */
 export function getKnownUser(idUser) {
   return knownUsers.get(Number(idUser)) || null;
+}
+
+/** GET /users/{id} → UserRead (public profile of any user) */
+export async function getUser(idUser) {
+  const user = await request(`/users/${idUser}`);
+  remember([user]);
+  return user;
 }
 
 /**
@@ -81,7 +89,7 @@ export function getUserPlaylists(idUser) {
   return request(`/users/${idUser}/playlists`);
 }
 
-/** GET /users/me/stats → { books_finished, genres, ratings } */
+/** GET /users/me/stats → { books_finished, pages_read, genres, ratings } */
 export function getMyStats() {
   return request('/users/me/stats');
 }

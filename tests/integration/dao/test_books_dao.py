@@ -11,6 +11,9 @@ import pytest
 from src.dao.books_dao import BookDAO
 from src.models.books import Book, BookCreate
 
+NB_PAGES = 412
+NEW_NB_PAGES = 896
+
 
 @pytest.fixture
 def sample_book_create() -> BookCreate:
@@ -23,6 +26,7 @@ def sample_book_create() -> BookCreate:
         publish_date=date(1965, 8, 1),
         description="Epic sci-fi novel",
         cover_image="https://covers.openlibrary.org/b/id/111-M.jpg",
+        num_pages=NB_PAGES,
     )
 
 
@@ -52,6 +56,16 @@ class TestCreate:
         assert book.category == sample_book_create.category
         assert book.publish_date == sample_book_create.publish_date
         assert book.id_book_api == sample_book_create.id_book_api
+        assert book.num_pages == NB_PAGES
+
+    def test_without_num_pages(self, book_dao: BookDAO) -> None:
+        """A book without a page count is stored with num_pages NULL."""
+        book = book_dao.create(BookCreate(title="No page count"))
+
+        assert book.num_pages is None
+        found = book_dao.read(book.id_book)
+        assert found is not None
+        assert found.num_pages is None
 
 
 class TestUpsert:
@@ -66,6 +80,7 @@ class TestUpsert:
         book = book_dao.upsert(sample_book_create)
         assert isinstance(book.id_book, int)
         assert book.title == sample_book_create.title
+        assert book.num_pages == NB_PAGES
 
     def test_upsert_existing_updates(
         self,
@@ -85,6 +100,35 @@ class TestUpsert:
         assert updated_book.title == "Dune (Updated Edition)"
         assert updated_book.category == "Sci-Fi / Space Opera"
 
+    def test_upsert_keeps_num_pages_when_missing(
+        self,
+        book_dao: BookDAO,
+        created_book: Book,
+    ) -> None:
+        """An upsert without a page count keeps the stored one."""
+        updated_book = book_dao.upsert(
+            BookCreate(id_book_api=created_book.id_book_api, title="Dune"),
+        )
+
+        assert updated_book.num_pages == NB_PAGES
+
+    def test_upsert_updates_num_pages(
+        self,
+        book_dao: BookDAO,
+        created_book: Book,
+    ) -> None:
+        """An upsert with a page count replaces the stored one."""
+        updated_book = book_dao.upsert(
+            BookCreate(
+                id_book_api=created_book.id_book_api,
+                title="Dune",
+                num_pages=NEW_NB_PAGES,
+            ),
+        )
+
+        assert updated_book.id_book == created_book.id_book
+        assert updated_book.num_pages == NEW_NB_PAGES
+
 
 class TestRead:
     """Tests for BookDAO.read and read_by_api_id."""
@@ -93,6 +137,8 @@ class TestRead:
         """Reading an existing book returns it."""
         found = book_dao.read(created_book.id_book)
         assert found == created_book
+        assert found is not None
+        assert found.num_pages == NB_PAGES
 
     def test_read_not_found(self, book_dao: BookDAO) -> None:
         """Reading an unknown id returns None."""
@@ -153,6 +199,25 @@ class TestFind:
         )
         assert len(results) >= 1
         assert any(b.id_book == created_book.id_book for b in results)
+
+    def test_find_returns_num_pages(
+        self,
+        book_dao: BookDAO,
+        created_book: Book,
+    ) -> None:
+        """Every find method returns the number of pages of the book."""
+        result_lists = (
+            book_dao.find_by_author("Herbert"),
+            book_dao.find_by_category("Science Fiction"),
+            book_dao.find_all(),
+            book_dao.find_books(category="Science Fiction", author="Herbert"),
+        )
+
+        for results in result_lists:
+            found = next(
+                b for b in results if b.id_book == created_book.id_book
+            )
+            assert found.num_pages == NB_PAGES
 
     def test_find_books_no_match(
         self,

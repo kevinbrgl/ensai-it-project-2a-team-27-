@@ -40,6 +40,33 @@ class StatsDAO:
 
         return row["count"] if row else 0
 
+    def sum_pages_read(self, id_user: int) -> int:
+        """Sum the pages of the books a user has finished reading.
+
+        Books without a known number of pages count as 0.
+
+        :param id_user: ID of the user
+        :raises DAOError: If a DB error occurs
+        :return: Total number of pages of the COMPLETED books
+        """
+        try:
+            self.cur.execute(
+                """
+                SELECT COALESCE(SUM(books.num_pages), 0) AS pages
+                FROM user_book_activities
+                JOIN books ON books.id_book = user_book_activities.id_book
+                WHERE user_book_activities.id_user = %s
+                  AND user_book_activities.state = 'COMPLETED'
+                """,
+                (id_user,),
+            )
+            row = self.cur.fetchone()
+
+        except DBError as exc:
+            raise DAOError from exc
+
+        return int(row["pages"]) if row else 0
+
     def count_genres(self, id_user: int) -> list[GenreCount]:
         """Count the books read or being read by a user, by category.
 

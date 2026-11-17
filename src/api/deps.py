@@ -210,7 +210,12 @@ PlaylistServiceDep = Annotated[PlaylistService, Depends(get_playlist_service)]
 
 def get_review_service(cursor: CursorDep) -> ReviewService:
     """Build a ReviewService bound to the request cursor."""
-    return ReviewService(ReviewDAO(cursor), BookDAO(cursor), UserDAO(cursor))
+    return ReviewService(
+        ReviewDAO(cursor),
+        BookDAO(cursor),
+        UserDAO(cursor),
+        LibraryDAO(cursor),
+    )
 
 
 ReviewServiceDep = Annotated[ReviewService, Depends(get_review_service)]

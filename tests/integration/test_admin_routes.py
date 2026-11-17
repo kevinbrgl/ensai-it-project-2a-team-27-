@@ -13,6 +13,7 @@ API = settings.API_STR
 REGISTER_URL = f"{API}/auth/register"
 LOGIN_URL = f"{API}/auth/login"
 ME_URL = f"{API}/users/me"
+LIBRARY_BOOKS_URL = f"{API}/library/books"
 PASSWORD = "password123"
 UNKNOWN_ID = 999_999_999
 
@@ -194,11 +195,19 @@ class TestModerateReview:
         row = cursor.fetchone()
         assert row is not None
         id_book = row["id_book"]
+        # A review can only be written on a book of the user's library
+        added = client.post(
+            LIBRARY_BOOKS_URL,
+            headers=target[0],
+            json={"id_book": id_book, "state": "COMPLETED"},
+        )
+        assert added.status_code == status.HTTP_201_CREATED
         created = client.post(
             f"{API}/books/{id_book}/reviews",
             headers=target[0],
             json={"rating": 1, "comment": "spam"},
         )
+        assert created.status_code == status.HTTP_201_CREATED
         id_review = created.json()["id_review"]
 
         response = client.delete(

@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from src.api.deps import get_book_service, get_cursor, get_user
 from src.core.config import settings
 from src.main import app
-from src.models.books import Book
+from src.models.books import Book, BookDetails, Edition
 from src.models.users import User
 from src.services.books_service import BookService
 from src.utils.exceptions import (
@@ -27,6 +27,8 @@ from src.utils.exceptions import (
 BOOKS_URL = f"{settings.API_STR}/books"
 TEST_BOOK_ID = 42
 NON_EXISTING_BOOK_ID = 999
+NB_PAGES = 412
+EDITION_PAGES = 528
 
 
 @pytest.fixture
@@ -60,6 +62,25 @@ def fake_book() -> Book:
         publish_date=date(1965, 8, 1),
         description="A masterpiece of science fiction.",
         cover_image="https://covers.openlibrary.org/b/id/111-M.jpg",
+        num_pages=NB_PAGES,
+    )
+
+
+@pytest.fixture
+def fake_details(fake_book: Book) -> BookDetails:
+    """Return the fake book with one edition from Open Library."""
+    return BookDetails(
+        **fake_book.model_dump(),
+        editions=[
+            Edition(
+                title="Dune",
+                publishers=["Ace Books"],
+                publish_date="1990",
+                num_pages=EDITION_PAGES,
+                isbn="9780441172719",
+                language="eng",
+            ),
+        ],
     )
 
 
@@ -100,24 +121,66 @@ class TestGetBookDetailsRoute:
         self,
         client: TestClient,
         mock_service: Mock,
-        fake_book: Book,
+        fake_details: BookDetails,
     ) -> None:
         """Found book returns 200 with full book details."""
-        mock_service.get_book.return_value = fake_book
+        mock_service.get_book_details.return_value = fake_details
 
         response = client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        assert data["id_book"] == fake_book.id_book
+        assert data["id_book"] == fake_details.id_book
+        assert data["title"] == fake_details.title
+        assert data["author"] == fake_details.author
+        assert data["category"] == fake_details.category
+        assert data["publish_date"] == str(fake_details.publish_date)
+        assert data["description"] == fake_details.description
+        assert data["cover_image"] == fake_details.cover_image
+        assert data["id_book_api"] == fake_details.id_book_api
+        assert data["num_pages"] == NB_PAGES
+        mock_service.get_book_details.assert_called_once_with(TEST_BOOK_ID)
+
+    def test_get_book_returns_editions(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_details: BookDetails,
+    ) -> None:
+        """The editions of the book are returned with all their fields."""
+        mock_service.get_book_details.return_value = fake_details
+
+        response = client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["editions"] == [
+            {
+                "title": "Dune",
+                "publishers": ["Ace Books"],
+                "publish_date": "1990",
+                "num_pages": EDITION_PAGES,
+                "isbn": "9780441172719",
+                "language": "eng",
+            },
+        ]
+
+    def test_get_book_without_editions(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        fake_book: Book,
+    ) -> None:
+        """A book without editions returns 200 with an empty list."""
+        mock_service.get_book_details.return_value = BookDetails(
+            **fake_book.model_dump(),
+        )
+
+        response = client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
         assert data["title"] == fake_book.title
-        assert data["author"] == fake_book.author
-        assert data["category"] == fake_book.category
-        assert data["publish_date"] == str(fake_book.publish_date)
-        assert data["description"] == fake_book.description
-        assert data["cover_image"] == fake_book.cover_image
-        assert data["id_book_api"] == fake_book.id_book_api
-        mock_service.get_book.assert_called_once_with(TEST_BOOK_ID)
+        assert data["editions"] == []
 
     def test_get_book_not_found_404(
         self,
@@ -125,7 +188,7 @@ class TestGetBookDetailsRoute:
         mock_service: Mock,
     ) -> None:
         """Non-existing book raises 404 Not Found."""
-        mock_service.get_book.side_effect = BookNotFoundError(
+        mock_service.get_book_details.side_effect = BookNotFoundError(
             book_id=NON_EXISTING_BOOK_ID,
         )
 
@@ -140,7 +203,9 @@ class TestGetBookDetailsRoute:
         mock_service: Mock,
     ) -> None:
         """DAOError from database raises 500 Internal Server Error."""
-        mock_service.get_book.side_effect = DAOError("DB connection failed")
+        mock_service.get_book_details.side_effect = DAOError(
+            "DB connection failed",
+        )
 
         response = client.get(f"{BOOKS_URL}/{TEST_BOOK_ID}")
 
@@ -185,6 +250,7 @@ class TestSearchBooksUnitRoute:
         data = response.json()
         assert len(data) == 1
         assert data[0]["title"] == "Dune"
+        assert data[0]["num_pages"] == NB_PAGES
         mock_service.search_books.assert_called_once_with(
             query="dune",
             limit=10,
