@@ -751,6 +751,61 @@ class TestGetMyQuestsRoute:
         }
 
 
+class TestGetMyAchievementsRoute:
+    """Integration tests for GET /api/users/me/achievements."""
+
+    def test_get_my_achievements_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Retrieving my achievements returns 200 with list of trophies."""
+        response = client.get(
+            f"{USERS_URL}/me/achievements",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        achievements = response.json()
+        assert len(achievements) >= 1
+        first = achievements[0]
+        assert "id_achievement" in first
+        assert "title" in first
+        assert "description" in first
+        assert "category" in first
+        assert "tier" in first
+        assert "icon" in first
+        assert "is_unlocked" in first
+        assert "progress" in first
+        assert "target" in first
+        assert "progress_percentage" in first
+
+    def test_get_my_achievements_filtered(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Filtering with status=locked returns only locked achievements."""
+        response = client.get(
+            f"{USERS_URL}/me/achievements?status=locked",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        achievements = response.json()
+        for a in achievements:
+            assert a["is_unlocked"] is False
+
+    def test_get_my_achievements_unauthenticated(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Unauthenticated request returns 401."""
+        response = client.get(f"{USERS_URL}/me/achievements")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+
 class TestUpdateSelf:
     """Integration tests for PATCH /api/users/me."""
 
