@@ -1,18 +1,22 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { searchBooks } from '../api/books';
 import { getRecommendations } from '../api/recommendations';
 import { getMyStats } from '../api/users';
+import { BookCover } from '../components/books/BookCover';
 import { BookGrid, BookGridSkeleton } from '../components/books/BookGrid';
+import { LibraryControl } from '../components/books/LibraryControl';
 import { RecommendationMeta } from '../components/books/RecommendationMeta';
 import { Button } from '../components/ui/Button';
-import { ChipGroup } from '../components/ui/ChipGroup';
 import { Icon } from '../components/ui/Icon';
 import { PageHeader } from '../components/ui/PageHeader';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState, ErrorState } from '../components/ui/States';
 import { useAsync } from '../hooks/useAsync';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useSearchParamState } from '../hooks/useSearchParamState';
+import { firstAuthor, formatRating, largeCover, yearOf } from '../utils/format';
 import page from './Page.module.css';
 import styles from './DiscoverPage.module.css';
 
@@ -31,7 +35,7 @@ export function DiscoverPage() {
   return (
     <>
       <PageHeader
-        title="Find your next book"
+        title={<>Find your next <em>book.</em></>}
         description="Search millions of titles from Open Library, or let your reading history suggest something."
       />
       <SearchForm key={`form-${q}`} q={q} onSearch={setQ} />
@@ -52,7 +56,7 @@ function SearchForm({ q, onSearch }) {
         onSearch(draft.trim());
       }}
     >
-      <Icon name="search" size={20} className={styles.searchIcon} />
+      <Icon name="search" size={22} className={styles.searchIcon} />
       <input
         type="search"
         value={draft}
@@ -60,13 +64,14 @@ function SearchForm({ q, onSearch }) {
           setDraft(e.target.value);
           if (!e.target.value) onSearch('');
         }}
-        placeholder="Title or author, e.g. “Le Petit Prince” or “Toni Morrison”"
+        placeholder="A title or an author…"
         aria-label="Search books by title or author"
         autoFocus={!q}
       />
-      <Button type="submit" variant="primary" disabled={!draft.trim()}>
-        Search
-      </Button>
+      <button type="submit" className={styles.searchSubmit} disabled={!draft.trim()}>
+        Search <Icon name="arrowRight" size={18} />
+      </button>
+      <p className={styles.searchHint}>Try “Le Petit Prince”, “Toni Morrison” or “Earthsea”.</p>
     </form>
   );
 }
@@ -80,7 +85,7 @@ function SearchResults({ q, onClear }) {
   return (
     <section className={page.section}>
       <div className={page.sectionHeader}>
-        <h2>Results for “{q}”</h2>
+        <h2>Results for <em>“{q}”</em></h2>
         <Button variant="ghost" size="sm" icon="x" onClick={onClear}>
           Clear search
         </Button>
@@ -111,16 +116,15 @@ function SearchResults({ q, onClear }) {
 function RecommendationBrowser() {
   const [genre, setGenre] = useSearchParamState('genre');
   const [sort, setSort] = useSearchParamState('sort', 'rating');
-  const [custom, setCustom] = useState('');
   const stats = useAsync(getMyStats, []);
   const recs = useAsync(() => getRecommendations({ genre, sort, limit: 24 }), [genre, sort]);
 
   // The reader's own genres first, then a few common starting points.
   const genres = useMemo(() => {
-    const mine = (stats.data?.genres || []).map((g) => g.category).filter(Boolean);
-    const all = [...mine, ...STARTER_GENRES, ...(genre ? [genre] : [])];
+    const mine = new Set((stats.data?.genres || []).map((g) => g.category?.toLowerCase()).filter(Boolean));
+    const names = [...(stats.data?.genres || []).map((g) => g.category).filter(Boolean), ...STARTER_GENRES, ...(genre ? [genre] : [])];
     const seen = new Set();
-    return all
+    return names
       .filter((name) => {
         const key = name.toLowerCase();
         if (seen.has(key)) return false;
@@ -128,55 +132,128 @@ function RecommendationBrowser() {
         return true;
       })
       .slice(0, 12)
-      .map((name) => ({ name }));
+      .map((name) => ({ name, mine: mine.has(name.toLowerCase()) }));
   }, [stats.data, genre]);
 
-  return (
-    <section className={page.section}>
-      <div className={page.sectionHeader}>
-        <h2>{genre ? `Recommended in ${genre}` : 'Recommended for you'}</h2>
-        <SegmentedControl label="Sort recommendations" options={SORTS} value={sort} onChange={setSort} size="sm" />
-      </div>
-      <div className={page.filters}>
-        <ChipGroup label="Genre" options={genres} value={genre} onChange={setGenre} allLabel="From my reading" />
-        <form
-          className={styles.customGenre}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (custom.trim()) {
-              setGenre(custom.trim().slice(0, 100));
-              setCustom('');
-            }
-          }}
-        >
-          <input
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            placeholder="Another genre…"
-            aria-label="Another genre"
-            maxLength={100}
-          />
-          <Button type="submit" size="sm" disabled={!custom.trim()}>
-            Apply
-          </Button>
-        </form>
-      </div>
+  const [lead, ...rest] = recs.data || [];
 
-      {recs.error && <ErrorState error={recs.error} onRetry={recs.reload} />}
-      {!recs.error && recs.loading && <BookGridSkeleton count={12} />}
-      {!recs.loading && recs.data?.length === 0 && (
-        <EmptyState icon="compass" title={genre ? `Nothing found in “${genre}”` : 'No suggestions yet'}>
-          {genre
-            ? 'Try a broader genre, such as “Fiction” or “History”.'
-            : 'Add books to your library and rate them; suggestions follow your favourite genres.'}
-        </EmptyState>
-      )}
-      {!recs.loading && recs.data?.length > 0 && (
-        <BookGrid
-          books={recs.data.map((r) => ({ ...r.book, _rec: r }))}
-          renderMeta={(book) => <RecommendationMeta rec={book._rec} />}
+  return (
+    <div className={styles.browser}>
+      <GenreIndex genres={genres} value={genre} onChange={setGenre} />
+
+      <section className={styles.picks} aria-labelledby="picks-title">
+        <div className={styles.picksHeader}>
+          <h2 id="picks-title">{genre ? <>In <em>{genre}</em></> : <>From your <em>reading.</em></>}</h2>
+          <SegmentedControl label="Sort recommendations" options={SORTS} value={sort} onChange={setSort} size="sm" />
+        </div>
+
+        {recs.error && <ErrorState error={recs.error} onRetry={recs.reload} title="Recommendations didn’t load" />}
+        {!recs.error && recs.loading && (
+          <>
+            <Skeleton height={230} />
+            <div className={styles.restGrid}><BookGridSkeleton count={8} /></div>
+          </>
+        )}
+        {!recs.loading && recs.data?.length === 0 && (
+          <EmptyState icon="compass" title={genre ? `Nothing found in “${genre}”` : 'No suggestions yet'}>
+            {genre
+              ? 'Try a broader genre, such as “Fiction” or “History”.'
+              : 'Add books to your library and rate them; suggestions follow your favourite genres.'}
+          </EmptyState>
+        )}
+        {!recs.loading && lead && (
+          <>
+            <LeadPick rec={lead} />
+            {rest.length > 0 && (
+              <div className={styles.restGrid}>
+                <BookGrid
+                  books={rest.map((r) => ({ ...r.book, _rec: r }))}
+                  renderMeta={(book) => <RecommendationMeta rec={book._rec} />}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/** The genre list down the side, with a free-text genre at the end. */
+function GenreIndex({ genres, value, onChange }) {
+  const [custom, setCustom] = useState('');
+  const choose = (name) => onChange(value === name ? '' : name);
+  return (
+    <nav className={styles.index} aria-label="Browse by genre">
+      <p className={styles.indexLabel}>Index of genres</p>
+      <ul>
+        <li>
+          <button type="button" aria-pressed={!value} onClick={() => onChange('')}>
+            From my reading
+          </button>
+        </li>
+        {genres.map((g) => (
+          <li key={g.name}>
+            <button type="button" aria-pressed={value === g.name} onClick={() => choose(g.name)}>
+              {g.name}
+              {g.mine && <span className={styles.mine} title="A genre you read">yours</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form
+        className={styles.customGenre}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (custom.trim()) {
+            onChange(custom.trim().slice(0, 100));
+            setCustom('');
+          }
+        }}
+      >
+        <input
+          value={custom}
+          onChange={(e) => setCustom(e.target.value)}
+          placeholder="Another genre…"
+          aria-label="Another genre"
+          maxLength={100}
         />
-      )}
-    </section>
+        <button type="submit" disabled={!custom.trim()} aria-label="Show this genre">
+          <Icon name="arrowRight" size={16} />
+        </button>
+      </form>
+    </nav>
+  );
+}
+
+/** The best recommendation, set as a spread with room for its blurb. */
+function LeadPick({ rec }) {
+  const { book } = rec;
+  const year = yearOf(book.publish_date);
+  return (
+    <article className={styles.lead}>
+      <Link to={`/books/${book.id_book}`} className={styles.leadCover} tabIndex={-1} aria-hidden="true">
+        <BookCover book={book} src={largeCover(book.cover_image)} decorative />
+      </Link>
+      <div className={styles.leadText}>
+        <p className={styles.leadKicker}>
+          <span>Top pick</span>
+          {rec.score != null && (
+            <span className="tabular"><Icon name="star" size={12} filled /> {formatRating(rec.score)}</span>
+          )}
+        </p>
+        <h3 className={styles.leadTitle}><Link to={`/books/${book.id_book}`}>{book.title}</Link></h3>
+        <p className={styles.leadByline}>
+          {firstAuthor(book.author)}
+          {year && <span className="tabular"> · {year}</span>}
+          {book.category && <span> · {book.category}</span>}
+        </p>
+        {book.description && <p className={styles.leadBlurb}>{book.description}</p>}
+        <p className={styles.leadReason}>{rec.reason}</p>
+        <div className={styles.leadActions}>
+          <LibraryControl book={book} size="sm" />
+        </div>
+      </div>
+    </article>
   );
 }

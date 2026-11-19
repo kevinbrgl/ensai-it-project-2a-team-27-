@@ -5,6 +5,7 @@ import * as usersApi from '../api/users';
 import { ModerationMenu } from '../components/admin/ModerationMenu';
 import { BookGrid, BookGridSkeleton } from '../components/books/BookGrid';
 import { ReviewItem } from '../components/reviews/ReviewItem';
+import { GenreWheel } from '../components/stats/GenreWheel';
 import { StatsPanels } from '../components/stats/StatsPanels';
 import { FollowButton } from '../components/users/FollowButton';
 import { UserRow } from '../components/users/UserRow';
@@ -32,17 +33,20 @@ const LIBRARY_FILTERS = [
 
 export function UserPage() {
   const { userId } = useParams();
-  const id = Number(userId);
+  return <ReaderProfile key={userId} id={Number(userId)} />;
+}
+
+function ReaderProfile({ id }) {
   const { user: me } = useAuth();
   const social = useFollowing();
   const isMe = id === me.id_user;
-  const [tab, setTab] = useSearchParamState('tab', 'library');
+  const [requestedTab, setTab] = useSearchParamState('tab', 'library');
 
   const validId = Number.isInteger(id) && id > 0;
-  const followers = useAsync(() => usersApi.getFollowers(id), [id]);
-  const following = useAsync(() => usersApi.getFollowing(id), [id]);
-  // A user seen earlier (search, followers…) gives a name to show at once,
-  // while GET /users/{id} loads the bio, picture and visibility.
+  const followsThem = social.isFollowing(id);
+  const followers = useAsync(() => usersApi.getFollowers(id), [id, followsThem], { skip: !validId });
+  const publicFollowing = useAsync(() => usersApi.getFollowing(id), [id], { skip: isMe || !validId });
+  const following = isMe ? { ...social, data: social.following } : publicFollowing;
   const fetched = useAsync(() => usersApi.getUser(id), [id], { skip: isMe || !validId });
 
   const profile = isMe ? me : fetched.data || usersApi.getKnownUser(id);
@@ -59,19 +63,24 @@ export function UserPage() {
     );
   }
 
+  if (fetched.error) return <ErrorState error={fetched.error} onRetry={fetched.reload} title="Reader profile didn’t load" />;
+  if (!isMe && fetched.loading) return <ListSkeleton />;
+
   const tabs = [
     { value: 'library', label: 'Library' },
     { value: 'reviews', label: 'Reviews' },
-    { value: 'shelves', label: 'Shelves' },
+    { value: 'playlists', label: 'Playlists' },
+    { value: 'genre-wheel', label: 'Genre wheel' },
     { value: 'stats', label: 'Stats' },
     { value: 'followers', label: 'Followers', count: followers.data?.length },
     { value: 'following', label: 'Following', count: following.data?.length },
   ];
+  const tab = tabs.some((item) => item.value === requestedTab) ? requestedTab : 'library';
 
   return (
     <>
       <header className={styles.header}>
-        <Avatar user={profile || { id_user: id, username: name }} size={72} />
+        <Avatar user={profile} size={72} />
         <div className={styles.identity}>
           <h1>{name}</h1>
           {profile?.bio && <p className={styles.bio}>{profile.bio}</p>}
@@ -83,8 +92,8 @@ export function UserPage() {
             </Button>
           ) : (
             <>
-              <FollowButton user={profile || { id_user: id, username: name }} social={social} size="md" />
-              {me.is_admin && <ModerationMenu user={profile || { id_user: id, username: name }} />}
+              <FollowButton user={profile} social={social} size="md" />
+              {me.is_admin && <ModerationMenu user={profile} />}
             </>
           )}
         </div>
@@ -94,10 +103,11 @@ export function UserPage() {
         <SegmentedControl label="Profile sections" options={tabs} value={tab} onChange={setTab} />
       </div>
 
-      {isPrivate && ['library', 'shelves', 'stats'].includes(tab) && <PrivateState name={name} />}
+      {isPrivate && ['library', 'playlists', 'genre-wheel', 'stats'].includes(tab) && <PrivateState name={name} />}
       {!isPrivate && tab === 'library' && <UserLibrary id={id} name={name} />}
       {tab === 'reviews' && <UserReviews id={id} isMe={isMe} />}
-      {!isPrivate && tab === 'shelves' && <UserShelves id={id} isMe={isMe} name={name} />}
+      {!isPrivate && tab === 'playlists' && <UserPlaylists id={id} isMe={isMe} name={name} />}
+      {!isPrivate && tab === 'genre-wheel' && <GenreWheel user={profile} />}
       {!isPrivate && tab === 'stats' && <UserStats id={id} isMe={isMe} name={name} social={social} profile={profile} />}
       {tab === 'followers' && <PeopleList state={followers} social={social} meId={me.id_user} empty={`Nobody follows ${isMe ? 'you' : name} yet.`} />}
       {tab === 'following' && <PeopleList state={following} social={social} meId={me.id_user} empty={`${isMe ? 'You don’t' : `${name} doesn’t`} follow anyone yet.`} />}
@@ -115,7 +125,7 @@ function isPrivateError(error) {
 function PrivateState({ name }) {
   return (
     <EmptyState icon="lock" title={`${name}’s profile is private`}>
-      Their library, shelves and reading stats are only visible to them. Their reviews stay public.
+      Their library, playlists, genre wheel and reading stats are only visible to them. Their reviews stay public.
     </EmptyState>
   );
 }
@@ -135,8 +145,8 @@ function UserLibrary({ id, name }) {
       </div>
       {error && <ErrorState error={error} onRetry={reload} />}
       {!error && loading && <BookGridSkeleton count={6} />}
-      {!loading && data?.length === 0 && <EmptyState icon="library" title="No books here" />}
-      {!loading && data?.length > 0 && <BookGrid books={data} />}
+      {!error && !loading && data?.length === 0 && <EmptyState icon="library" title="No books here" />}
+      {!error && !loading && data?.length > 0 && <BookGrid books={data} />}
     </>
   );
 }
@@ -171,22 +181,22 @@ function UserReviews({ id, isMe }) {
   );
 }
 
-function UserShelves({ id, isMe, name }) {
+function UserPlaylists({ id, isMe, name }) {
   const { data, error, loading, reload } = useAsync(() => usersApi.getUserPlaylists(id), [id]);
   if (isPrivateError(error)) return <PrivateState name={name} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading) return <ListSkeleton />;
-  if (!data.length) return <EmptyState icon="shelves" title="No shelves yet" />;
+  if (!data.length) return <EmptyState icon="playlists" title="No playlists yet" />;
   return (
-    <ul className={`${page.list} ${styles.shelves}`}>
-      {data.map((shelf) => (
-        <li key={shelf.id_playlist}>
+    <ul className={`${page.list} ${styles.playlists}`}>
+      {data.map((playlist) => (
+        <li key={playlist.id_playlist}>
           {isMe ? (
-            <Link to={`/shelves/${shelf.id_playlist}`} className={styles.shelfLink}>
-              {shelf.name}
+            <Link to={`/playlists/${playlist.id_playlist}`} className={styles.playlistLink}>
+              {playlist.name}
             </Link>
           ) : (
-            <span className={styles.shelfName}>{shelf.name}</span>
+            <span className={styles.playlistName}>{playlist.name}</span>
           )}
         </li>
       ))}
@@ -206,7 +216,7 @@ function UserStats({ id, isMe, name, social, profile }) {
       <EmptyState
         icon="chart"
         title={`Follow ${name} to see their stats`}
-        action={<FollowButton user={profile || { id_user: id, username: name }} social={social} size="md" />}
+        action={<FollowButton user={profile} social={social} size="md" />}
       >
         Reading statistics are only shared with followers.
       </EmptyState>

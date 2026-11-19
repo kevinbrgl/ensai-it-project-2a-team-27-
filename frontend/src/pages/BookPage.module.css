@@ -38,9 +38,19 @@
 .reviewLocked { font-size: var(--text-sm); }
 .reviewSkeleton { display: flex; flex-direction: column; gap: var(--space-3); }
 .noOthers { font-size: var(--text-sm); }
+.related {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: var(--space-12);
+  padding-top: var(--space-10);
+  border-top: 1px solid var(--border);
+}
+.relatedHeader { display: flex; align-items: flex-start; flex-direction: column; gap: var(--space-3); }
+.editionsMain > button { margin-top: var(--space-3); }
+.info, .relatedHeader, .related > ul { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
-  .header, .editions, .reviews { grid-template-columns: 1fr; gap: var(--space-6); }
+  .header, .editions, .reviews, .related { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
   .cover { position: static; width: 180px; }
   .title { font-size: var(--text-xl); }
 }

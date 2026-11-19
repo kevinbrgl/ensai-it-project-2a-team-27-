@@ -14,7 +14,10 @@ from src.models.achievements import (
     AchievementTier,
     AchievementUserStats,
 )
-from src.services.achievements_service import AchievementService
+from src.services.achievements_service import (
+    ACHIEVEMENT_DEFINITIONS,
+    AchievementService,
+)
 
 ID_USER = 1
 PERCENT_ZERO = 0.0
@@ -22,7 +25,9 @@ PERCENT_FULL = 100.0
 PERCENT_HALF = 50.0
 PERCENT_TWENTY = 20.0
 EXPECTED_PROGRESS_PAGES = 200
-TOTAL_ACHIEVEMENTS_COUNT = 12
+TOTAL_ACHIEVEMENTS_COUNT = 55
+MAX_PROFILE_FIELDS = 2
+LARGE_STAT = 100_000
 
 
 @pytest.fixture
@@ -131,14 +136,12 @@ class TestAchievementService:
     ) -> None:
         """Progress exceeding target is capped at target and 100%."""
         mock_dao.get_user_stats.return_value = AchievementUserStats(
-            completed_books=50,
-            pages_read=20000,
-            distinct_genres=15,
-            reviews_count=20,
-            favorites_count=10,
-            following_count=10,
-            followers_count=5,
-            playlists_count=10,
+            **{
+                name: MAX_PROFILE_FIELDS
+                if name == "profile_fields"
+                else LARGE_STAT
+                for name in AchievementUserStats.model_fields
+            },
         )
 
         achievements = service.get_achievements(
@@ -236,3 +239,40 @@ class TestAchievementService:
         assert AchievementTier.SILVER in tiers
         assert AchievementTier.GOLD in tiers
         assert AchievementTier.PLATINUM in tiers
+
+
+TIER_RANK = {
+    AchievementTier.BRONZE: 0,
+    AchievementTier.SILVER: 1,
+    AchievementTier.GOLD: 2,
+    AchievementTier.PLATINUM: 3,
+}
+
+
+class TestAchievementCatalog:
+    """Consistency checks on the achievement definitions."""
+
+    def test_ids_are_unique(self) -> None:
+        """No two achievements share an identifier."""
+        ids = [defn.id_achievement for defn in ACHIEVEMENT_DEFINITIONS]
+
+        assert len(ids) == len(set(ids))
+
+    def test_stat_keys_exist(self) -> None:
+        """Every achievement tracks a metric that the DAO actually provides."""
+        fields = set(AchievementUserStats.model_fields)
+
+        for defn in ACHIEVEMENT_DEFINITIONS:
+            assert defn.stat_key in fields, defn.id_achievement
+
+    def test_tiers_grow_with_targets(self) -> None:
+        """For one metric, a harder milestone never has a lower tier."""
+        by_stat: dict[str, list[tuple[int, int]]] = {}
+        for defn in ACHIEVEMENT_DEFINITIONS:
+            by_stat.setdefault(defn.stat_key, []).append(
+                (defn.target, TIER_RANK[defn.tier]),
+            )
+
+        for stat_key, ladder in by_stat.items():
+            ranks = [rank for _, rank in sorted(ladder)]
+            assert ranks == sorted(ranks), stat_key

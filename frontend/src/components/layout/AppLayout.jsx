@@ -1,112 +1,106 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
+import { Menu } from '../ui/Menu';
+import { Wordmark } from './Wordmark';
 import styles from './AppLayout.module.css';
 
 const NAV = [
-  { to: '/', label: 'Home', icon: 'home', end: true },
-  { to: '/discover', label: 'Discover', icon: 'compass' },
-  { to: '/catalog', label: 'Catalog', icon: 'grid' },
-  { to: '/library', label: 'My library', icon: 'library' },
-  { to: '/shelves', label: 'Shelves', icon: 'shelves' },
-  { to: '/readers', label: 'Readers', icon: 'users' },
-  { to: '/progress', label: 'Progress', icon: 'chart' },
+  { to: '/', label: 'Home' },
+  { to: '/discover', label: 'Discover' },
+  { to: '/library', label: 'My library' },
+  { to: '/playlists', label: 'Playlists' },
+  { to: '/readers', label: 'Readers' },
+  { to: '/progress', label: 'Progress' },
 ];
 
-export function AppLayout() {
+function Masthead() {
   const { user, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
-  // The mobile menu closes by itself on navigation: it stays open only for
-  // the page on which it was opened.
-  const [menuPath, setMenuPath] = useState(null);
-  const menuOpen = menuPath === location.pathname;
+  const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   const search = (event) => {
     event.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    navigate(`/discover?q=${encodeURIComponent(q)}`);
-    setQuery('');
+    if (query.trim()) {
+      navigate(`/discover?q=${encodeURIComponent(query.trim())}`);
+      setMenuOpen(false);
+      setQuery('');
+    }
   };
 
   const signOut = async () => {
-    await logout();
-    toast.success('You are signed out.');
+    try {
+      await logout();
+      toast.success('You are signed out.');
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (
-    <div className={styles.shell}>
-      <aside className={`${styles.sidebar} ${menuOpen ? styles.open : ''}`}>
-        <div className={styles.brandRow}>
-          <NavLink to="/" className={styles.brand}>
-            Ex-Libris
-          </NavLink>
-          <button
-            type="button"
-            className={styles.menuToggle}
-            onClick={() => setMenuPath(menuOpen ? null : location.pathname)}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-          >
-            <Icon name={menuOpen ? 'x' : 'menu'} />
-          </button>
-        </div>
-
-        <div className={styles.collapsible}>
-          <form className={styles.search} onSubmit={search} role="search">
-            <Icon name="search" size={16} className={styles.searchIcon} />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search books"
-              aria-label="Quick search"
-            />
-          </form>
-
+    <header className={styles.masthead}>
+      <div className={styles.bar}>
+        <NavLink to="/" className={styles.brand} aria-label="Ex-Libris home"><Wordmark /></NavLink>
+        <button
+          type="button" className={styles.menuToggle} onClick={() => setMenuOpen(!menuOpen)}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'} aria-expanded={menuOpen} aria-controls="main-navigation"
+        >
+          <Icon name={menuOpen ? 'x' : 'menu'} />
+        </button>
+        <div className={`${styles.navigation} ${menuOpen ? styles.open : ''}`} id="main-navigation">
           <nav className={styles.nav} aria-label="Main">
-            {NAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}
-              >
-                <Icon name={item.icon} size={18} />
-                {item.label}
+            {NAV.map(({ to, label }) => (
+              <NavLink key={to} to={to} end={to === '/'} onClick={() => setMenuOpen(false)}
+                className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}>
+                {label}
               </NavLink>
             ))}
           </nav>
-
-          <div className={styles.account}>
-            <NavLink
-              to="/settings"
-              className={({ isActive }) => `${styles.profile} ${isActive ? styles.active : ''}`}
-              title="Account settings"
-            >
-              <Avatar user={user} size={30} />
-              <span className={styles.username}>{user.username}</span>
-              <Icon name="settings" size={16} className={styles.settingsIcon} />
-            </NavLink>
-            <button type="button" className={styles.logout} onClick={signOut}>
-              <Icon name="logout" size={18} />
-              Sign out
+          <form className={styles.search} onSubmit={search} role="search">
+            <Icon name="search" size={16} />
+            <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search books" aria-label="Quick search" />
+          </form>
+        </div>
+        <Menu align="end"
+          trigger={({ open, toggle }) => (
+            <button type="button" className={styles.account} onClick={toggle}
+              aria-label={`Account menu for ${user.username}`} aria-haspopup="menu" aria-expanded={open}>
+              <Avatar user={user} size={31} /><Icon name="chevronDown" size={14} />
             </button>
-          </div>
-        </div>
-      </aside>
+          )}
+          items={[
+            { label: 'My profile', icon: 'book', onSelect: () => navigate(`/users/${user.id_user}`) },
+            { label: 'Account settings', icon: 'settings', onSelect: () => navigate('/settings') },
+            { separator: true },
+            { label: 'Sign out', icon: 'logout', onSelect: signOut },
+          ]}
+        />
+      </div>
+    </header>
+  );
+}
 
-      <main className={styles.main}>
-        <div className={styles.content} key={location.pathname}>
-          <Outlet />
-        </div>
+export function AppLayout() {
+  const { pathname } = useLocation();
+  const navigationType = useNavigationType();
+  useEffect(() => {
+    if (navigationType !== 'POP') window.scrollTo(0, 0);
+  }, [pathname, navigationType]);
+
+  return (
+    <>
+      <a className={styles.skip} href="#main-content">Skip to content</a>
+      {/* Keyed by route so the mobile menu and quick search reset on navigation. */}
+      <Masthead key={`masthead:${pathname}`} />
+      <main id="main-content" className={styles.content} key={pathname} tabIndex={-1}>
+        <Outlet />
       </main>
-    </div>
+    </>
   );
 }

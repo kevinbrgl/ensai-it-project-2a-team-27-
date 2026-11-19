@@ -1,27 +1,47 @@
-/* Outer radius 10px, padding 3px → inner radius 7px. */
+/* Ruled tabs: text on a hairline, the active option underlined in ink.
+   Scrolls sideways instead of wrapping so the rule stays one line. */
 .group {
   display: inline-flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
-  border-radius: var(--radius-md);
-  background: var(--paper-200);
+  max-width: 100%;
+  gap: clamp(14px, 2.2vw, 28px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  box-shadow: inset 0 -1px var(--border-strong);
 }
+.group::-webkit-scrollbar { display: none; }
 .option {
+  position: relative;
+  flex-shrink: 0;
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 var(--space-3);
+  align-items: baseline;
+  gap: 5px;
+  height: 40px;
+  padding: 10px 1px 0;
   border: 0;
-  border-radius: calc(var(--radius-md) - 3px);
   background: transparent;
-  color: var(--ink-700);
+  color: var(--text-muted);
   font-size: var(--text-sm);
   font-weight: 500;
-  transition: background var(--duration), color var(--duration);
+  white-space: nowrap;
+  transition: color var(--duration);
+}
+.option::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: var(--accent-600);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 280ms var(--ease-out);
 }
 .option:hover { color: var(--text); }
-.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
-.sm .option { height: 28px; padding: 0 10px; }
-.count { color: var(--text-muted); font-weight: 400; }
+.option:focus-visible { outline-offset: -2px; }
+.active { color: var(--text); }
+.active::after { transform: scaleX(1); }
+.count { color: var(--text-muted); font-size: .72rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.active .count { color: var(--accent-600); }
+
+/* Small: sort orders and filters, set in tracked capitals. */
+.sm { gap: 18px; }
+.sm .option { height: 32px; padding-top: 8px; font-size: .7rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }

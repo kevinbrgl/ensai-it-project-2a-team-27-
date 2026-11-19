@@ -20,8 +20,8 @@ export function StatsPanels({ stats, libraryCount }) {
         <Figure value={average ? average.toFixed(1) : '–'} label="Average rating given" />
       </div>
       <div className={styles.card}>
-        <h3 className={styles.title}>Genres in the library</h3>
-        {genres.length ? <BarList items={genres} /> : <p className={styles.muted}>No books in the library yet.</p>}
+        <h3 className={styles.title}>Genres read or in progress</h3>
+        {genres.length ? <BarList items={genres} /> : <p className={styles.muted}>No books started yet.</p>}
       </div>
       <div className={styles.card}>
         <h3 className={styles.title}>Ratings given</h3>

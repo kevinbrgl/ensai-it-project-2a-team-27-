@@ -33,7 +33,7 @@ export const Button = forwardRef(function Button(
     );
   }
   return (
-    <button ref={ref} type="button" className={classes} disabled={loading || props.disabled} {...props}>
+    <button ref={ref} type="button" className={classes} {...props} disabled={loading || props.disabled} aria-busy={loading || undefined}>
       {content}
     </button>
   );

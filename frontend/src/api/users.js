@@ -25,6 +25,11 @@ export async function getUser(idUser) {
   return user;
 }
 
+/** GET /users/me → the signed-in reader's profile. */
+export function getMyProfile() {
+  return request('/users/me');
+}
+
 /**
  * GET /users/me/settings → UserMe
  * Same as /users/me plus theme, profile_visibility and is_admin.
@@ -105,4 +110,12 @@ export function getUserStats(idUser) {
 /** GET /users/me/quests?status=all|active|completed → Quest[] */
 export function getMyQuests(status = 'all') {
   return request('/users/me/quests', { query: { status } });
+}
+
+export function getMyAchievements(status = 'all') {
+  return request('/users/me/achievements', { query: { status } });
+}
+
+export function getUserGenreWheel(idUser) {
+  return request(`/users/${idUser}/genre-wheel`);
 }

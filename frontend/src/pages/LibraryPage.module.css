@@ -1,35 +1,57 @@
+.filters { display: flex; flex-direction: column; gap: 18px; margin-bottom: 8px; }
+.refine { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px 24px; }
+.genres { min-width: 0; }
+.sort { display: inline-flex; align-items: center; gap: 10px; font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+
+/* Reading status as a compact pill select. */
 .status {
-  height: 32px;
-  padding: 0 28px 0 var(--space-3);
+  height: 30px;
+  padding: 0 26px 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b6358' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 8px center;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23717969' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9.5 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 7px center;
   appearance: none;
-  font-size: var(--text-sm);
-  font-weight: 500;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: .04em;
   margin: 0 var(--space-1);
 }
-.status:hover { border-color: var(--ink-400); }
+.status:hover { border-color: var(--ink-400); background-color: var(--surface); }
 .status:focus { outline: none; border-color: var(--accent-600); box-shadow: var(--focus-ring); }
+.status option { background: var(--surface); color: var(--text); }
 .liked, .liked:hover { color: var(--accent-600); }
 .liked svg, .favorite svg { fill: currentColor; }
 .favorite, .favorite:hover { color: var(--star); }
 
-.dates { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-1); }
-.dateField { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
-.dateInput {
-  height: 28px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-size: var(--text-sm);
-  color: var(--text);
-}
-.dateInput:hover { border-color: var(--ink-400); }
-.dateInput:focus { outline: none; border-color: var(--accent-600); box-shadow: var(--focus-ring); }
-.dateInput:disabled { opacity: 0.6; }
-
 .skeleton { display: flex; flex-direction: column; }
 .skeletonRow { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
 .skeletonText { flex: 1; display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Reading dates as quiet, ruled entries; the picker opens on click. */
+.dates { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-top: 6px; }
+.dateField { display: inline-flex; align-items: baseline; gap: 8px; font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.dateInput {
+  height: 24px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px dotted var(--ink-400);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: 500 var(--text-sm)/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+  color-scheme: inherit;
+}
+.dateInput[data-empty] { color: var(--ink-400); }
+.dateInput:hover { border-bottom-style: solid; }
+.dateInput:focus { outline: none; border-bottom: 1px solid var(--accent-600); box-shadow: 0 1px 0 var(--accent-600); }
+.dateInput:disabled { opacity: .6; }
+.dateInput::-webkit-calendar-picker-indicator { opacity: .45; cursor: pointer; }
+
+@media (max-width: 640px) {
+  .refine { grid-template-columns: minmax(0, 1fr); }
+  .sort { justify-self: start; }
+}
+.sort select { width: auto; min-width: 150px; height: 34px; font-size: var(--text-sm); font-weight: 500; letter-spacing: 0; text-transform: none; }

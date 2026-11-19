@@ -3,6 +3,7 @@
 All modifications are rolled back after each test.
 """
 
+from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -163,3 +164,150 @@ class TestAchievementDAO:
         assert stats.following_count == 1
         assert stats.followers_count == 0
         assert stats.playlists_count == 1
+
+
+LONG_COMMENT = "A slow, luminous book. " * 10
+EXTENDED = {
+    "library_size": 6,
+    "completed_books": 3,
+    "reading_books": 1,
+    "want_to_read_books": 1,
+    "abandoned_books": 1,
+    "pages_read": 1200,
+    "longest_book_pages": 900,
+    "distinct_genres": 2,
+    "distinct_authors": 2,
+    "classics_read": 1,
+    "dated_books": 1,
+    "reviews_count": 2,
+    "detailed_reviews": 1,
+    "five_star_reviews": 1,
+    "liked_books": 1,
+    "favorites_count": 1,
+    "following_count": 1,
+    "followers_count": 1,
+    "mutual_follows": 1,
+    "playlists_count": 2,
+    "largest_playlist": 2,
+    "profile_fields": 1,
+}
+
+
+def test_extended_user_stats(
+    cursor: RealDictCursor,
+    achievement_dao: AchievementDAO,
+    book_dao: BookDAO,
+    user_alice: User,
+    user_bob: User,
+) -> None:
+    """Every achievement metric is computed from the matching activity."""
+    suffix = uuid4().hex[:8]
+    specs = [
+        # author, category, pages, publish year, state, liked, favorite
+        ("Ursula K. Le Guin", "Fantasy", 300, 1968, "COMPLETED", True, False),
+        ("Mary Shelley", "Gothic", 900, 1818, "COMPLETED", False, True),
+        (
+            " ursula k. le guin ",
+            "Fantasy",
+            None,
+            1972,
+            "COMPLETED",
+            False,
+            False,
+        ),
+        (None, None, 120, None, "WANT_TO_READ", False, False),
+        (None, None, 220, None, "ABANDONED", False, False),
+        (None, None, 640, None, "READING", False, False),
+    ]
+    books = []
+    for index, (author, category, pages, year, state, liked, fav) in enumerate(
+        specs,
+    ):
+        book = book_dao.create(
+            BookCreate(
+                id_book_api=f"api_ach_x{index}_{suffix}",
+                title=f"Book {index}",
+                author=author,
+                category=category,
+                num_pages=pages,
+                publish_date=date(year, 1, 1) if year else None,
+            ),
+        )
+        books.append(book)
+        cursor.execute(
+            """
+            INSERT INTO user_book_activities
+                (id_user, id_book, state, is_liked, is_favorite, finished_at)
+            VALUES (%s, %s, %s, %s, %s, %s);
+            """,
+            (
+                user_alice.id_user,
+                book.id_book,
+                state,
+                liked,
+                fav,
+                date(2026, 3, 1) if index == 0 else None,
+            ),
+        )
+
+    cursor.execute(
+        """
+        INSERT INTO reviews (id_user, id_book, rating, comment)
+        VALUES (%s, %s, 5, %s), (%s, %s, 3, 'Short.');
+        """,
+        (
+            user_alice.id_user,
+            books[0].id_book,
+            LONG_COMMENT,
+            user_alice.id_user,
+            books[1].id_book,
+        ),
+    )
+    cursor.execute(
+        """
+        INSERT INTO user_follows (follower_id, following_id)
+        VALUES (%s, %s), (%s, %s);
+        """,
+        (
+            user_alice.id_user,
+            user_bob.id_user,
+            user_bob.id_user,
+            user_alice.id_user,
+        ),
+    )
+    cursor.execute(
+        """
+        INSERT INTO playlists (id_user, name)
+        VALUES (%s, %s), (%s, %s)
+        RETURNING id_playlist;
+        """,
+        (
+            user_alice.id_user,
+            f"Big_{suffix}",
+            user_alice.id_user,
+            f"S_{suffix}",
+        ),
+    )
+    big, small = (row["id_playlist"] for row in cursor.fetchall())
+    cursor.execute(
+        """
+        INSERT INTO playlist_books (id_playlist, id_book)
+        VALUES (%s, %s), (%s, %s), (%s, %s);
+        """,
+        (
+            big,
+            books[0].id_book,
+            big,
+            books[1].id_book,
+            small,
+            books[2].id_book,
+        ),
+    )
+    cursor.execute(
+        "UPDATE users SET bio = 'Reader.' WHERE id_user = %s;",
+        (user_alice.id_user,),
+    )
+
+    stats = achievement_dao.get_user_stats(user_alice.id_user)
+
+    assert stats.model_dump() == EXTENDED

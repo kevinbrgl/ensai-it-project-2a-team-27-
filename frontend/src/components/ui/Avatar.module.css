@@ -4,7 +4,8 @@
   flex-shrink: 0;
   border-radius: var(--radius-full);
   object-fit: cover;
-  color: var(--ink-700);
+  /* The pastel tones stay light in both themes, so the initial stays dark. */
+  color: #24352d;
   font-family: var(--font-serif);
   font-weight: 500;
   line-height: 1;

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { BookCover } from '../components/books/BookCover';
+import readingRoom from '../assets/reading-room.webp';
+import { Wordmark } from '../components/layout/Wordmark';
+import { Icon } from '../components/ui/Icon';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { useAuth } from '../context/AuthContext';
@@ -8,15 +10,6 @@ import { useToast } from '../context/ToastContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { collectErrors, validateEmail, validatePassword, validateUsername } from '../utils/validation';
 import styles from './AuthPage.module.css';
-
-// Real Open Library covers, fetched by ISBN, for the welcome panel.
-const SHOWCASE = [
-  { isbn: '9780141439518', title: 'Pride and Prejudice', author: 'Jane Austen' },
-  { isbn: '9780451524935', title: 'Nineteen Eighty-Four', author: 'George Orwell' },
-  { isbn: '9780061120084', title: 'To Kill a Mockingbird', author: 'Harper Lee' },
-  { isbn: '9780743273565', title: 'The Great Gatsby', author: 'F. Scott Fitzgerald' },
-  { isbn: '9780140449136', title: 'Crime and Punishment', author: 'Fyodor Dostoevsky' },
-];
 
 const EMPTY = { username: '', email: '', password: '', confirm: '' };
 
@@ -32,7 +25,10 @@ export function AuthPage({ mode }) {
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (status === 'authenticated') return <Navigate to={location.state?.from?.pathname || '/'} replace />;
+  const [showPassword, setShowPassword] = useState(false);
+  const from = location.state?.from;
+  const destination = from ? { pathname: from.pathname, search: from.search, hash: from.hash } : '/';
+  if (status === 'authenticated') return <Navigate to={destination} replace />;
 
   const update = (field) => (event) => {
     setValues((v) => ({ ...v, [field]: event.target.value }));
@@ -72,7 +68,7 @@ export function AuthPage({ mode }) {
         });
         toast.success(`Welcome to Ex-Libris, ${me.username}.`);
       }
-      navigate(location.state?.from?.pathname || '/', { replace: true });
+      navigate(destination, { replace: true });
     } catch (error) {
       if (error.status === 409) {
         setErrors(error.message.startsWith('Email') ? { email: 'This email is already registered.' } : { username: 'This username is taken.' });
@@ -88,45 +84,48 @@ export function AuthPage({ mode }) {
 
   return (
     <div className={styles.page}>
-      <section className={styles.showcase} aria-hidden="true">
-        <span className={styles.brand}>Ex-Libris</span>
-        <div className={styles.stack}>
-          {SHOWCASE.map((book, i) => (
-            <div key={book.isbn} className={styles.stackItem} style={{ '--i': i - 2 }}>
-              <BookCover book={book} src={`https://covers.openlibrary.org/b/isbn/${book.isbn}-L.jpg?default=false`} />
-            </div>
-          ))}
-        </div>
-        <div className={styles.pitch}>
-          <h2>Every book you read, in one place.</h2>
-          <p>Track what you’re reading, rate what you finished, and find your next book through readers you trust.</p>
-        </div>
-      </section>
-
-      <section className={styles.formSide}>
-        <form className={styles.form} onSubmit={submit} noValidate>
-          <span className={styles.mobileBrand}>Ex-Libris</span>
-          <h1>{isLogin ? 'Sign in to your library' : 'Start your reading log'}</h1>
-          <p className={styles.lead}>
-            {isLogin ? 'New here? ' : 'Already have an account? '}
-            <Link to={isLogin ? '/register' : '/login'} state={location.state} className={styles.switch}>
-              {isLogin ? 'Create an account' : 'Sign in'}
+      <header className={styles.masthead}>
+        <div className={styles.bar}>
+          <Wordmark />
+          <div className={styles.accountSwitch}>
+            <span>{isLogin ? 'New here?' : 'Already a reader?'}</span>
+            <Link to={isLogin ? '/register' : '/login'} state={location.state}>
+              {isLogin ? 'Create account' : 'Sign in'} <Icon name="arrowRight" size={16} />
             </Link>
-          </p>
+          </div>
+        </div>
+      </header>
+      <main className={styles.spread}>
+        <section className={styles.plate} aria-label="About Ex-Libris">
+          <img className={styles.photograph} src={readingRoom} fetchPriority="high" alt="" />
+          <span className={styles.ribbon} aria-hidden="true"><Icon name="book" size={20} /></span>
+          <div className={styles.caption}>
+            <h2>Your reading<br /><em>journal.</em></h2>
+            <p>Track your books, keep your reviews, and discover what to read next.</p>
+          </div>
+        </section>
 
+        <section className={styles.formSide}>
+          <form className={styles.form} onSubmit={submit} noValidate>
+            <div className={styles.formIntro}>
+              <h1>{isLogin ? 'Welcome back.' : 'Start your journal.'}</h1>
+              <p>{isLogin ? 'Sign in to your Ex-Libris account.' : 'Create a free Ex-Libris account to start your reading log.'}</p>
+            </div>
           {formError && (
             <p className={styles.formError} role="alert">
               {formError}
             </p>
           )}
 
-          <Field label="Username" autoComplete="username" value={values.username} onChange={update('username')} error={errors.username} maxLength={30} autoFocus />
+          <Field label="Username" autoComplete="username" value={values.username} onChange={update('username')} error={errors.username} placeholder="Your username" maxLength={30} />
           {!isLogin && (
             <Field label="Email" type="email" autoComplete="email" value={values.email} onChange={update('email')} error={errors.email} />
           )}
+          <div className={styles.password}>
           <Field
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Your password"
             autoComplete={isLogin ? 'current-password' : 'new-password'}
             value={values.password}
             onChange={update('password')}
@@ -134,15 +133,21 @@ export function AuthPage({ mode }) {
             hint={isLogin ? undefined : '8 to 72 characters.'}
             maxLength={72}
           />
+          <button type="button" className={styles.reveal} aria-pressed={showPassword}
+            aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)}>
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+          </div>
           {!isLogin && (
             <Field label="Confirm password" type="password" autoComplete="new-password" value={values.confirm} onChange={update('confirm')} error={errors.confirm} maxLength={72} />
           )}
 
-          <Button type="submit" variant="primary" loading={busy} className={styles.submit}>
+          <Button type="submit" variant="primary" loading={busy} iconRight="arrowRight" className={styles.submit}>
             {isLogin ? 'Sign in' : 'Create account'}
           </Button>
         </form>
       </section>
+      </main>
     </div>
   );
 }

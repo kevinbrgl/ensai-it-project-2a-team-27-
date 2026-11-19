@@ -10,6 +10,12 @@ export function getPlaylist(id) {
   return request(`/playlists/${id}`);
 }
 
+/** The list response contains names. Fetch the contents for cover and membership views. */
+export async function listPlaylistDetails() {
+  const playlists = await listPlaylists();
+  return Promise.all(playlists.map((playlist) => getPlaylist(playlist.id_playlist)));
+}
+
 /** POST /playlists → PlaylistRead */
 export function createPlaylist(name) {
   return request('/playlists', { method: 'POST', json: { name } });

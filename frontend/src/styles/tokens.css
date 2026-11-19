@@ -1,53 +1,70 @@
-/*
- * Design tokens — the single source of truth for colours, type, spacing,
- * radii and motion. Components only reference these variables.
- *
- * Radius rule: a nested element uses (outer radius − padding), e.g. a 4px
- * padded cover inside a --radius-lg card gets --radius-lg − 4px.
- */
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('../assets/fonts/instrument-serif.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('../assets/fonts/instrument-serif-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Work Sans';
+  src: url('../assets/fonts/work-sans.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 :root {
-  /* Paper & ink neutrals (warm) */
-  --paper-50: #fbf9f5;
-  --paper-100: #f5f1ea;
-  --paper-200: #ebe5da;
-  --paper-300: #ddd5c7;
-  --ink-400: #8f877b;
-  --ink-500: #6b6358;   /* muted text — 5.3:1 on paper-100 */
-  --ink-700: #3d3832;
-  --ink-900: #1d1a16;   /* body text — 15:1 on paper-100 */
+  --pine: #173b30;
+  --deep-pine: #102d25;
+  --marker: #d9e991;
+  --cream: #faf8ed;
+  --paper-50: #fbfaf3;
+  --paper-100: #f5f3e9;
+  --paper-200: #e8e6d8;
+  --paper-300: #c7c9b8;
+  --ink-400: #717969;
+  --ink-500: #566357;
+  --ink-700: #364c3e;
+  --ink-900: #172e25;
+  --accent-600: #285541;
+  --accent-700: #133a2c;
+  --accent-50: #e8eddb;
+  --accent-100: #d7e3c4;
+  --on-accent: #fffdf2;
+  --success-600: #316343;
+  --success-50: #e3efdd;
+  --danger-600: #943528;
+  --danger-50: #f5e2d9;
+  --on-danger: #fffaf3;
+  --star: #90611b;
+  /* Genre colours from the API are mixed toward this ink so they print like the rest of the page. */
+  --wheel-ink: #173b30;
+  --wheel-mix: 60%;
+  --grain-opacity: .05;
 
-  /* Accent: oxblood, used for primary actions and key highlights only */
-  --accent-600: #9b2c24;
-  --accent-700: #80231d;
-  --accent-50: #f8e9e5;
-  --accent-100: #f1d4cd;
-
-  --success-600: #2f6b47;
-  --success-50: #e5f1e9;
-  --danger-600: #b42318;
-  --danger-50: #fbe9e7;
-  --star: #c7871a;
-
-  --surface: #ffffff;
+  --surface: #fcfbf5;
   --bg: var(--paper-100);
-  --border: var(--paper-200);
+  --border: #d8d9ca;
   --border-strong: var(--paper-300);
   --text: var(--ink-900);
   --text-muted: var(--ink-500);
-  --focus-ring: 0 0 0 3px rgb(155 44 36 / 0.25);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent-600) 42%, transparent);
 
-  /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-serif: 'Newsreader', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
-  --text-xs: 0.75rem;
-  --text-sm: 0.8125rem;
-  --text-base: 0.9375rem;
-  --text-md: 1.0625rem;
-  --text-lg: 1.375rem;
-  --text-xl: 1.875rem;
-  --text-2xl: 2.5rem;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'Work Sans', sans-serif;
+  --text-xs: .75rem;
+  --text-sm: .85rem;
+  --text-base: .96875rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.9rem;
+  --text-xl: clamp(2.6rem, 4.6vw, 4.5rem);
+  --text-2xl: clamp(3.1rem, 6.3vw, 6rem);
 
-  /* Spacing (4px grid) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -59,54 +76,48 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
-  --radius-cover: 3px;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-cover: 2px;
   --radius-full: 999px;
+  --shadow-sm: 0 1px 2px #253a2520;
+  --shadow-md: 0 5px 14px #253a2510;
+  --shadow-lg: 0 12px 32px #102a2529;
+  --shadow-cover: 2px 4px 7px #2c38262b, 0 1px 1px #2c382640;
 
-  /* Elevation */
-  --shadow-sm: 0 1px 2px rgb(29 26 22 / 0.06);
-  --shadow-md: 0 4px 14px rgb(29 26 22 / 0.08);
-  --shadow-lg: 0 12px 32px rgb(29 26 22 / 0.18);
-  --shadow-cover: 0 1px 2px rgb(29 26 22 / 0.12), 0 6px 16px rgb(29 26 22 / 0.12);
-
-  /* Motion */
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(.16,.74,.25,1);
   --duration: 160ms;
-
-  /* Layout */
-  --sidebar-width: 232px;
-  --content-max: 1180px;
+  --content-max: 1360px;
+  --gutter: clamp(20px, 4.6vw, 76px);
 }
-
-/* Night theme — set on <html data-theme="night"> from the user's settings. */
 :root[data-theme='night'] {
   color-scheme: dark;
-
-  --paper-50: #1f1c19;
-  --paper-100: #161411;
-  --paper-200: #2d2924;
-  --paper-300: #3d3832;
-  --ink-400: #8a8278;
-  --ink-500: #a8a094;
-  --ink-700: #d8d0c4;
-  --ink-900: #f2ece3;
-
-  --accent-600: #c4524a;
-  --accent-700: #d8665d;
-  --accent-50: #35201d;
-  --accent-100: #472824;
-
-  --success-50: #1c2c22;
-  --danger-50: #3a1e1b;
-
-  --surface: #211e1a;
-  --focus-ring: 0 0 0 3px rgb(196 82 74 / 0.4);
-
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 14px rgb(0 0 0 / 0.45);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+  --paper-50: #24352d;
+  --paper-100: #14241c;
+  --paper-200: #314036;
+  --paper-300: #576753;
+  --ink-400: #a8b2a2;
+  --ink-500: #c1c8b7;
+  --ink-700: #d9deca;
+  --ink-900: #f2f1df;
+  --accent-600: #bed18d;
+  --accent-700: #deeca9;
+  --accent-50: #2a3d2c;
+  --accent-100: #415637;
+  --on-accent: #18291b;
+  --success-600: #a9cf9a;
+  --success-50: #253e2e;
+  --danger-600: #f6ad94;
+  --danger-50: #402d26;
+  --on-danger: #2b1510;
+  --star: #e1bc70;
+  --wheel-ink: #f2f1df;
+  --wheel-mix: 66%;
+  --grain-opacity: .07;
+  --surface: #1c2e24;
+  --border: #3a4b3d;
+  --shadow-md: 0 4px 14px #0003;
+  --shadow-lg: 0 12px 32px #0006;
 }

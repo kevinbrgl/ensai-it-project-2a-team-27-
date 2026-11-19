@@ -1,24 +1,24 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: var(--space-4);
-  background: rgb(29 26 22 / 0.4);
+.panel::backdrop {
+  background: rgb(9 29 23 / 0.5);
+  backdrop-filter: blur(2px);
   animation: fade 160ms ease-out;
 }
 
 .panel {
-  width: 100%;
-  max-height: calc(100vh - 2 * var(--space-8));
-  display: flex;
+  width: calc(100% - 2 * var(--space-4));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  overflow: hidden;
   flex-direction: column;
   background: var(--surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   animation: pop 200ms var(--ease-out);
 }
+.panel[open] { display: flex; }
 .panel:focus { box-shadow: var(--shadow-lg); }
 .sm { max-width: 420px; }
 .md { max-width: 520px; }

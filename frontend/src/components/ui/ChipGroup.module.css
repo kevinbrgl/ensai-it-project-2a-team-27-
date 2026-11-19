@@ -1,14 +1,15 @@
-.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Index tags: square-cut labels like the tabs of a card catalogue. */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 6px;
   max-width: 260px;
-  height: 32px;
-  padding: 0 var(--space-3);
+  height: 30px;
+  padding: 5px 11px 0;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-full);
-  background: var(--surface);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--ink-700);
   font-size: var(--text-sm);
   white-space: nowrap;
@@ -16,6 +17,13 @@
   text-overflow: ellipsis;
   transition: background var(--duration), border-color var(--duration), color var(--duration);
 }
-.chip:hover { border-color: var(--ink-400); color: var(--text); }
+.chip:hover { border-color: var(--ink-400); color: var(--text); background: var(--surface); }
 .active, .active:hover { background: var(--ink-900); border-color: var(--ink-900); color: var(--paper-50); }
-.count { opacity: 0.6; font-size: var(--text-xs); }
+.count { font-size: .7rem; font-variant-numeric: tabular-nums; opacity: .62; }
+
+/* One scrolling line on narrow screens keeps the list close to the top. */
+@media (max-width: 640px) {
+  .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--gutter)); padding-inline: var(--gutter); }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; }
+}

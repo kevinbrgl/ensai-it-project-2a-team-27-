@@ -71,8 +71,8 @@ def sample_achievement() -> Achievement:
     """Return a sample Achievement object."""
     return Achievement(
         id_achievement="first_book",
-        title="Premier Ouvrage",
-        description="Terminez la lecture de votre premier livre.",
+        title="First Chapter",
+        description="Finish your first book.",
         category=AchievementCategory.READING,
         tier=AchievementTier.BRONZE,
         icon="🌱",
@@ -101,7 +101,7 @@ class TestGetMyAchievementsUnitRoute:
         data = response.json()
         assert len(data) == 1
         assert data[0]["id_achievement"] == "first_book"
-        assert data[0]["title"] == "Premier Ouvrage"
+        assert data[0]["title"] == "First Chapter"
         assert data[0]["tier"] == "BRONZE"
         assert data[0]["icon"] == "🌱"
         assert data[0]["is_unlocked"] is True

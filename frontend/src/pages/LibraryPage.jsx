@@ -94,24 +94,27 @@ export function LibraryPage() {
         }
       />
 
-      <div className={page.filters}>
+      <div className={styles.filters}>
         <SegmentedControl
           label="Reading status"
           options={tabs}
           value={tab}
           onChange={(value) => updateParams({ status: value === 'all' ? '' : value, genre: '' })}
         />
-        <div className={page.toolbar}>
-          <div className={page.toolbarGroup}>
+        <div className={styles.refine}>
+          <div className={styles.genres}>
             {genres.length > 1 && <ChipGroup label="Genre" options={genres} value={genre} onChange={setGenre} allLabel="All genres" />}
           </div>
-          <Field as="select" aria-label="Sort books" value={sort} onChange={(e) => setSort(e.target.value)} className={page.sortSelect}>
-            {BOOK_SORTS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Field>
+          <label className={styles.sort}>
+            <span>Sort</span>
+            <Field as="select" aria-label="Sort books" value={sort} onChange={(e) => setSort(e.target.value)} className={page.sortSelect}>
+              {BOOK_SORTS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Field>
+          </label>
         </div>
       </div>
 
@@ -169,6 +172,13 @@ function LibraryRow({ book, library, onRemove }) {
     setBusy(false);
   };
 
+  // Dates only where they mean something: a book on the wish list has not
+  // been started, and only finished or abandoned books have an end date.
+  // A date that is already stored is always shown so it can be changed.
+  const showStart = book.state !== 'WANT_TO_READ' || Boolean(book.started_at);
+  const showEnd = ['COMPLETED', 'ABANDONED'].includes(book.state) || Boolean(book.finished_at);
+  const showDates = showStart || showEnd;
+
   return (
     <BookRow
       book={book}
@@ -215,32 +225,40 @@ function LibraryRow({ book, library, onRemove }) {
         </>
       }
     >
-      <div className={styles.dates}>
-        <label className={styles.dateField}>
-          Started
-          <input
-            type="date"
-            className={styles.dateInput}
-            value={book.started_at || ''}
-            max={book.finished_at || undefined}
-            disabled={busy}
-            aria-label={`Start date of ${book.title}`}
-            onChange={(e) => saveDate('started_at', e.target.value)}
-          />
-        </label>
-        <label className={styles.dateField}>
-          Finished
-          <input
-            type="date"
-            className={styles.dateInput}
-            value={book.finished_at || ''}
-            min={book.started_at || undefined}
-            disabled={busy}
-            aria-label={`End date of ${book.title}`}
-            onChange={(e) => saveDate('finished_at', e.target.value)}
-          />
-        </label>
-      </div>
+      {showDates && (
+        <div className={styles.dates}>
+          {showStart && (
+            <label className={styles.dateField}>
+              Started
+              <input
+                type="date"
+                className={styles.dateInput}
+                data-empty={!book.started_at || undefined}
+                value={book.started_at || ''}
+                max={book.finished_at || undefined}
+                disabled={busy}
+                aria-label={`Start date of ${book.title}`}
+                onChange={(e) => saveDate('started_at', e.target.value)}
+              />
+            </label>
+          )}
+          {showEnd && (
+            <label className={styles.dateField}>
+              {book.state === 'ABANDONED' ? 'Stopped' : 'Finished'}
+              <input
+                type="date"
+                className={styles.dateInput}
+                data-empty={!book.finished_at || undefined}
+                value={book.finished_at || ''}
+                min={book.started_at || undefined}
+                disabled={busy}
+                aria-label={`End date of ${book.title}`}
+                onChange={(e) => saveDate('finished_at', e.target.value)}
+              />
+            </label>
+          )}
+        </div>
+      )}
     </BookRow>
   );
 }

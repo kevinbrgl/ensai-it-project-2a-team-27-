@@ -20,8 +20,9 @@
 .iconOnly { width: 40px; padding: 0; }
 .sm.iconOnly { width: 32px; }
 
-.primary { background: var(--accent-600); color: #fff; box-shadow: var(--shadow-sm); }
+.primary { background: var(--accent-600); color: var(--on-accent); box-shadow: var(--shadow-sm); }
 .primary:hover:not(:disabled) { background: var(--accent-700); }
+.primary:disabled { opacity: 1; background: var(--paper-200); color: var(--ink-400); box-shadow: none; }
 
 .secondary { background: var(--surface); border-color: var(--border-strong); color: var(--text); }
 .secondary:hover:not(:disabled) { background: var(--paper-50); border-color: var(--ink-400); }
@@ -29,5 +30,5 @@
 .ghost { background: transparent; color: var(--ink-700); }
 .ghost:hover:not(:disabled) { background: var(--paper-200); color: var(--text); }
 
-.danger { background: var(--danger-600); color: #fff; }
-.danger:hover:not(:disabled) { background: #93190f; }
+.danger { background: var(--danger-600); color: var(--on-danger); }
+.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger-600) 86%, var(--text)); }

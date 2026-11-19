@@ -12,6 +12,89 @@ from psycopg2.extras import RealDictCursor
 from src.models.quests import QuestUserStats
 from src.utils.exceptions import DAOError
 
+ACTIVITY_QUERY = """
+    SELECT
+        COUNT(*) AS library_size,
+        COUNT(*) FILTER (WHERE uba.state = 'COMPLETED') AS completed_books,
+        COUNT(*) FILTER (WHERE uba.state = 'READING') AS reading_books,
+        COUNT(*) FILTER (
+            WHERE uba.state = 'WANT_TO_READ'
+        ) AS want_to_read_books,
+        COUNT(*) FILTER (WHERE uba.is_favorite = TRUE) AS favorite_books,
+        COUNT(*) FILTER (WHERE uba.is_liked = TRUE) AS liked_books,
+        COALESCE(SUM(b.num_pages) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND b.num_pages IS NOT NULL
+        ), 0) AS pages_read,
+        COUNT(DISTINCT b.category) FILTER (
+            WHERE b.category IS NOT NULL
+              AND TRIM(b.category) <> ''
+        ) AS distinct_categories,
+        COUNT(DISTINCT LOWER(TRIM(b.author))) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND b.author IS NOT NULL
+              AND TRIM(b.author) <> ''
+        ) AS distinct_authors,
+        COUNT(*) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND uba.finished_at IS NOT NULL
+        ) AS dated_books
+    FROM user_book_activities uba
+    LEFT JOIN books b ON uba.id_book = b.id_book
+    WHERE uba.id_user = %(user_id)s;
+"""
+
+SOCIAL_QUERY = """
+    SELECT
+        (
+            SELECT COUNT(*)
+            FROM user_follows
+            WHERE follower_id = %(user_id)s
+        ) AS following_count,
+        (
+            SELECT COUNT(*)
+            FROM user_follows
+            WHERE following_id = %(user_id)s
+        ) AS followers_count,
+        (
+            SELECT COUNT(*)
+            FROM user_follows f
+            JOIN user_follows back
+              ON back.follower_id = f.following_id
+             AND back.following_id = f.follower_id
+            WHERE f.follower_id = %(user_id)s
+        ) AS mutual_follows,
+        (
+            SELECT COUNT(*)
+            FROM reviews
+            WHERE id_user = %(user_id)s
+        ) AS reviews_count,
+        (
+            SELECT COUNT(*)
+            FROM playlists
+            WHERE id_user = %(user_id)s
+        ) AS playlists_count,
+        (
+            SELECT COUNT(*)
+            FROM playlist_books pb
+            JOIN playlists p ON p.id_playlist = pb.id_playlist
+            WHERE p.id_user = %(user_id)s
+        ) AS playlist_books,
+        (
+            SELECT
+                (CASE WHEN TRIM(COALESCE(bio, '')) <> '' THEN 1 ELSE 0 END)
+                + (CASE WHEN TRIM(COALESCE(profile_picture, '')) <> ''
+                        THEN 1 ELSE 0 END)
+            FROM users
+            WHERE id_user = %(user_id)s
+        ) AS profile_fields;
+"""
+
+
+def _count(row: dict[str, Any], key: str) -> int:
+    """Read a metric from a result row, treating NULL as zero."""
+    return int(row.get(key) or 0)
+
 
 class QuestDAO:
     """Query the reading and social metrics used by quests.
@@ -45,8 +128,7 @@ class QuestDAO:
         Returns
         -------
         QuestUserStats
-            Counts of completed books, books in progress, favorites, distinct
-            categories, and accounts the user follows.
+            Library, reading, review, playlist, follow, and profile metrics.
 
         Raises
         ------
@@ -54,50 +136,18 @@ class QuestDAO:
             If a database error occurs.
 
         """
+        params = {"user_id": user_id}
         try:
-            self.cur.execute(
-                """
-                SELECT
-                    COALESCE(COUNT(*) FILTER (
-                        WHERE uba.state = 'COMPLETED'
-                    ), 0) AS completed_books,
-                    COALESCE(COUNT(*) FILTER (
-                        WHERE uba.state = 'READING'
-                    ), 0) AS reading_books,
-                    COALESCE(COUNT(*) FILTER (
-                        WHERE uba.is_favorite = TRUE
-                    ), 0) AS favorite_books,
-                    COALESCE(COUNT(DISTINCT b.category) FILTER (
-                        WHERE b.category IS NOT NULL
-                          AND TRIM(b.category) <> ''
-                    ), 0) AS distinct_categories
-                FROM user_book_activities uba
-                LEFT JOIN books b ON uba.id_book = b.id_book
-                WHERE uba.id_user = %s;
-                """,
-                (user_id,),
-            )
+            self.cur.execute(ACTIVITY_QUERY, params)
             activity_row: dict[str, Any] = self.cur.fetchone() or {}
 
-            self.cur.execute(
-                """
-                SELECT COUNT(*) AS following_count
-                FROM user_follows
-                WHERE follower_id = %s;
-                """,
-                (user_id,),
-            )
-            follow_row: dict[str, Any] = self.cur.fetchone() or {}
-
-            return QuestUserStats(
-                completed_books=int(activity_row.get("completed_books", 0)),
-                reading_books=int(activity_row.get("reading_books", 0)),
-                distinct_categories=int(
-                    activity_row.get("distinct_categories", 0),
-                ),
-                favorite_books=int(activity_row.get("favorite_books", 0)),
-                following_count=int(follow_row.get("following_count", 0)),
-            )
+            self.cur.execute(SOCIAL_QUERY, params)
+            social_row: dict[str, Any] = self.cur.fetchone() or {}
 
         except DBError as exc:
             raise DAOError from exc
+
+        row = {**activity_row, **social_row}
+        return QuestUserStats(
+            **{key: _count(row, key) for key in QuestUserStats.model_fields},
+        )

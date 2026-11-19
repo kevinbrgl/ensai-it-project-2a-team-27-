@@ -1,19 +1,17 @@
 import { Icon } from '../ui/Icon';
 import styles from './QuestCard.module.css';
 
-const CATEGORY_LABELS = {
-  READING: 'Reading',
-  EXPLORATION: 'Exploration',
-  SOCIAL: 'Social',
-  ENGAGEMENT: 'Engagement',
+const status = (quest) => {
+  if (quest.is_completed) return 'Completed';
+  return quest.current > 0 ? 'In progress' : 'Not started';
 };
 
 export function QuestCard({ quest }) {
   return (
     <article className={`${styles.card} ${quest.is_completed ? styles.done : ''}`}>
       <div className={styles.top}>
-        <span className={styles.category}>{CATEGORY_LABELS[quest.category] || quest.category}</span>
-        <span className={`${styles.xp} tabular`}>{quest.reward_xp} XP</span>
+        <span className={styles.status}>{status(quest)}</span>
+        <span className={`${styles.xp} tabular`}>+{quest.reward_xp} XP</span>
       </div>
       <h3 className={styles.title}>
         {quest.is_completed && <Icon name="check" size={18} className={styles.check} />}
@@ -24,6 +22,7 @@ export function QuestCard({ quest }) {
         <span
           className={styles.track}
           role="progressbar"
+          aria-label={`${quest.title} progress`}
           aria-valuenow={quest.progress_percentage}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -31,7 +30,7 @@ export function QuestCard({ quest }) {
           <span className={styles.bar} style={{ width: `${quest.progress_percentage}%` }} />
         </span>
         <span className={`${styles.count} tabular`}>
-          {Math.min(quest.current, quest.target)} / {quest.target}
+          {Math.min(quest.current, quest.target).toLocaleString()} / {quest.target.toLocaleString()}
         </span>
       </div>
     </article>

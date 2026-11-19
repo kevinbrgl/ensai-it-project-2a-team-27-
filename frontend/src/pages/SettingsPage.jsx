@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { changePassword, updateMe, updateSettings } from '../api/users';
+import { changePassword, getMyProfile, updateMe, updateSettings } from '../api/users';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { PageHeader } from '../components/ui/PageHeader';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { Skeleton } from '../components/ui/Skeleton';
+import { ErrorState } from '../components/ui/States';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useAsync } from '../hooks/useAsync';
 import { collectErrors, validateEmail, validatePassword, validateUrl, validateUsername } from '../utils/validation';
 import page from './Page.module.css';
 import styles from './SettingsPage.module.css';
@@ -25,12 +28,19 @@ const VISIBILITY_OPTIONS = [
 export function SettingsPage() {
   useDocumentTitle('Settings');
   const { user } = useAuth();
+  const profile = useAsync(getMyProfile, [user.id_user]);
 
   return (
     <>
       <PageHeader title="Account settings" />
       <div className={styles.layout}>
-        <ProfileForm key={user.id_user} />
+        {profile.loading ? (
+          <div aria-busy="true" aria-label="Loading profile"><Skeleton height={260} /></div>
+        ) : profile.error ? (
+          <ErrorState title="Your profile didn’t load" error={profile.error} onRetry={profile.reload} />
+        ) : (
+          <ProfileForm key={user.id_user} user={profile.data} onSaved={profile.setData} />
+        )}
         <PreferencesForm />
         <PasswordForm />
       </div>
@@ -38,8 +48,8 @@ export function SettingsPage() {
   );
 }
 
-function ProfileForm() {
-  const { user, setUser } = useAuth();
+function ProfileForm({ user, onSaved }) {
+  const { setUser } = useAuth();
   const toast = useToast();
   const initial = {
     username: user.username,
@@ -77,8 +87,9 @@ function ProfileForm() {
     setBusy(true);
     try {
       const updated = await updateMe(changes);
-      // PATCH /users/me has no settings fields: keep theme, is_admin…
+      onSaved(updated);
       setUser((current) => ({ ...current, ...updated }));
+      setValues({ username: updated.username, email: updated.email, bio: updated.bio || '', profile_picture: updated.profile_picture || '' });
       toast.success('Profile saved.');
     } catch (err) {
       if (err.status === 409) {
@@ -141,26 +152,30 @@ function ProfileForm() {
 function PreferencesForm() {
   const { user, setUser } = useAuth();
   const toast = useToast();
+  const [saving, setSaving] = useState(false);
 
   // Saved on change; applied optimistically so the theme switches at once.
   const save = async (field, value) => {
-    if (user[field] === value) return;
-    const previous = user;
+    if (saving || user[field] === value) return;
+    const previous = user[field];
+    setSaving(true);
     setUser((current) => ({ ...current, [field]: value }));
     try {
       const updated = await updateSettings({ [field]: value });
-      setUser((current) => ({ ...current, ...updated }));
+      setUser((current) => ({ ...current, [field]: updated[field] }));
       toast.success('Preferences saved.');
     } catch (err) {
-      setUser(previous);
+      setUser((current) => ({ ...current, [field]: previous }));
       toast.error(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
-    <section className={`${page.card} ${styles.form}`}>
+    <fieldset className={`${page.card} ${styles.form}`} disabled={saving} aria-labelledby="preferences-title" aria-busy={saving}>
       <div>
-        <h2 className={styles.title}>Preferences</h2>
+        <h2 id="preferences-title" className={styles.title}>Preferences</h2>
         <p className={styles.text}>Changes are saved right away.</p>
       </div>
       <div className={styles.setting}>
@@ -174,8 +189,8 @@ function PreferencesForm() {
         <div>
           <h3 className={styles.settingLabel}>Profile visibility</h3>
           <p className={styles.text}>
-            When private, other readers can still find you, follow you and read your reviews, but not see your library, shelves or
-            reading stats.
+            A private profile keeps your library, playlists and reading stats visible only to you.
+            Your reviews stay public.
           </p>
         </div>
         <SegmentedControl
@@ -185,7 +200,7 @@ function PreferencesForm() {
           onChange={(value) => save('profile_visibility', value)}
         />
       </div>
-    </section>
+    </fieldset>
   );
 }
 

@@ -12,6 +12,118 @@ from psycopg2.extras import RealDictCursor
 from src.models.achievements import AchievementUserStats
 from src.utils.exceptions import DAOError
 
+# Books first published before this date count as classics.
+CLASSIC_CUTOFF = "1950-01-01"
+# Minimum comment length, in characters, of a detailed review.
+DETAILED_REVIEW_LENGTH = 200
+
+ACTIVITY_QUERY = """
+    SELECT
+        COUNT(*) AS library_size,
+        COUNT(*) FILTER (WHERE uba.state = 'COMPLETED') AS completed_books,
+        COUNT(*) FILTER (WHERE uba.state = 'READING') AS reading_books,
+        COUNT(*) FILTER (
+            WHERE uba.state = 'WANT_TO_READ'
+        ) AS want_to_read_books,
+        COUNT(*) FILTER (WHERE uba.state = 'ABANDONED') AS abandoned_books,
+        COALESCE(SUM(b.num_pages) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND b.num_pages IS NOT NULL
+        ), 0) AS pages_read,
+        COALESCE(MAX(b.num_pages) FILTER (
+            WHERE uba.state = 'COMPLETED'
+        ), 0) AS longest_book_pages,
+        COUNT(DISTINCT b.category) FILTER (
+            WHERE b.category IS NOT NULL
+              AND TRIM(b.category) <> ''
+        ) AS distinct_genres,
+        COUNT(DISTINCT LOWER(TRIM(b.author))) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND b.author IS NOT NULL
+              AND TRIM(b.author) <> ''
+        ) AS distinct_authors,
+        COUNT(*) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND b.publish_date < %(classic_cutoff)s::date
+        ) AS classics_read,
+        COUNT(*) FILTER (
+            WHERE uba.state = 'COMPLETED'
+              AND uba.finished_at IS NOT NULL
+        ) AS dated_books,
+        COUNT(*) FILTER (WHERE uba.is_favorite = TRUE) AS favorites_count,
+        COUNT(*) FILTER (WHERE uba.is_liked = TRUE) AS liked_books
+    FROM user_book_activities uba
+    LEFT JOIN books b ON uba.id_book = b.id_book
+    WHERE uba.id_user = %(user_id)s;
+"""
+
+SOCIAL_QUERY = """
+    SELECT
+        (
+            SELECT COUNT(*)
+            FROM reviews
+            WHERE id_user = %(user_id)s
+        ) AS reviews_count,
+        (
+            SELECT COUNT(*)
+            FROM reviews
+            WHERE id_user = %(user_id)s
+              AND LENGTH(TRIM(COALESCE(comment, ''))) >= %(detailed_length)s
+        ) AS detailed_reviews,
+        (
+            SELECT COUNT(*)
+            FROM reviews
+            WHERE id_user = %(user_id)s
+              AND rating = 5
+        ) AS five_star_reviews,
+        (
+            SELECT COUNT(*)
+            FROM user_follows
+            WHERE follower_id = %(user_id)s
+        ) AS following_count,
+        (
+            SELECT COUNT(*)
+            FROM user_follows
+            WHERE following_id = %(user_id)s
+        ) AS followers_count,
+        (
+            SELECT COUNT(*)
+            FROM user_follows f
+            JOIN user_follows back
+              ON back.follower_id = f.following_id
+             AND back.following_id = f.follower_id
+            WHERE f.follower_id = %(user_id)s
+        ) AS mutual_follows,
+        (
+            SELECT COUNT(*)
+            FROM playlists
+            WHERE id_user = %(user_id)s
+        ) AS playlists_count,
+        (
+            SELECT COALESCE(MAX(sizes.book_count), 0)
+            FROM (
+                SELECT COUNT(pb.id_book) AS book_count
+                FROM playlists p
+                LEFT JOIN playlist_books pb ON pb.id_playlist = p.id_playlist
+                WHERE p.id_user = %(user_id)s
+                GROUP BY p.id_playlist
+            ) sizes
+        ) AS largest_playlist,
+        (
+            SELECT
+                (CASE WHEN TRIM(COALESCE(bio, '')) <> '' THEN 1 ELSE 0 END)
+                + (CASE WHEN TRIM(COALESCE(profile_picture, '')) <> ''
+                        THEN 1 ELSE 0 END)
+            FROM users
+            WHERE id_user = %(user_id)s
+        ) AS profile_fields;
+"""
+
+
+def _count(row: dict[str, Any], key: str) -> int:
+    """Read a metric from a result row, treating NULL as zero."""
+    return int(row.get(key) or 0)
+
 
 class AchievementDAO:
     """Query the reading and social metrics used to award achievements.
@@ -45,7 +157,8 @@ class AchievementDAO:
         Returns
         -------
         AchievementUserStats
-            Aggregate reading, review, follow, favorite, and playlist metrics.
+            Aggregate library, reading, review, follow, playlist, and
+            profile metrics.
 
         Raises
         ------
@@ -53,70 +166,25 @@ class AchievementDAO:
             If a database error occurs.
 
         """
+        params = {
+            "user_id": user_id,
+            "classic_cutoff": CLASSIC_CUTOFF,
+            "detailed_length": DETAILED_REVIEW_LENGTH,
+        }
         try:
-            self.cur.execute(
-                """
-                SELECT
-                    COALESCE(COUNT(*) FILTER (
-                        WHERE uba.state = 'COMPLETED'
-                    ), 0) AS completed_books,
-                    COALESCE(SUM(b.num_pages) FILTER (
-                        WHERE uba.state = 'COMPLETED'
-                          AND b.num_pages IS NOT NULL
-                    ), 0) AS pages_read,
-                    COALESCE(COUNT(DISTINCT b.category) FILTER (
-                        WHERE b.category IS NOT NULL
-                          AND TRIM(b.category) <> ''
-                    ), 0) AS distinct_genres,
-                    COALESCE(COUNT(*) FILTER (
-                        WHERE uba.is_favorite = TRUE
-                    ), 0) AS favorites_count
-                FROM user_book_activities uba
-                LEFT JOIN books b ON uba.id_book = b.id_book
-                WHERE uba.id_user = %s;
-                """,
-                (user_id,),
-            )
+            self.cur.execute(ACTIVITY_QUERY, params)
             activity_row: dict[str, Any] = self.cur.fetchone() or {}
 
-            self.cur.execute(
-                """
-                SELECT
-                    (
-                        SELECT COUNT(*)
-                        FROM reviews
-                        WHERE id_user = %s
-                    ) AS reviews_count,
-                    (
-                        SELECT COUNT(*)
-                        FROM user_follows
-                        WHERE follower_id = %s
-                    ) AS following_count,
-                    (
-                        SELECT COUNT(*)
-                        FROM user_follows
-                        WHERE following_id = %s
-                    ) AS followers_count,
-                    (
-                        SELECT COUNT(*)
-                        FROM playlists
-                        WHERE id_user = %s
-                    ) AS playlists_count;
-                """,
-                (user_id, user_id, user_id, user_id),
-            )
+            self.cur.execute(SOCIAL_QUERY, params)
             social_row: dict[str, Any] = self.cur.fetchone() or {}
-
-            return AchievementUserStats(
-                completed_books=int(activity_row.get("completed_books", 0)),
-                pages_read=int(activity_row.get("pages_read", 0)),
-                distinct_genres=int(activity_row.get("distinct_genres", 0)),
-                favorites_count=int(activity_row.get("favorites_count", 0)),
-                reviews_count=int(social_row.get("reviews_count", 0)),
-                following_count=int(social_row.get("following_count", 0)),
-                followers_count=int(social_row.get("followers_count", 0)),
-                playlists_count=int(social_row.get("playlists_count", 0)),
-            )
 
         except DBError as exc:
             raise DAOError from exc
+
+        row = {**activity_row, **social_row}
+        return AchievementUserStats(
+            **{
+                key: _count(row, key)
+                for key in AchievementUserStats.model_fields
+            },
+        )

@@ -1,12 +1,11 @@
-*,
-*::before,
-*::after { box-sizing: border-box; }
-
-html { -webkit-text-size-adjust: 100%; }
-
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; background-color: var(--bg); }
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100dvh;
+  background-color: var(--bg);
+  background-image: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--surface) 70%, transparent), transparent 65%),
+    repeating-linear-gradient(93deg, transparent 0 3px, rgb(98 90 45 / .019) 3px 4px);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -14,53 +13,51 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-
-h1, h2, h3, h4 {
-  margin: 0;
-  font-weight: 500;
-  line-height: 1.2;
-  text-wrap: balance;
+/* Paper grain over the whole page: a fixed layer, so it costs nothing on scroll. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .14 0 0 0 0 .1 0 0 0 1.4 -.35'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-
-h1, h2 { font-family: var(--font-serif); letter-spacing: -0.01em; }
+@media print { body::after { display: none; } }
+h1, h2, h3, h4 { margin: 0; line-height: 1.15; text-wrap: balance; }
+h1, h2 { font: 400 var(--text-lg)/1.06 var(--font-serif); }
 h1 { font-size: var(--text-xl); }
-h2 { font-size: var(--text-lg); }
 h3 { font-size: var(--text-md); font-weight: 600; }
-
 p { margin: 0; text-wrap: pretty; }
-
 a { color: inherit; text-decoration: none; }
-
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
-
 img { display: block; max-width: 100%; }
-
-:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-
-::selection { background: var(--accent-100); }
-
+:focus-visible { outline: 2px solid var(--accent-600); outline-offset: 3px; }
+::selection { background: var(--marker); color: var(--deep-pine); }
 .tabular { font-variant-numeric: tabular-nums; }
-
 .visually-hidden {
   position: absolute !important;
-  width: 1px; height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+  width: 1px; height: 1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
-
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
-
-.page-enter { animation: fade-up 260ms var(--ease-out); }
-
+@keyframes rule-draw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+/* Editorial accent word in a heading, e.g. "Find your next <em>book.</em>" */
+h1 em, h2 em { font-style: italic; color: var(--accent-600); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration: 1ms !important;
-    transition-duration: 1ms !important;
+    animation-duration: .01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
 }

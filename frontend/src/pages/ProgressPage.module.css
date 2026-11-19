@@ -1,3 +1,17 @@
-.questsTitle { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-3); }
-.xp { font-size: var(--text-sm); color: var(--text-muted); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+.nav { display: flex; flex-wrap: wrap; gap: clamp(12px, 3vw, 42px); margin: 0 0 24px; border-bottom: 1px solid var(--border-strong); }
+.nav button {
+  background: none; border: 0; margin-bottom: -1px; border-bottom: 3px solid transparent;
+  font: 500 var(--text-base)/1.4 var(--font-sans); padding: 8px 2px 12px; color: var(--text-muted);
+}
+.nav button:hover, .nav button[aria-pressed='true'] { color: var(--accent-600); }
+.nav button[aria-pressed='true'] { border-color: currentColor; }
+.overview { display: grid; gap: clamp(24px, 4vw, 44px); }
+.questsHeader { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.questsHeader h2 { font: 400 clamp(1.8rem, 3vw, 2.5rem)/1.1 var(--font-serif); }
+.questGroup + .questGroup { margin-top: 30px; }
+.groupTitle {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px;
+  font: 600 .8rem/1.3 var(--font-sans); letter-spacing: .09em; text-transform: uppercase; color: var(--accent-600);
+}
+.groupTitle > span { font-weight: 500; letter-spacing: .04em; text-transform: none; color: var(--text-muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 0 24px; }

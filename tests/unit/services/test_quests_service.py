@@ -10,14 +10,16 @@ import pytest
 
 from src.dao.quests_dao import QuestDAO
 from src.models.quests import QuestCategory, QuestUserStats
-from src.services.quests_service import QuestService
+from src.services.quests_service import QUEST_DEFINITIONS, QuestService
 
 ID_USER = 1
 PERCENT_ZERO = 0.0
 PERCENT_FULL = 100.0
 PERCENT_HALF = 50.0
 PERCENT_THIRD = 33.3
-TOTAL_QUESTS_COUNT = 6
+TOTAL_QUESTS_COUNT = 32
+MAX_PROFILE_FIELDS = 2
+LARGE_STAT = 100_000
 
 
 @pytest.fixture
@@ -87,9 +89,9 @@ class TestQuestService:
             PERCENT_THIRD,
         )
 
-        # cercle_litteraire (target 2): 1/2 = 50.0%
-        assert by_id["cercle_litteraire"].is_completed is False
-        assert by_id["cercle_litteraire"].progress_percentage == pytest.approx(
+        # reading_circle (target 2): 1/2 = 50.0%
+        assert by_id["reading_circle"].is_completed is False
+        assert by_id["reading_circle"].progress_percentage == pytest.approx(
             PERCENT_HALF,
         )
 
@@ -100,11 +102,12 @@ class TestQuestService:
     ) -> None:
         """Progress exceeding target is capped at 100%."""
         mock_dao.get_user_stats.return_value = QuestUserStats(
-            completed_books=10,
-            reading_books=5,
-            distinct_categories=5,
-            following_count=10,
-            favorite_books=5,
+            **{
+                name: MAX_PROFILE_FIELDS
+                if name == "profile_fields"
+                else LARGE_STAT
+                for name in QuestUserStats.model_fields
+            },
         )
 
         quests = service.get_quests(ID_USER, status_filter="all")
@@ -176,3 +179,32 @@ class TestQuestService:
         assert QuestCategory.EXPLORATION in categories
         assert QuestCategory.SOCIAL in categories
         assert QuestCategory.ENGAGEMENT in categories
+
+
+class TestQuestCatalog:
+    """Consistency checks on the quest definitions."""
+
+    def test_ids_are_unique(self) -> None:
+        """No two quests share an identifier."""
+        ids = [defn.id_quest for defn in QUEST_DEFINITIONS]
+
+        assert len(ids) == len(set(ids))
+
+    def test_stat_keys_exist(self) -> None:
+        """Every quest tracks a metric that the DAO actually provides."""
+        fields = set(QuestUserStats.model_fields)
+
+        for defn in QUEST_DEFINITIONS:
+            assert defn.stat_key in fields, defn.id_quest
+
+    def test_rewards_grow_with_targets(self) -> None:
+        """For one metric, a harder quest never rewards less XP."""
+        by_stat: dict[str, list[tuple[int, int]]] = {}
+        for defn in QUEST_DEFINITIONS:
+            by_stat.setdefault(defn.stat_key, []).append(
+                (defn.target, defn.reward_xp),
+            )
+
+        for stat_key, ladder in by_stat.items():
+            rewards = [xp for _, xp in sorted(ladder)]
+            assert rewards == sorted(rewards), stat_key

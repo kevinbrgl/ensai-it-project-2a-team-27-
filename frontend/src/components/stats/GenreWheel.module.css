@@ -1,0 +1,41 @@
+.figure {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(160px, .72fr) minmax(0, 1.28fr);
+  align-items: center;
+  column-gap: clamp(24px, 4vw, 66px);
+  padding: clamp(16px, 3vw, 40px);
+  border-block: 1px solid var(--border-strong);
+  background: linear-gradient(105deg, var(--paper-200), var(--paper-50) 58%);
+}
+.chart { position: relative; inline-size: min(100%, 265px); justify-self: center; }
+.chart svg { display: block; width: 100%; }
+.guides { stroke: var(--ink-400); stroke-width: .55; }
+.arc, .selectedArc { stroke: var(--paper-50); stroke-width: 1.2; cursor: pointer; transition: opacity var(--duration), stroke-width var(--duration); }
+.arc { opacity: .72; }
+.arc, .selectedArc { transform-box: view-box; transform-origin: 100px 100px; animation: arc-in 760ms var(--ease-out) backwards; }
+path:nth-of-type(2) { animation-delay: 70ms; }
+path:nth-of-type(3) { animation-delay: 140ms; }
+path:nth-of-type(n+4) { animation-delay: 200ms; }
+@keyframes arc-in { from { opacity: 0; transform: rotate(-28deg) scale(.9); } }
+.selectedArc { opacity: 1; stroke-width: 2.4; }
+.avatar { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.legend { min-width: 0; }
+.legend h2 { font: normal clamp(1.9rem, 3.7vw, 3.2rem)/1 var(--font-serif); }
+.description { color: var(--text-muted); margin: 8px 0 0; max-width: 44ch; font-size: var(--text-sm); }
+.list { list-style: none; margin: var(--space-4) 0; padding: 0; }
+.choice {
+  width: 100%; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; min-height: 38px; padding: 6px 10px;
+  background: transparent; border: 0; border-bottom: 1px solid var(--border-strong);
+  color: var(--text); text-align: left; font: inherit; font-size: var(--text-sm);
+}
+.choice[aria-pressed='true'] { background: var(--surface); box-shadow: inset 2px 0 var(--accent-600); font-weight: 600; }
+.choice:hover { background: var(--paper-200); }
+.swatch { width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgb(0 0 0 / .2); }
+.genre, .detail { overflow-wrap: anywhere; }
+.detail { color: var(--ink-700); font-size: var(--text-sm); }
+@media (max-width: 560px) {
+  .figure { grid-template-columns: 1fr; row-gap: 12px; }
+  .chart { inline-size: 174px; }
+}

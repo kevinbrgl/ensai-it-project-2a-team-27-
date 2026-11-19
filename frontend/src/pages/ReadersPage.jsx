@@ -13,7 +13,6 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useFollowing } from '../hooks/useFollowing';
 import { useSearchParamState } from '../hooks/useSearchParamState';
-import page from './Page.module.css';
 import styles from './ReadersPage.module.css';
 
 export function ReadersPage() {
@@ -34,41 +33,45 @@ export function ReadersPage() {
     <>
       <PageHeader title="Readers" description="Follow people whose taste you trust, and see what they’re reading." />
 
-      <div className={styles.layout}>
-        <section>
-          <div className={styles.search}>
-            <Icon name="search" size={18} className={styles.searchIcon} />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search readers by username"
-              aria-label="Search readers by username"
-              maxLength={30}
-            />
-          </div>
+      <div className={styles.search}>
+        <Icon name="search" size={20} className={styles.searchIcon} />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Find a reader by username…"
+          aria-label="Search readers by username"
+          maxLength={30}
+        />
+        {query && (
+          <button type="button" className={styles.clear} onClick={() => setQuery('')} aria-label="Clear search">
+            <Icon name="x" size={18} />
+          </button>
+        )}
+      </div>
 
-          {!term && <p className={`${page.muted} ${styles.hint}`}>Type part of a username to find someone.</p>}
-          {term && results.error && <ErrorState error={results.error} onRetry={results.reload} />}
-          {term && results.loading && <ListSkeleton />}
-          {term && !results.loading && results.data && found.length === 0 && (
+      {term ? (
+        <section className={styles.panel} aria-label={`Readers matching ${term}`}>
+          <p className={styles.panelLabel}>Readers matching <em>“{term}”</em></p>
+          {results.error && <ErrorState error={results.error} onRetry={results.reload} />}
+          {results.loading && <ListSkeleton />}
+          {!results.loading && results.data && found.length === 0 && (
             <EmptyState icon="users" title={`No reader called “${term}”`}>
               Usernames are matched partially, so try fewer letters.
             </EmptyState>
           )}
-          {term && !results.loading && found.length > 0 && (
-            <ul className={page.list}>
+          {!results.loading && found.length > 0 && (
+            <ul className={styles.list}>
               {found.map((u) => (
                 <UserRow key={u.id_user} user={u} action={<FollowButton user={u} social={social} />} />
               ))}
             </ul>
           )}
         </section>
-
-        <section className={`${page.card} ${styles.network}`}>
+      ) : (
+        <section className={styles.panel} aria-label="Your reading circle">
           <SegmentedControl
-            label="Your network"
-            size="sm"
+            label="Your reading circle"
             value={tab}
             onChange={setTab}
             options={[
@@ -76,34 +79,34 @@ export function ReadersPage() {
               { value: 'followers', label: 'Followers', count: followers.data?.length },
             ]}
           />
-          <div className={styles.networkList}>
-            {list.error && <ErrorState error={list.error} onRetry={list.reload} />}
-            {!list.error && list.loading && !list.data?.length && <ListSkeleton />}
-            {!list.error && !list.loading && list.data?.length === 0 && (
-              <p className={`${page.muted} ${styles.hint}`}>
-                {tab === 'followers' ? 'Nobody follows you yet.' : 'You don’t follow anyone yet. Search for a reader to start.'}
-              </p>
-            )}
-            {list.data?.length > 0 && (
-              <ul className={page.list}>
-                {list.data.map((u) => (
-                  <UserRow key={u.id_user} user={u} action={<FollowButton user={u} social={social} />} />
-                ))}
-              </ul>
-            )}
-          </div>
+          {list.error && <ErrorState error={list.error} onRetry={list.reload} />}
+          {!list.error && list.loading && !list.data?.length && <ListSkeleton />}
+          {!list.error && !list.loading && list.data?.length === 0 && (
+            <EmptyState icon="users" title={tab === 'followers' ? 'Nobody follows you yet' : 'Your circle is empty'}>
+              {tab === 'followers'
+                ? 'Readers who follow you will be listed here.'
+                : 'Search for a reader above and follow them to see what they read.'}
+            </EmptyState>
+          )}
+          {list.data?.length > 0 && (
+            <ul className={styles.list}>
+              {list.data.map((u) => (
+                <UserRow key={u.id_user} user={u} action={<FollowButton user={u} social={social} />} />
+              ))}
+            </ul>
+          )}
         </section>
-      </div>
+      )}
     </>
   );
 }
 
 function ListSkeleton() {
   return (
-    <div className={styles.skeleton}>
-      {[0, 1, 2].map((i) => (
+    <div className={styles.list} aria-busy="true" aria-label="Loading readers">
+      {[0, 1, 2, 3].map((i) => (
         <div key={i} className={styles.skeletonRow}>
-          <Skeleton width={40} height={40} radius="50%" />
+          <Skeleton width={44} height={44} radius="50%" />
           <Skeleton width="40%" height={14} />
         </div>
       ))}

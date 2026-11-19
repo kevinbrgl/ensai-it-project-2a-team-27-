@@ -62,6 +62,77 @@ class AchievementUserStats(BaseModel):
         ge=0,
         description="Number of created playlists",
     )
+    library_size: int = Field(
+        default=0,
+        ge=0,
+        description="Number of books in the library, whatever their state",
+    )
+    want_to_read_books: int = Field(
+        default=0,
+        ge=0,
+        description="Number of books on the want-to-read list",
+    )
+    reading_books: int = Field(
+        default=0,
+        ge=0,
+        description="Number of books currently being read",
+    )
+    abandoned_books: int = Field(
+        default=0,
+        ge=0,
+        description="Number of books set aside before the end",
+    )
+    distinct_authors: int = Field(
+        default=0,
+        ge=0,
+        description="Distinct authors of finished books",
+    )
+    longest_book_pages: int = Field(
+        default=0,
+        ge=0,
+        description="Page count of the longest finished book",
+    )
+    classics_read: int = Field(
+        default=0,
+        ge=0,
+        description="Finished books first published before 1950",
+    )
+    dated_books: int = Field(
+        default=0,
+        ge=0,
+        description="Finished books with a recorded finish date",
+    )
+    detailed_reviews: int = Field(
+        default=0,
+        ge=0,
+        description="Reviews whose comment is at least 200 characters long",
+    )
+    five_star_reviews: int = Field(
+        default=0,
+        ge=0,
+        description="Reviews with a 5-star rating",
+    )
+    liked_books: int = Field(
+        default=0,
+        ge=0,
+        description="Number of liked books",
+    )
+    largest_playlist: int = Field(
+        default=0,
+        ge=0,
+        description="Number of books in the user's largest playlist",
+    )
+    mutual_follows: int = Field(
+        default=0,
+        ge=0,
+        description="Followed users who follow the user back",
+    )
+    profile_fields: int = Field(
+        default=0,
+        ge=0,
+        le=2,
+        description="Profile fields filled in among bio and picture (0 to 2)",
+    )
 
 
 class Achievement(BaseModel):

@@ -2,7 +2,7 @@
 
 React interface for the Ex-Libris reading-tracker API (FastAPI, in `src/` at the
 project root). Users can search books, keep a library, rate and review books,
-organise shelves, follow other readers and track their reading progress.
+organise playlists, follow other readers and track their reading progress.
 
 Built with **React 19**, **React Router 7** and **Vite 7**. Styling uses plain
 CSS Modules and a small set of design tokens: no UI framework and no extra
@@ -113,13 +113,12 @@ origin.
 | **Sign in / Create account** | Validated forms; errors from the API (taken username, wrong password…) shown on the right field. |
 | **Home** | Your current book with a one-click “Mark as finished”, library counts, next quests, personalised recommendations. |
 | **Discover** | Search Open Library by title or author (“Show more results” loads up to 50). Without a search: recommendations by genre, sorted by rating, date or title. |
-| **Catalog** | All books saved locally, filtered by genre and author (server-side), sorted and paginated. |
-| **Book** | Cover, details, add to library with a status, change status, like, favorite, save to shelves, remove (with confirmation). Reviews: average rating, write / edit / delete your review. |
+| **Book** | Browse editions and more titles by the author. Add the book to your library or playlists, change reading status, mark favorites, and publish or edit a review. |
 | **My library** | Tabs by status and favorites, genre filter, sorting, pagination, inline status change, like, favorite, remove (with confirmation). |
-| **Shelves** | Create, rename, delete (with confirmation) shelves, see their covers, remove books. |
+| **Playlists** | Create, rename, delete (with confirmation) playlists, see their covers, remove books. |
 | **Readers** | Search users, follow / unfollow, see who you follow and who follows you. |
-| **Reader profile** | Their name, bio and picture, library, reviews, shelves, followers, following, and stats (shown once you follow them, as the API requires). A private profile only shows its reviews and followers to others. Admins can suspend or ban the reader. |
-| **Progress** | Books finished, genre and rating breakdowns, quests with XP. |
+| **Reader profile** | Explore a public reader’s library, playlists and interactive genre wheel. Followers can also see their reading statistics. Reviews and social connections remain visible on private profiles. Admins can suspend or ban a reader. |
+| **Progress** | Overview shows reading totals and a selectable genre wheel. Achievements shows locked and unlocked trophies by tier, with their requirements and progress. Quests tracks active challenges, completions and XP. |
 | **Settings** | Edit username, email, bio and picture link; change password; day or night theme; public or private profile. |
 
 Every action gives feedback (toast message, inline error or loading state),
@@ -137,12 +136,14 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | POST | `/auth/register` | Create account |
 | POST | `/auth/login` (form data) | Sign in |
 | POST | `/auth/logout` | Sign out |
-| GET | `/users/me/settings` | Session check, sidebar, theme |
+| GET | `/users/me/settings` | Session check, navigation, theme |
 | PATCH | `/users/me/settings` | Settings, theme and profile visibility |
-| PATCH | `/users/me` | Settings, profile |
+| GET / PATCH | `/users/me` | Settings, load and edit profile |
 | PUT | `/users/me/password` | Settings, password |
 | GET | `/users/me/stats` | Progress, own profile |
 | GET | `/users/me/quests?status=` | Home, Progress |
+| GET | `/users/me/achievements?status=` | Progress, achievements showcase |
+| GET | `/users/{id}/genre-wheel` | Progress, reader profile |
 | GET | `/users/search?username=&limit=` | Readers |
 | GET | `/users/{id}` | Profile (name, bio, picture, visibility) |
 | POST / DELETE | `/users/{id}/follow` | Follow buttons |
@@ -152,8 +153,8 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | GET | `/users/{id}/playlists` | Profile (403 if private) |
 | GET | `/users/{id}/stats` | Profile (403 if not followed or private) |
 | GET | `/users/{id}/reviews` | Profile |
-| GET | `/books/search?q=&limit=` | Discover, sidebar search |
-| GET | `/books?category=&author=` | Catalog |
+| GET | `/books/search?q=&limit=` | Discover, quick search |
+| GET | `/books?author=` | Book page, more titles by the same author |
 | GET | `/books/{id}` | Book page |
 | GET / POST | `/books/{id}/reviews` | Book page |
 | PUT / DELETE | `/reviews/{id}` | Book page |
@@ -165,10 +166,10 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | PATCH | `/library/books/{id}/dates` | Reading dates |
 | POST | `/library/books/{id}/like` | Like toggle |
 | POST | `/library/books/{id}/favorite` | Favorite toggle |
-| GET / POST | `/playlists` | Shelves |
-| GET / PATCH / DELETE | `/playlists/{id}` | Shelf page |
-| POST | `/playlists/{id}/books` | Save to shelf |
-| DELETE | `/playlists/{id}/books/{bookId}` | Remove from shelf |
+| GET / POST | `/playlists` | Playlists |
+| GET / PATCH / DELETE | `/playlists/{id}` | Playlist page |
+| POST | `/playlists/{id}/books` | Save to playlist |
+| DELETE | `/playlists/{id}/books/{bookId}` | Remove from playlist |
 | GET | `/recommendations?genre=&sort=&limit=` | Home, Discover |
 | POST | `/admin/users/{id}/suspend`, `/admin/users/{id}/ban` | Profile, moderation menu (admins) |
 | DELETE | `/admin/reviews/{id}` | Book page, moderation (admins) |
@@ -196,11 +197,11 @@ frontend/
     ├── hooks/              Reusable logic (async data, pagination, URL state…)
     ├── components/
     │   ├── ui/             Design-system pieces: Button, Field, Modal, Menu…
-    │   ├── layout/         Sidebar layout, auth guard
-    │   ├── books/          Covers, cards, grids, library and shelf controls
+    │   ├── layout/         Masthead, navigation, auth guard
+    │   ├── books/          Covers, cards, grids, library and playlist controls
     │   ├── reviews/        Review form and review item
     │   ├── users/          Reader rows, follow button
-    │   └── stats/          Bars, stats panels, quest cards
+    │   └── stats/          Genre wheel, achievements, stats, quests
     ├── pages/              One component per screen (+ its CSS module)
     ├── styles/
     │   ├── tokens.css      Colours, type scale, spacing, radii, motion
@@ -224,7 +225,7 @@ These come from the current API; the frontend does not invent endpoints for them
 - **Review authors** are only given by their id, so a reviewer’s name is shown
   when the app has already seen that reader (search results, followers, a
   visited profile). Otherwise it reads “Reader #12”.
-- **Other readers’ shelves** are listed by name only: `GET /playlists/{id}` is
+- **Other readers’ playlists** are listed by name only: `GET /playlists/{id}` is
   restricted to the owner.
 - **Book search needs Open Library.** If the backend cannot reach
   openlibrary.org, search shows the backend’s “Open Library service is
@@ -232,5 +233,5 @@ These come from the current API; the frontend does not invent endpoints for them
   books.
 - **Book descriptions** are not filled in by the Open Library search, so book
   pages link to the Open Library page instead.
-- **Quest titles** are written in French by the backend and shown as-is.
+- **Quest and achievement descriptions** use the French text supplied by the API.
 - **No account deletion** endpoint exists, so the settings page doesn’t offer it.

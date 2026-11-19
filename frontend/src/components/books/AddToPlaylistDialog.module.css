@@ -1,6 +1,7 @@
 .list { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .empty { color: var(--text-muted); font-size: var(--text-sm); padding: var(--space-2) 0; }
-.shelf {
+.error { color: var(--danger-600); font-size: var(--text-sm); margin-bottom: var(--space-3); }
+.playlist {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -13,7 +14,7 @@
   text-align: left;
   transition: border-color var(--duration), background var(--duration);
 }
-.shelf:hover { border-color: var(--ink-400); }
+.playlist:hover { border-color: var(--ink-400); }
 .selected { border-color: var(--accent-100); background: var(--accent-50); }
 .box {
   display: grid;
@@ -21,8 +22,8 @@
   width: 18px;
   height: 18px;
   border: 1.5px solid var(--border-strong);
-  border-radius: 5px;
-  color: #fff;
+  border-radius: var(--radius-sm);
+  color: var(--on-accent);
 }
 .selected .box { background: var(--accent-600); border-color: var(--accent-600); }
 .name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -35,5 +36,5 @@
   padding-top: var(--space-5);
   border-top: 1px solid var(--border);
 }
-.create > :first-child { flex: 1; }
+.create > :first-child { flex: 1; min-width: 0; }
 .createButton { margin-top: 26px; }

@@ -1,0 +1,51 @@
+.summary {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); align-items: end;
+  gap: 24px clamp(24px, 4.5vw, 64px); margin-bottom: 28px; padding: 26px 0 28px;
+  border-block: 1px solid var(--border-strong);
+}
+.overall { min-width: 0; }
+.figures { display: flex; flex-wrap: wrap; gap: 18px clamp(28px, 4.5vw, 56px); }
+.figure { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.value { font: 400 clamp(3.2rem, 6.4vw, 5rem)/.85 var(--font-serif); color: var(--accent-600); white-space: nowrap; }
+.total, .unit { font-size: .42em; color: var(--text-muted); }
+.caption {
+  font-size: var(--text-sm); font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.rail { height: 10px; margin-top: 22px; background: var(--paper-200); overflow: hidden; }
+.rail > span {
+  display: block; height: 100%; background: var(--accent-600);
+  transform-origin: left; animation: rule-draw 900ms 150ms var(--ease-out) backwards;
+}
+
+.breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 128px), 1fr)); gap: 10px; margin: 0; }
+.cell {
+  --metal: var(--accent-600);
+  min-width: 0; padding: 14px 16px 16px; background: var(--paper-200);
+  border-top: 4px solid var(--metal);
+}
+.cell[data-tone='BRONZE'] { --metal: #c79573; }
+.cell[data-tone='SILVER'] { --metal: #bec9c4; }
+.cell[data-tone='GOLD'] { --metal: #d7ae5d; }
+.cell[data-tone='PLATINUM'] { --metal: #c1cec0; }
+.cell dt {
+  display: flex; align-items: center; gap: 9px;
+  font-size: .8rem; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--text);
+}
+.cell[data-tone] dt::before {
+  content: ''; flex-shrink: 0; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--metal); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-900) 25%, transparent);
+}
+.cell dd { margin: 10px 0 0; }
+.done { font: 400 2.4rem/1 var(--font-serif); color: var(--text); }
+.of { font-size: var(--text-md); color: var(--text-muted); }
+.bar { display: block; height: 5px; margin-top: 12px; background: var(--border-strong); }
+.bar > span { display: block; height: 100%; background: var(--metal); }
+
+@media (max-width: 860px) {
+  .summary { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 420px) {
+  .breakdown { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cell { padding: 12px 12px 14px; }
+}

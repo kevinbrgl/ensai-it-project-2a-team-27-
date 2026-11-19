@@ -1,0 +1,2 @@
+.wordmark { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; font: 400 2.1rem/1 var(--font-serif); letter-spacing: -.035em; }
+.wordmark svg { width: 34px; height: 34px; color: var(--marker); }

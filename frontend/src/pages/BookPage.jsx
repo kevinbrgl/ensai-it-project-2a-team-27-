@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { moderateReview } from '../api/admin';
-import { getBookDetails } from '../api/books';
+import { getBookDetails, listBooks } from '../api/books';
 import * as reviewsApi from '../api/reviews';
 import { getFollowers, getFollowing } from '../api/users';
-import { AddToShelfDialog } from '../components/books/AddToShelfDialog';
+import { AddToPlaylistDialog } from '../components/books/AddToPlaylistDialog';
 import { BookCover } from '../components/books/BookCover';
+import { BookRow } from '../components/books/BookRow';
 import { LibraryControl } from '../components/books/LibraryControl';
 import { ReviewForm } from '../components/reviews/ReviewForm';
 import { ReviewItem } from '../components/reviews/ReviewItem';
@@ -21,7 +22,7 @@ import { useLibrary } from '../context/LibraryContext';
 import { useToast } from '../context/ToastContext';
 import { useAsync } from '../hooks/useAsync';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { formatRating, largeCover, plural, yearOf } from '../utils/format';
+import { firstAuthor, formatRating, largeCover, plural, yearOf } from '../utils/format';
 import page from './Page.module.css';
 import styles from './BookPage.module.css';
 
@@ -33,7 +34,7 @@ export function BookPage() {
 
   if (error) {
     return error.status === 404 || error.status === 422 ? (
-      <EmptyState icon="book" title="This book isn’t in the catalog" action={<Button to="/discover">Search for books</Button>}>
+      <EmptyState icon="book" title="Book not found" action={<Button to="/discover">Search for books</Button>}>
         It may have been removed, or the link is incomplete.
       </EmptyState>
     ) : (
@@ -47,6 +48,7 @@ export function BookPage() {
       <BookHeader book={book} />
       <Editions editions={book.editions || []} />
       <Reviews book={book} />
+      {book.author?.trim() && <MoreByAuthor book={book} />}
     </>
   );
 }
@@ -54,7 +56,7 @@ export function BookPage() {
 function BookHeader({ book }) {
   const library = useLibrary();
   const entry = library.get(book.id_book);
-  const [shelfOpen, setShelfOpen] = useState(false);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
   const year = yearOf(book.publish_date);
 
   return (
@@ -64,16 +66,21 @@ function BookHeader({ book }) {
       </div>
       <div className={styles.info}>
         {book.category && (
-          <Link to={`/catalog?genre=${encodeURIComponent(book.category)}`} className={styles.category}>
+          <Link to={`/discover?genre=${encodeURIComponent(book.category)}`} className={styles.category}>
             {book.category}
           </Link>
         )}
         <h1 className={styles.title}>{book.title}</h1>
         <p className={styles.byline}>
           {book.author ? (
-            <Link to={`/catalog?author=${encodeURIComponent(book.author.split(',')[0].trim())}`} className={styles.author}>
-              {book.author}
-            </Link>
+            book.author.split(',').map((name, index) => (
+              <span key={`${name}-${index}`}>
+                {index > 0 && ', '}
+                <Link to={`/discover?q=${encodeURIComponent(name.trim())}`} className={styles.author}>
+                  {name.trim()}
+                </Link>
+              </span>
+            ))
           ) : (
             'Unknown author'
           )}
@@ -105,8 +112,8 @@ function BookHeader({ book }) {
               </Button>
             </>
           )}
-          <Button icon="shelves" variant="ghost" onClick={() => setShelfOpen(true)}>
-            Save to shelf
+          <Button icon="playlists" variant="ghost" onClick={() => setPlaylistOpen(true)}>
+            Save to playlist
           </Button>
         </div>
 
@@ -125,13 +132,15 @@ function BookHeader({ book }) {
           )
         )}
       </div>
-      <AddToShelfDialog book={book} open={shelfOpen} onClose={() => setShelfOpen(false)} />
+      <AddToPlaylistDialog book={book} open={playlistOpen} onClose={() => setPlaylistOpen(false)} />
     </section>
   );
 }
 
 /** Editions of the book, read live from Open Library by the backend. */
 function Editions({ editions }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? editions : editions.slice(0, 3);
   return (
     <section className={`${page.section} ${styles.editions}`}>
       <div className={styles.editionsAside}>
@@ -140,11 +149,18 @@ function Editions({ editions }) {
       </div>
       <div className={styles.editionsMain}>
         {editions.length > 0 ? (
-          <ul className={`${page.list} ${styles.editionList}`}>
-            {editions.map((edition, index) => (
-              <EditionItem key={`${edition.isbn || edition.title || 'edition'}-${index}`} edition={edition} />
-            ))}
-          </ul>
+          <>
+            <ul id="edition-list" className={`${page.list} ${styles.editionList}`}>
+              {visible.map((edition, index) => (
+                <EditionItem key={`${edition.isbn || edition.title || 'edition'}-${index}`} edition={edition} />
+              ))}
+            </ul>
+            {editions.length > 3 && (
+              <Button size="sm" variant="ghost" aria-expanded={expanded} aria-controls="edition-list" onClick={() => setExpanded(!expanded)}>
+                {expanded ? 'Show fewer editions' : `Show all ${editions.length} editions`}
+              </Button>
+            )}
+          </>
         ) : (
           <p className={`${page.muted} ${styles.noEditions}`}>No edition is available from Open Library for this book right now.</p>
         )}
@@ -167,6 +183,33 @@ function EditionItem({ edition }) {
       <span className={styles.editionTitle}>{edition.title || 'Untitled edition'}</span>
       {details.length > 0 && <span className={`${styles.editionMeta} tabular`}>{details.join(' · ')}</span>}
     </li>
+  );
+}
+
+function MoreByAuthor({ book }) {
+  const author = firstAuthor(book.author);
+  const { data, error, loading, reload } = useAsync(() => listBooks({ author }), [author]);
+  const books = (data || []).filter((other) => other.id_book !== book.id_book
+    && other.author?.split(',').some((name) => name.trim().toLocaleLowerCase() === author.toLocaleLowerCase()));
+
+  return (
+    <section className={`${page.section} ${styles.related}`}>
+      <div className={styles.relatedHeader}>
+        <h2>More by {author}</h2>
+        <Link to={`/discover?q=${encodeURIComponent(author)}`} className={page.sectionLink}>
+          Search Open Library <Icon name="arrowRight" size={14} />
+        </Link>
+      </div>
+      {loading ? (
+        <div aria-busy="true" aria-label="Loading books by this author"><Skeleton height={72} /></div>
+      ) : error ? (
+        <ErrorState title="Couldn’t load this author’s books" error={error} onRetry={reload} />
+      ) : books.length ? (
+        <ul className={page.list}>{books.slice(0, 4).map((other) => <BookRow key={other.id_book} book={other} />)}</ul>
+      ) : (
+        <p className={page.muted}>This is the only title by {author} saved by readers here so far.</p>
+      )}
+    </section>
   );
 }
 

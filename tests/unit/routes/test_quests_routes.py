@@ -68,8 +68,8 @@ def sample_quest() -> Quest:
     """Return a sample Quest object."""
     return Quest(
         id_quest="read_first_book",
-        title="Premier pas",
-        description="Lire 1 livre",
+        title="Turn the First Page",
+        description="Finish your first book.",
         category=QuestCategory.READING,
         current=1,
         target=1,
@@ -97,7 +97,7 @@ class TestGetMyQuestsUnitRoute:
         data = response.json()
         assert len(data) == 1
         assert data[0]["id_quest"] == "read_first_book"
-        assert data[0]["title"] == "Premier pas"
+        assert data[0]["title"] == "Turn the First Page"
         assert data[0]["current"] == 1
         assert data[0]["target"] == 1
         assert data[0]["progress_percentage"] == pytest.approx(FULL_PERCENT)
