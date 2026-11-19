@@ -14,6 +14,7 @@ from src.utils.exceptions import (
     BookNotFoundError,
     DAOError,
     ExternalServiceError,
+    InvalidSearchQueryError,
 )
 
 router = APIRouter(prefix="/books", tags=["Books"])
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_200_OK,
     summary="🔍 Search books",
     responses={
+        400: {"description": "Search is too generic (e.g. only 'the')"},
         500: {"description": "Database error"},
         502: {"description": "Open Library is unavailable"},
     },
@@ -76,11 +78,17 @@ def search_books(
     Raises
     ------
     HTTPException
-        502 if Open Library is unavailable, 500 if a database error occurs.
+        400 if the search is too generic, 502 if Open Library is
+        unavailable, 500 if a database error occurs.
 
     """
     try:
         return service.search_books(query=q, limit=limit)
+    except InvalidSearchQueryError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from None
     except ExternalServiceError as exc:
         logger.warning("Open Library unavailable during search: %s", exc)
         raise HTTPException(

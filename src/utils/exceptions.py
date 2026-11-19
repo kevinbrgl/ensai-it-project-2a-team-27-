@@ -124,6 +124,28 @@ class ExternalServiceError(Exception):
 ExternalServiceException = ExternalServiceError
 
 
+class InvalidSearchQueryError(ExternalServiceError):
+    """Raised when Open Library rejects a search query as invalid.
+
+    Open Library answers HTTP 422 for queries made only of stopwords such as
+    "the" or "a". This subclasses ``ExternalServiceError`` so callers that
+    only handle the generic error keep working.
+    """
+
+    def __init__(self, message: str | None = None) -> None:
+        """Initialize the error for a query rejected by Open Library.
+
+        Parameters
+        ----------
+        message : str | None, optional
+            Custom error message. Uses a generic message by default.
+
+        """
+        if message is None:
+            message = "Search is too generic, add more words."
+        super().__init__(message)
+
+
 class BookNotFoundError(Exception):
     """Raised when a book is not found."""
 

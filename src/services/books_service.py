@@ -12,7 +12,11 @@ import httpx2
 
 from src.dao.books_dao import BookDAO
 from src.models.books import Book, BookCreate, BookDetails, Edition
-from src.utils.exceptions import BookNotFoundError, ExternalServiceError
+from src.utils.exceptions import (
+    BookNotFoundError,
+    ExternalServiceError,
+    InvalidSearchQueryError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,7 @@ OPEN_LIBRARY_FIELDS = (
 OPEN_LIBRARY_WORK_PREFIX = "/works/"
 EDITIONS_LIMIT = 20
 HTTP_ERROR_STATUS = 400
+HTTP_UNPROCESSABLE_STATUS = 422
 MIN_VALID_YEAR = 1
 MAX_VALID_YEAR = 9999
 
@@ -114,6 +119,8 @@ class BookService:
 
         Raises
         ------
+        InvalidSearchQueryError
+            If Open Library rejects the query (HTTP 422), e.g. "the".
         ExternalServiceError
             If the request fails or the response is invalid.
 
@@ -133,6 +140,10 @@ class BookService:
         except Exception as exc:
             logger.exception("Unexpected error querying Open Library")
             raise ExternalServiceError from exc
+
+        if response.status_code == HTTP_UNPROCESSABLE_STATUS:
+            logger.info("Open Library rejected the query: %s", params)
+            raise InvalidSearchQueryError
 
         if response.status_code >= HTTP_ERROR_STATUS:
             logger.error(

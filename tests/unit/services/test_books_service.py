@@ -18,7 +18,11 @@ from src.services.books_service import (
     OPEN_LIBRARY_FIELDS,
     BookService,
 )
-from src.utils.exceptions import BookNotFoundError, ExternalServiceError
+from src.utils.exceptions import (
+    BookNotFoundError,
+    ExternalServiceError,
+    InvalidSearchQueryError,
+)
 
 NB_PAGES = 310
 EDITIONS_URL = "https://openlibrary.org/works/OL123W/editions.json"
@@ -516,6 +520,17 @@ class TestFetchOpenLibrary:
 
         with pytest.raises(ExternalServiceError):
             service.search_by_subject("Fantasy")
+
+    def test_rejected_query_raises_invalid_search(
+        self,
+        service: BookService,
+        http_get: Mock,
+    ) -> None:
+        """A 422 from Open Library (q="the") raises InvalidSearchQueryError."""
+        http_get.return_value.status_code = 422
+
+        with pytest.raises(InvalidSearchQueryError):
+            service.search_books("the")
 
     def test_network_error_raises(
         self,

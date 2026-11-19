@@ -49,6 +49,7 @@
 .searchSubmit:hover:not(:disabled) { gap: 12px; }
 .searchSubmit:disabled { color: var(--ink-400); }
 .searchHint { position: absolute; top: calc(100% + 10px); left: 0; font-size: var(--text-xs); color: var(--text-muted); }
+.searchHintError { color: var(--danger-600); }
 
 .more { display: flex; justify-content: center; margin-top: var(--space-10); }
 

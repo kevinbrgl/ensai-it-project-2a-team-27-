@@ -22,6 +22,7 @@ from src.utils.exceptions import (
     BookNotFoundError,
     DAOError,
     ExternalServiceError,
+    InvalidSearchQueryError,
 )
 
 BOOKS_URL = f"{settings.API_STR}/books"
@@ -271,6 +272,20 @@ class TestSearchBooksUnitRoute:
         assert (
             response.json()["detail"] == "Open Library service is unavailable."
         )
+
+    def test_search_books_too_generic_400(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+    ) -> None:
+        """A query rejected by Open Library returns 400, not 502."""
+        mock_service.search_books.side_effect = InvalidSearchQueryError()
+
+        response = client.get(f"{BOOKS_URL}/search", params={"q": "the"})
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        expected = "Search is too generic, add more words."
+        assert response.json()["detail"] == expected
 
     def test_search_books_dao_error_500(
         self,

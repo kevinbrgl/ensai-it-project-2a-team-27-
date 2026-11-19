@@ -22,6 +22,20 @@ import styles from './DiscoverPage.module.css';
 
 const PAGE_STEP = 12;
 const MAX_RESULTS = 50; // backend limit for /books/search
+// Open Library rejects searches made only of these words (e.g. "the"),
+// so they are blocked before reaching the backend.
+const STOPWORDS = new Set([
+  'a', 'an', 'the', 'of', 'and', 'or', 'to', 'in', 'on', 'at', 'is', 'by',
+  'le', 'la', 'l', 'un', 'de', 'du', 'd', 'et',
+]);
+const TOO_GENERIC = 'Search is too generic, add more words.';
+
+/** True when every word of the query is a stopword, e.g. "the" or "the a". */
+function isTooGeneric(query) {
+  const words = query.toLowerCase().split(/[\s'’]+/).filter(Boolean);
+  return words.length > 0 && words.every((word) => STOPWORDS.has(word));
+}
+
 const STARTER_GENRES = ['Fantasy', 'Science fiction', 'Mystery', 'Romance', 'History', 'Poetry', 'Philosophy', 'Biography'];
 const SORTS = [
   { value: 'rating', label: 'Best rated' },
@@ -47,13 +61,14 @@ export function DiscoverPage() {
 
 function SearchForm({ q, onSearch }) {
   const [draft, setDraft] = useState(q);
+  const tooGeneric = isTooGeneric(draft.trim());
   return (
     <form
       className={styles.search}
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
-        onSearch(draft.trim());
+        if (!tooGeneric) onSearch(draft.trim());
       }}
     >
       <Icon name="search" size={22} className={styles.searchIcon} />
@@ -66,12 +81,16 @@ function SearchForm({ q, onSearch }) {
         }}
         placeholder="A title or an author…"
         aria-label="Search books by title or author"
+        aria-invalid={tooGeneric || undefined}
+        aria-describedby="search-hint"
         autoFocus={!q}
       />
-      <button type="submit" className={styles.searchSubmit} disabled={!draft.trim()}>
+      <button type="submit" className={styles.searchSubmit} disabled={!draft.trim() || tooGeneric}>
         Search <Icon name="arrowRight" size={18} />
       </button>
-      <p className={styles.searchHint}>Try “Le Petit Prince”, “Toni Morrison” or “Earthsea”.</p>
+      <p id="search-hint" className={tooGeneric ? `${styles.searchHint} ${styles.searchHintError}` : styles.searchHint} aria-live="polite">
+        {tooGeneric ? TOO_GENERIC : 'Try “Le Petit Prince”, “Toni Morrison” or “Earthsea”.'}
+      </p>
     </form>
   );
 }
