@@ -32,8 +32,16 @@ MAX_VALID_YEAR = 9999
 def _valid_pages(value: object) -> int | None:
     """Keep a number of pages only if it is a positive integer.
 
-    :param value: Value received from Open Library
-    :return: The number of pages, or None if it is missing or invalid
+    Parameters
+    ----------
+    value : object
+        Value received from Open Library.
+
+    Returns
+    -------
+    int | None
+        A positive integer page count, or None for an invalid value.
+
     """
     if isinstance(value, int) and not isinstance(value, bool) and value > 0:
         return value
@@ -43,8 +51,16 @@ def _valid_pages(value: object) -> int | None:
 def _first(values: object) -> object | None:
     """Return the first element of a list received from Open Library.
 
-    :param values: Value received from Open Library
-    :return: The first element, or None if it is not a non-empty list
+    Parameters
+    ----------
+    values : object
+        Value received from Open Library.
+
+    Returns
+    -------
+    object | None
+        The first list element, or None for an empty list or a non-list value.
+
     """
     if isinstance(values, list) and values:
         return values[0]
@@ -52,17 +68,27 @@ def _first(values: object) -> object | None:
 
 
 class BookService:
-    """Service class for book operations and Open Library integration.
+    """Manage the local catalogue and its Open Library integration.
 
-    :attr dao: Associated BookDAO object
-    :attr timeout: Timeout in seconds for external requests
+    Attributes
+    ----------
+    dao : BookDAO
+        Associated BookDAO object.
+    timeout : float
+        Timeout in seconds for external requests.
+
     """
 
     def __init__(self, book_dao: BookDAO, timeout: float = 5.0) -> None:
         """Initialize BookService with a BookDAO.
 
-        :param book_dao: DAO used to access books
-        :param timeout: HTTP request timeout for external services
+        Parameters
+        ----------
+        book_dao : BookDAO
+            DAO used to access books.
+        timeout : float, optional
+            HTTP request timeout for external services.
+
         """
         self.dao = book_dao
         self.timeout = timeout
@@ -74,10 +100,23 @@ class BookService:
     ) -> dict[str, Any]:
         """Send a GET request to Open Library and return its JSON payload.
 
-        :param url: Open Library URL to call
-        :param params: Query string parameters
-        :raises ExternalServiceError: If Open Library is unreachable or fails
-        :return: JSON payload returned by Open Library
+        Parameters
+        ----------
+        url : str
+            Open Library URL to call.
+        params : dict[str, str | int]
+            Query string parameters.
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON payload returned by Open Library.
+
+        Raises
+        ------
+        ExternalServiceError
+            If the request fails or the response is invalid.
+
         """
         headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
 
@@ -123,12 +162,26 @@ class BookService:
     ) -> dict[str, Any]:
         """Fetch search results from Open Library.
 
-        :param query: Free-text search query (title or author)
-        :param limit: Maximum number of results to fetch
-        :param subject: Optional subject (genre) filter
-        :param sort: Optional Open Library sort order (e.g. "rating")
-        :raises ExternalServiceError: If Open Library is unreachable or fails
-        :return: JSON payload returned by Open Library
+        Parameters
+        ----------
+        query : str | None, optional
+            Free-text search query (title or author).
+        limit : int, optional
+            Maximum number of results to fetch.
+        subject : str | None, optional
+            Subject (genre) filter.
+        sort : str | None, optional
+            Open Library sort order (e.g. "rating").
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON payload returned by Open Library.
+
+        Notes
+        -----
+        A failed request or invalid response raises ``ExternalServiceError``.
+
         """
         params: dict[str, str | int] = {
             "limit": limit,
@@ -150,10 +203,22 @@ class BookService:
     ) -> dict[str, Any]:
         """Fetch the editions of a work from Open Library.
 
-        :param work_key: Open Library work key (e.g. "/works/OL123W")
-        :param limit: Maximum number of editions to fetch
-        :raises ExternalServiceError: If Open Library is unreachable or fails
-        :return: JSON payload returned by Open Library
+        Parameters
+        ----------
+        work_key : str
+            Open Library work key (e.g. "/works/OL123W").
+        limit : int, optional
+            Maximum number of editions to fetch.
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON payload returned by Open Library.
+
+        Notes
+        -----
+        A failed request or invalid response raises ``ExternalServiceError``.
+
         """
         return self._get_json(
             f"{OPEN_LIBRARY_URL}{work_key}/editions.json",
@@ -162,10 +227,18 @@ class BookService:
 
     @staticmethod
     def _doc_to_book_create(doc: dict[str, Any]) -> BookCreate | None:
-        """Convert one Open Library search document into a BookCreate.
+        """Normalize an Open Library search result for local storage.
 
-        :param doc: A document of the "docs" list returned by Open Library
-        :return: The BookCreate, or None if the document has no title
+        Parameters
+        ----------
+        doc : dict[str, Any]
+            A document of the "docs" list returned by Open Library.
+
+        Returns
+        -------
+        BookCreate | None
+            The BookCreate, or None if the document has no title.
+
         """
         title = doc.get("title")
         if not title:
@@ -205,10 +278,19 @@ class BookService:
 
     @staticmethod
     def _entry_to_edition(entry: dict[str, Any]) -> Edition:
-        """Convert one Open Library edition into an Edition.
+        """Normalize an Open Library edition entry.
 
-        :param entry: An item of the "entries" list returned by Open Library
-        :return: The Edition, with None for every missing field
+        Parameters
+        ----------
+        entry : dict[str, Any]
+            An item of the "entries" list returned by Open Library.
+
+        Returns
+        -------
+        Edition
+            Edition metadata. An empty publisher list and None values represent
+            missing data.
+
         """
         title = entry.get("title")
         publishers = entry.get("publishers")
@@ -237,12 +319,25 @@ class BookService:
         )
 
     def search_books(self, query: str, limit: int = 10) -> list[Book]:
-        """Search books on Open Library and synchronize them in the local DB.
+        """Search Open Library and save the results to the local catalogue.
 
-        :param query: Search query string (title or author)
-        :param limit: Maximum number of books to return
-        :raises ExternalServiceError: Raised if Open Library is unavailable
-        :return: List of normalized Book objects persisted locally
+        Parameters
+        ----------
+        query : str
+            Search query string (title or author).
+        limit : int, optional
+            Maximum number of books to return.
+
+        Returns
+        -------
+        list[Book]
+            Books saved in the local catalogue, or an empty list for a blank
+            query or no results.
+
+        Notes
+        -----
+        A failed request or invalid response raises ``ExternalServiceError``.
+
         """
         sanitized_query = query.strip()
         if not sanitized_query:
@@ -266,16 +361,30 @@ class BookService:
         limit: int = 10,
         sort: str = "rating",
     ) -> list[tuple[BookCreate, float | None]]:
-        """Search Open Library by subject, without saving the results.
+        """Look up Open Library candidates for a given subject.
 
-        Only documents with an Open Library key are kept, so that they
-        can be deduplicated and compared with a user's library.
+        Candidates must have an Open Library key so they can be matched with
+        local books.
 
-        :param subject: Subject (genre) to search for
-        :param limit: Maximum number of results to fetch
-        :param sort: Open Library sort order
-        :raises ExternalServiceError: Raised if Open Library is unavailable
-        :return: The candidate books with their Open Library rating
+        Parameters
+        ----------
+        subject : str
+            Subject (genre) to search for.
+        limit : int, optional
+            Maximum number of results to fetch.
+        sort : str, optional
+            Open Library sort order.
+
+        Returns
+        -------
+        list[tuple[BookCreate, float | None]]
+            Candidate books paired with their Open Library ratings, which may
+            be None.
+
+        Notes
+        -----
+        A failed request or invalid response raises ``ExternalServiceError``.
+
         """
         sanitized_subject = subject.strip()
         if not sanitized_subject:
@@ -305,17 +414,37 @@ class BookService:
     def save_book(self, book_create: BookCreate) -> Book:
         """Insert or update a book in the local database.
 
-        :param book_create: Data of the book to save
-        :return: The saved Book, with its internal ID
+        Parameters
+        ----------
+        book_create : BookCreate
+            Data of the book to save.
+
+        Returns
+        -------
+        Book
+            The saved Book, with its internal ID.
+
         """
         return self.dao.upsert(book_create)
 
     def get_book(self, book_id: int) -> Book:
         """Read a book by its internal ID.
 
-        :param book_id: ID of the book
-        :raises BookNotFoundError: Raised if the book does not exist
-        :return: The Book object
+        Parameters
+        ----------
+        book_id : int
+            ID of the book.
+
+        Returns
+        -------
+        Book
+            The Book object.
+
+        Raises
+        ------
+        BookNotFoundError
+            If the book does not exist.
+
         """
         book = self.dao.read(book_id)
         if book is None:
@@ -323,14 +452,21 @@ class BookService:
         return book
 
     def get_editions(self, book: Book) -> list[Edition]:
-        """Fetch the editions of a book live from Open Library.
+        """Fetch a book's editions from Open Library.
 
-        The editions are not stored. If the book has no Open Library
-        work key or if Open Library is unavailable, a warning is logged
-        and an empty list is returned.
+        Editions are fetched on demand. A missing work key or a failed request
+        is logged as a warning.
 
-        :param book: The book whose editions are wanted
-        :return: The editions, or an empty list
+        Parameters
+        ----------
+        book : Book
+            The book whose editions are wanted.
+
+        Returns
+        -------
+        list[Edition]
+            The editions, or an empty list.
+
         """
         work_key = book.id_book_api
         if not work_key or not work_key.startswith(OPEN_LIBRARY_WORK_PREFIX):
@@ -361,9 +497,20 @@ class BookService:
     def get_book_details(self, book_id: int) -> BookDetails:
         """Retrieve a book by its internal ID, with its editions.
 
-        :param book_id: ID of the book
-        :raises BookNotFoundError: Raised if the book does not exist
-        :return: The book and its list of editions
+        Parameters
+        ----------
+        book_id : int
+            ID of the book.
+
+        Returns
+        -------
+        BookDetails
+            The book and its list of editions.
+
+        Notes
+        -----
+        An unknown book ID raises ``BookNotFoundError``.
+
         """
         book = self.get_book(book_id)
         return BookDetails(
@@ -378,9 +525,18 @@ class BookService:
     ) -> list[Book]:
         """Filter locally stored books by category and/or author.
 
-        :param category: Optional category filter string
-        :param author: Optional author filter string
-        :return: List of matching Book objects
+        Parameters
+        ----------
+        category : str | None, optional
+            Category filter string.
+        author : str | None, optional
+            Author filter string.
+
+        Returns
+        -------
+        list[Book]
+            List of matching Book objects.
+
         """
         clean_category = (
             category.strip()
@@ -407,10 +563,19 @@ class BookService:
         category: str | None = None,
         author: str | None = None,
     ) -> list[Book]:
-        """Alias for get_books to retrieve the book catalogue.
+        """List catalogue books with optional category and author filters.
 
-        :param category: Optional category filter string
-        :param author: Optional author filter string
-        :return: List of matching Book objects
+        Parameters
+        ----------
+        category : str | None, optional
+            Category filter string.
+        author : str | None, optional
+            Author filter string.
+
+        Returns
+        -------
+        list[Book]
+            List of matching Book objects.
+
         """
         return self.get_books(category=category, author=author)

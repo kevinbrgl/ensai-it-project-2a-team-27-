@@ -1,4 +1,4 @@
-"""Data Access Object for review operations."""
+"""Database access for book reviews and rating statistics."""
 
 from psycopg2 import Error as DBError
 from psycopg2.errors import ForeignKeyViolation
@@ -14,12 +14,16 @@ from src.utils.exceptions import (
 
 
 class ReviewDAO:
-    """DAO class for review operations."""
+    """Manage book reviews and query their ratings."""
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize ReviewDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
@@ -29,15 +33,31 @@ class ReviewDAO:
         id_book: int,
         review_in: ReviewCreate,
     ) -> ReviewRead:
-        """Insert a review written by a user on a book.
+        """Store a user's review of a book.
 
-        :param id_user: ID of the author
-        :param id_book: ID of the reviewed book
-        :param review_in: Rating and comment of the review
-        :raises ReviewAlreadyExistsError: If the user already reviewed the book
-        :raises BookNotFoundError: If the book does not exist
-        :raises DAOError: If a DB error occurs
-        :return: The created review
+        Parameters
+        ----------
+        id_user : int
+            ID of the user writing the review.
+        id_book : int
+            ID of the reviewed book.
+        review_in : ReviewCreate
+            Rating and comment of the review.
+
+        Returns
+        -------
+        ReviewRead
+            The created review.
+
+        Raises
+        ------
+        ReviewAlreadyExistsError
+            If the user already reviewed the book.
+        BookNotFoundError
+            If the database rejects a missing user or book reference.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -61,12 +81,25 @@ class ReviewDAO:
         return ReviewRead(**row)
 
     def find_by_id(self, id_review: int) -> ReviewRead:
-        """Return one review.
+        """Find a review by its ID.
 
-        :param id_review: ID of the review
-        :raises ReviewNotFoundError: If the review does not exist
-        :raises DAOError: If a DB error occurs
-        :return: The review
+        Parameters
+        ----------
+        id_review : int
+            ID of the review.
+
+        Returns
+        -------
+        ReviewRead
+            The review.
+
+        Raises
+        ------
+        ReviewNotFoundError
+            If the review is missing.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -85,9 +118,21 @@ class ReviewDAO:
     def find_by_book_id(self, id_book: int) -> list[ReviewRead]:
         """List the reviews of a book, newest first.
 
-        :param id_book: ID of the book
-        :raises DAOError: If a DB error occurs
-        :return: The reviews, or an empty list if there are none
+        Parameters
+        ----------
+        id_book : int
+            ID of the book.
+
+        Returns
+        -------
+        list[ReviewRead]
+            The reviews, or an empty list if there are none.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -108,9 +153,21 @@ class ReviewDAO:
     def find_by_user_id(self, id_user: int) -> list[ReviewRead]:
         """List the reviews written by a user, newest first.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: The reviews, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        list[ReviewRead]
+            The reviews, or an empty list if there are none.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -129,11 +186,24 @@ class ReviewDAO:
         return [ReviewRead(**row) for row in rows]
 
     def get_rating_stats(self, id_book: int) -> tuple[float | None, int]:
-        """Return the average rating and the number of reviews of a book.
+        """Return a book's average rating and review count.
 
-        :param id_book: ID of the book
-        :raises DAOError: If a DB error occurs
-        :return: (average rounded to 2 decimals or None, number of reviews)
+        Parameters
+        ----------
+        id_book : int
+            ID of the book.
+
+        Returns
+        -------
+        tuple[float | None, int]
+            Average rating rounded to two decimal places and number of reviews.
+            For a book without reviews, return None and zero.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -161,11 +231,25 @@ class ReviewDAO:
     def update(self, id_review: int, review_in: ReviewUpdate) -> ReviewRead:
         """Update the rating and comment of a review.
 
-        :param id_review: ID of the review
-        :param review_in: New rating and comment
-        :raises ReviewNotFoundError: If the review does not exist
-        :raises DAOError: If a DB error occurs
-        :return: The updated review
+        Parameters
+        ----------
+        id_review : int
+            ID of the review.
+        review_in : ReviewUpdate
+            New rating and comment.
+
+        Returns
+        -------
+        ReviewRead
+            The updated review.
+
+        Raises
+        ------
+        ReviewNotFoundError
+            If the review is missing.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -189,9 +273,18 @@ class ReviewDAO:
     def delete(self, id_review: int) -> None:
         """Delete a review.
 
-        :param id_review: ID of the review
-        :raises ReviewNotFoundError: If the review does not exist
-        :raises DAOError: If a DB error occurs
+        Parameters
+        ----------
+        id_review : int
+            ID of the review.
+
+        Raises
+        ------
+        ReviewNotFoundError
+            If the review is missing.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(

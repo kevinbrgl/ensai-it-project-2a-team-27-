@@ -176,9 +176,9 @@ git add frontend/src frontend/dist
 | `uv run pytest tests/unit -v` | Unit tests (services + routes, everything mocked) | ❌ |
 | `uv run pytest tests/integration -v` | DAO + API tests on a real PostgreSQL | ✅ |
 | `uv run pytest -v` | Everything | ✅ |
-| `uv run pytest --cov=src --cov-report=term-missing` | Everything + coverage | ✅ |
+| `uv run pytest --cov=src` | Everything + coverage | ✅ |
 
-Integration tests use the DB from `.env`, and **every test is rolled back**, so they leave no trace.
+Integration tests use the DB from `.env`. **Every test is rolled back**, so they leave no data behind (the only lasting effect is creating any missing tables from `data/init.sql`, exactly like starting the backend).
 In VS Code: *Testing* panel 🧪 → ↻ → ▶.
 
 ### 🐳 Throwaway test database (optional)

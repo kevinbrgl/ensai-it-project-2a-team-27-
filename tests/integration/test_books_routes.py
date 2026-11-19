@@ -49,6 +49,7 @@ def client(cursor: RealDictCursor) -> Generator[TestClient]:
     """Return a TestClient bound to the rolled-back test cursor."""
 
     def override_get_cursor() -> RealDictCursor:
+        """Return the cursor for the current test transaction."""
         return cursor
 
     app.dependency_overrides[get_cursor] = override_get_cursor

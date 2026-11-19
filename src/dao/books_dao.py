@@ -1,4 +1,4 @@
-"""Data Access Object for book operations.
+"""Database access for the local book catalog.
 
 This module provides database operations for books in PostgreSQL.
 All database errors are wrapped in DAOError.
@@ -12,24 +12,44 @@ from src.utils.exceptions import DAOError
 
 
 class BookDAO:
-    """DAO class for book database operations.
+    """Store and retrieve books in the local catalog.
 
-    :attr cur: Database cursor (RealDictCursor)
+    Attributes
+    ----------
+    cur : RealDictCursor
+        PostgreSQL cursor that fetches rows as dictionaries.
+
     """
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize BookDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
     def create(self, book_create: BookCreate) -> Book:
         """Create a new book in the database.
 
-        :param book_create: Data for book creation
-        :raises DAOError: If the insertion fails or a DB error occurs
-        :return: The created Book object
+        Parameters
+        ----------
+        book_create : BookCreate
+            Book metadata to insert.
+
+        Returns
+        -------
+        Book
+            The created Book object.
+
+        Raises
+        ------
+        DAOError
+            If the insertion fails or a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -59,9 +79,24 @@ class BookDAO:
     def upsert(self, book_create: BookCreate) -> Book:
         """Insert or update a book by its external API ID.
 
-        :param book_create: Data for book upsert
-        :raises DAOError: If a DB error occurs
-        :return: The inserted or updated Book object
+        If the book has no external ID, insert a new row. For an existing
+        book, keep the current value of each optional field supplied as None.
+
+        Parameters
+        ----------
+        book_create : BookCreate
+            Book metadata and the external ID used to match existing records.
+
+        Returns
+        -------
+        Book
+            The inserted or updated Book object.
+
+        Raises
+        ------
+        DAOError
+            If the write returns no row or a database error occurs.
+
         """
         if not book_create.id_book_api:
             return self.create(book_create)
@@ -108,11 +143,23 @@ class BookDAO:
         return Book(**row)
 
     def read(self, book_id: int) -> Book | None:
-        """Read a book by its internal ID.
+        """Find a book by its internal ID.
 
-        :param book_id: Internal ID of the book
-        :raises DAOError: If a DB error occurs
-        :return: The Book object or None if not found
+        Parameters
+        ----------
+        book_id : int
+            Internal ID of the book.
+
+        Returns
+        -------
+        Book | None
+            The matching book, or None if absent.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -131,11 +178,23 @@ class BookDAO:
         return Book(**row) if row else None
 
     def read_by_api_id(self, id_book_api: str) -> Book | None:
-        """Read a book by its external API ID.
+        """Find a book by its external API ID.
 
-        :param id_book_api: External API identifier (e.g. Open Library key)
-        :raises DAOError: If a DB error occurs
-        :return: The Book object or None if not found
+        Parameters
+        ----------
+        id_book_api : str
+            External API identifier (e.g. Open Library key).
+
+        Returns
+        -------
+        Book | None
+            The matching book, or None if absent.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -156,9 +215,21 @@ class BookDAO:
     def find_by_author(self, author: str) -> list[Book]:
         """Find books by author.
 
-        :param author: Name or partial name of the author
-        :raises DAOError: If a DB error occurs
-        :return: List of matching books
+        Parameters
+        ----------
+        author : str
+            Author name or case-insensitive substring.
+
+        Returns
+        -------
+        list[Book]
+            List of matching books.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -179,9 +250,21 @@ class BookDAO:
     def find_by_category(self, category: str) -> list[Book]:
         """Find books by category.
 
-        :param category: Category name
-        :raises DAOError: If a DB error occurs
-        :return: List of matching books
+        Parameters
+        ----------
+        category : str
+            Category name or case-insensitive substring.
+
+        Returns
+        -------
+        list[Book]
+            List of matching books.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -202,8 +285,16 @@ class BookDAO:
     def find_all(self) -> list[Book]:
         """Find all books stored in the local database.
 
-        :raises DAOError: If a DB error occurs
-        :return: List of all stored books
+        Returns
+        -------
+        list[Book]
+            All stored books ordered by internal ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -225,14 +316,28 @@ class BookDAO:
         category: str | None = None,
         author: str | None = None,
     ) -> list[Book]:
-        """Filter books by category and/or author.
+        """Filter books by category, author, or both.
 
-        If neither filter is specified, returns all books.
+        Each filter matches a case-insensitive substring. Omit both filters
+        to retrieve the complete catalog.
 
-        :param category: Optional category filter
-        :param author: Optional author filter
-        :raises DAOError: If a DB error occurs
-        :return: List of matching books
+        Parameters
+        ----------
+        category : str | None, optional
+            Category substring. Defaults to None.
+        author : str | None, optional
+            Author substring. Defaults to None.
+
+        Returns
+        -------
+        list[Book]
+            Matching books ordered by internal ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         query = """
             SELECT id_book, id_book_api, title, author,

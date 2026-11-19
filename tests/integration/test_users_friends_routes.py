@@ -31,9 +31,18 @@ def register_and_login(
 ) -> tuple[dict[str, str], int]:
     """Register and log in a new user.
 
-    :param client: Test client
-    :param prefix: Beginning of the username (a random suffix is added)
-    :return: The user's auth headers and ID
+    Parameters
+    ----------
+    client : TestClient
+        Client that registers and logs in the user.
+    prefix : str
+        Beginning of the username, followed by a random suffix.
+
+    Returns
+    -------
+    tuple[dict[str, str], int]
+        Authorization headers and ID of the new user.
+
     """
     name = f"{prefix}_{uuid4().hex[:8]}"
     registered = client.post(

@@ -75,13 +75,30 @@ def get_recommendations(
     ]
     ```
     \f
-    :param service: Recommendation service dependency
-    :param current_user: The authenticated user
-    :param genre: Optional genre to recommend
-    :param sort: Sort order of the recommendations
-    :param limit: Maximum number of recommendations
-    :raises HTTPException: 500 on database error
-    :return: The recommended books, with their score and reason
+
+    Parameters
+    ----------
+    service : RecommendationService
+        Recommendation service dependency.
+    current_user : User
+        The authenticated user.
+    genre : str | None, optional
+        Genre to recommend. By default, use the user's favorite genres.
+    sort : RecommendationSort, optional
+        Sort order, one of 'rating', 'new', or 'title'. Defaults to 'rating'.
+    limit : int, optional
+        Maximum number of recommendations. Defaults to 10.
+
+    Returns
+    -------
+    list[Recommendation]
+        The recommended books, with their score and reason.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.get_recommendations(

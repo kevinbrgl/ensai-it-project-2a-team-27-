@@ -27,7 +27,7 @@ TOP_RATED_REASON = "Top rated"
 
 
 class RecommendationService:
-    """Service class recommending books to a user."""
+    """Find book recommendations for users."""
 
     def __init__(
         self,
@@ -37,9 +37,15 @@ class RecommendationService:
     ) -> None:
         """Initialize the service with its dependencies.
 
-        :param recommendation_dao: The recommendation data access object
-        :param stats_dao: The statistics data access object
-        :param book_service: The book service (Open Library + book upsert)
+        Parameters
+        ----------
+        recommendation_dao : RecommendationDAO
+            The recommendation data access object.
+        stats_dao : StatsDAO
+            The statistics data access object.
+        book_service : BookService
+            The book service (Open Library + book upsert).
+
         """
         self.recommendation_dao = recommendation_dao
         self.stats_dao = stats_dao
@@ -54,16 +60,26 @@ class RecommendationService:
     ) -> list[Recommendation]:
         """Recommend books to a user.
 
-        Uses the requested genre, or else the user's favorite genres,
-        to query Open Library. Falls back to the best rated books of
-        our own reviews if there is no history, if Open Library is
-        unavailable or if no candidate is left.
+        Search Open Library using the requested genre or the user's reading
+        history. Use locally reviewed books when the user has no reading
+        history, Open Library fails, or the search yields no eligible books.
 
-        :param id_user: ID of the user
-        :param genre: Optional genre requested by the user
-        :param sort: Sort order of the recommendations
-        :param limit: Maximum number of recommendations
-        :return: The recommendations
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        genre : str | None, optional
+            Genre requested by the user.
+        sort : RecommendationSort, optional
+            Sort order of the recommendations.
+        limit : int, optional
+            Maximum number of recommendations.
+
+        Returns
+        -------
+        list[Recommendation]
+            Up to the requested number of recommendations in the chosen order.
+
         """
         clean_genre = genre.strip() if genre and genre.strip() else None
 
@@ -89,11 +105,19 @@ class RecommendationService:
     def _favorite_genres(self, id_user: int) -> list[str]:
         """Find the favorite genres of a user.
 
-        Combines the categories of the books in the library (reusing
-        StatsDAO.count_genres) and of the books rated 4 or more.
+        Count genres across the user's library and count books rated at least
+        four a second time.
 
-        :param id_user: ID of the user
-        :return: Up to MAX_FAVORITE_GENRES categories, most frequent first
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        list[str]
+            Up to three genres, most frequent first.
+
         """
         counts: Counter[str] = Counter()
         sources: list[list[GenreCount]] = [
@@ -122,12 +146,27 @@ class RecommendationService:
     ) -> list[Recommendation]:
         """Build recommendations from Open Library subject searches.
 
-        :param id_user: ID of the user
-        :param genres: Genres to search for
-        :param reason_template: Reason, with a {genre} placeholder
-        :param sort: Sort order of the recommendations
-        :param limit: Maximum number of recommendations
-        :return: The recommendations, or an empty list
+        Exclude books already in the user's library and deduplicate candidates
+        by Open Library key. Use local average ratings when available.
+
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        genres : list[str]
+            Genres to search for.
+        reason_template : str
+            Explanation template with a {genre} placeholder.
+        sort : RecommendationSort
+            Sort order of the recommendations.
+        limit : int
+            Maximum number of recommendations.
+
+        Returns
+        -------
+        list[Recommendation]
+            The recommendations, or an empty list.
+
         """
         excluded_keys = self.recommendation_dao.find_library_api_keys(
             id_user,
@@ -187,13 +226,24 @@ class RecommendationService:
         sort: RecommendationSort,
         limit: int,
     ) -> list[Recommendation]:
-        """Recommend the best rated books of our own reviews.
+        """Recommend books with the highest local review ratings.
 
-        :param id_user: ID of the user whose library is excluded
-        :param genre: Optional genre filter
-        :param sort: Sort order of the recommendations
-        :param limit: Maximum number of recommendations
-        :return: The recommendations
+        Parameters
+        ----------
+        id_user : int
+            ID of the user whose library is excluded.
+        genre : str | None
+            Optional genre filter.
+        sort : RecommendationSort
+            Sort order of the recommendations.
+        limit : int
+            Maximum number of recommendations.
+
+        Returns
+        -------
+        list[Recommendation]
+            The recommendations.
+
         """
         rows = self.recommendation_dao.find_top_rated_books(
             id_user,
@@ -214,12 +264,21 @@ class RecommendationService:
         recommendations: list[Recommendation],
         sort: RecommendationSort,
     ) -> list[Recommendation]:
-        """Sort recommendations.
+        """Order recommendations by rating, publication date, or title.
 
-        :param recommendations: Recommendations to sort
-        :param sort: "rating" (best first), "new" (newest first)
-            or "title" (alphabetical)
-        :return: The sorted recommendations
+        Parameters
+        ----------
+        recommendations : list[Recommendation]
+            Recommendations to sort.
+        sort : RecommendationSort
+            Choose "rating" for highest first, "new" for newest first, or
+            "title" for alphabetical order.
+
+        Returns
+        -------
+        list[Recommendation]
+            The sorted recommendations.
+
         """
         if sort == "title":
             return sorted(

@@ -1,4 +1,4 @@
-"""Admin moderation routes: suspend, ban, remove reviews."""
+"""Routes for account and review moderation by administrators."""
 
 import logging
 from typing import Annotated
@@ -23,7 +23,20 @@ ReviewId = Annotated[int, Path(ge=1, description="Database ID of the review")]
 
 
 def _moderation_error(exc: Exception) -> HTTPException:
-    """Translate a moderation exception into an HTTP error."""
+    """Translate a moderation exception into an HTTP error.
+
+    Parameters
+    ----------
+    exc : Exception
+        Error raised by an account moderation operation.
+
+    Returns
+    -------
+    HTTPException
+        400 for self-moderation, 403 for moderation of another administrator,
+        or 404 for a missing account.
+
+    """
     if isinstance(exc, SelfModerationError):
         return HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -79,14 +92,29 @@ def suspend_user(
     }
     ```
     \f
-    :param user_id: ID of the user to suspend
-    :param suspension: Length of the suspension in days
-    :param service: Admin service dependency
-    :param admin: The authenticated admin
-    :raises HTTPException: 400 if the admin targets themself,
-        403 if not admin or if the target is an admin,
-        404 if the user does not exist, 500 on database error
-    :return: The new moderation status of the user
+
+    Parameters
+    ----------
+    user_id : int
+        ID of the user to suspend.
+    suspension : SuspendRequest
+        Request containing the suspension length in days.
+    service : AdminService
+        Admin service dependency.
+    admin : User
+        The authenticated admin.
+
+    Returns
+    -------
+    ModerationStatus
+        The new moderation status of the user.
+
+    Raises
+    ------
+    HTTPException
+        400 if the admin targets themself, 403 if not admin or if the target is
+        an admin, 404 if the user does not exist, 500 on database error.
+
     """
     try:
         return service.suspend_user(
@@ -139,13 +167,27 @@ def ban_user(
     **Returns:** the new moderation status of the user
     (`is_banned`, `suspended_until`).
     \f
-    :param user_id: ID of the user to ban
-    :param service: Admin service dependency
-    :param admin: The authenticated admin
-    :raises HTTPException: 400 if the admin targets themself,
-        403 if not admin or if the target is an admin,
-        404 if the user does not exist, 500 on database error
-    :return: The new moderation status of the user
+
+    Parameters
+    ----------
+    user_id : int
+        ID of the user to ban.
+    service : AdminService
+        Admin service dependency.
+    admin : User
+        The authenticated admin.
+
+    Returns
+    -------
+    ModerationStatus
+        The new moderation status of the user.
+
+    Raises
+    ------
+    HTTPException
+        400 if the admin targets themself, 403 if not admin or if the target is
+        an admin, 404 if the user does not exist, 500 on database error.
+
     """
     try:
         return service.ban_user(admin.id_user, user_id)
@@ -186,11 +228,22 @@ def moderate_review(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param review_id: ID of the review
-    :param service: Admin service dependency
-    :param _admin: The authenticated admin
-    :raises HTTPException: 403 if not admin, 404 if the review does not
-        exist, 500 on database error
+
+    Parameters
+    ----------
+    review_id : int
+        ID of the review.
+    service : AdminService
+        Admin service dependency.
+    _admin : User
+        The authenticated admin.
+
+    Raises
+    ------
+    HTTPException
+        403 if not admin, 404 if the review does not exist, 500 on database
+        error.
+
     """
     try:
         service.delete_review(review_id)

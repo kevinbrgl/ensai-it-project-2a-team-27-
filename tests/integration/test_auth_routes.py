@@ -66,12 +66,22 @@ def username(client: TestClient) -> str:
 
 
 def login(client: TestClient, name: str, password: str) -> Response:
-    """Send the login form, like the "Authorize" button of /docs does.
+    """Submit the OAuth2 password form to the login endpoint.
 
-    :param client: Test client
-    :param name: Username sent in the form
-    :param password: Password sent in the form
-    :return: The HTTP response
+    Parameters
+    ----------
+    client : TestClient
+        Client that submits the login request.
+    name : str
+        Username sent in the login form.
+    password : str
+        Password sent in the login form.
+
+    Returns
+    -------
+    Response
+        HTTP response from the login endpoint.
+
     """
     return client.post(
         LOGIN_URL,

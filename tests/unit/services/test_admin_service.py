@@ -33,6 +33,25 @@ def _user(
     is_banned: bool = False,
     suspended_until: datetime | None = None,
 ) -> User:
+    """Create a test user with a configurable moderation status.
+
+    Parameters
+    ----------
+    id_user : int
+        User ID used to derive the test username and email address.
+    is_admin : bool, optional
+        Whether the user has administrator privileges. Defaults to False.
+    is_banned : bool, optional
+        Whether the account is banned. Defaults to False.
+    suspended_until : datetime | None, optional
+        Suspension expiry. Defaults to None for an active account.
+
+    Returns
+    -------
+    User
+        User configured for the moderation scenario under test.
+
+    """
     return User(
         id_user=id_user,
         username=f"user{id_user}",

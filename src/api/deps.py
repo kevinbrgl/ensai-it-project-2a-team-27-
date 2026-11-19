@@ -1,7 +1,6 @@
-"""Dependency injection utilities for FastAPI routes.
+"""Dependencies for database access, services, and authentication.
 
-Provides database cursor, service, token, user authentication and
-admin dependencies.
+FastAPI resolves these dependencies for each request.
 """
 
 from collections.abc import Generator
@@ -49,19 +48,29 @@ from src.utils.exceptions import (
 if TYPE_CHECKING:
     from psycopg2.pool import ThreadedConnectionPool
 
+# rstrip: with ROOT_PATH="/", the URL must be "/api/...", not "//api/...",
+# which the browser would read as a link to another host called "api".
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.ROOT_PATH}{settings.API_STR}/auth/login",
+    tokenUrl=f"{settings.ROOT_PATH.rstrip('/')}{settings.API_STR}/auth/login",
 )
 
 
 def get_cursor(request: Request) -> Generator[RealDictCursor]:
     """Yield a database cursor from the connection pool.
 
-    Commit if the request succeeds, rollback otherwise, then give
-    the connection back to the pool.
+    Commit after a successful request and roll back on an exception.
+    Return the connection to the pool when the request ends.
 
-    :param request: FastAPI request object
-    :return: Generator yielding a RealDictCursor
+    Parameters
+    ----------
+    request : Request
+        Request whose application owns the pool.
+
+    Yields
+    ------
+    RealDictCursor
+        Request-scoped cursor that returns rows as mappings.
+
     """
     pool: ThreadedConnectionPool = request.app.state.db_pool
     conn = pool.getconn()
@@ -83,8 +92,16 @@ TokenDep = Annotated[str, Depends(reusable_oauth2)]
 def get_user_service(cursor: CursorDep) -> UserService:
     """Build a UserService bound to the request cursor.
 
-    :param cursor: Database cursor dependency
-    :return: A UserService instance
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    UserService
+        Service for user accounts and profiles.
+
     """
     return UserService(UserDAO(cursor))
 
@@ -93,7 +110,19 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 def get_token_service(cursor: CursorDep) -> TokenService:
-    """Build a TokenService bound to the request cursor."""
+    """Build a TokenService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    TokenService
+        Service for access token revocation.
+
+    """
     return TokenService(TokenDAO(cursor))
 
 
@@ -105,14 +134,28 @@ def get_user(
     tokens: TokenServiceDep,
     token: TokenDep,
 ) -> User:
-    """Retrieve the current user from a JWT token.
+    """Authenticate a user with a JWT bearer token.
 
-    :param service: User service dependency
-    :param tokens: Token service dependency
-    :param token: JWT token dependency
-    :raises HTTPException: 403 if the token is revoked or invalid, or if
-        the account is banned or suspended, 404 if the user is not found
-    :return: The authenticated User object
+    Parameters
+    ----------
+    service : UserService
+        Service used to retrieve the account.
+    tokens : TokenService
+        Service used to check revocation.
+    token : str
+        JWT bearer token supplied with the request.
+
+    Returns
+    -------
+    User
+        Authenticated, active user.
+
+    Raises
+    ------
+    HTTPException
+        403 if the token is revoked or invalid, if its account no longer
+        exists, or if the account is banned or suspended.
+
     """
     if tokens.is_revoked(token):
         raise HTTPException(
@@ -135,18 +178,13 @@ def get_user(
             )
         user = service.read(user_id=int(token_data.sub))
 
-    except (InvalidTokenError, ValidationError):
+    # A token whose account was deleted is rejected like any invalid token.
+    except (InvalidTokenError, ValidationError, UserNotFoundError):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
-
-    except UserNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No such user in database",
-        ) from None  # Should i use a 404 ? I mean it's auth
 
     # A token issued before a ban or a suspension must stop working too.
     try:
@@ -163,11 +201,23 @@ CurrentUser = Annotated[User, Depends(get_user)]
 
 
 def get_admin_user(current_user: CurrentUser) -> User:
-    """Make sure the authenticated user is an administrator.
+    """Require administrator rights on the authenticated account.
 
-    :param current_user: The authenticated user
-    :raises HTTPException: 403 if the user is not an admin
-    :return: The admin user
+    Parameters
+    ----------
+    current_user : User
+        Authenticated account to check.
+
+    Returns
+    -------
+    User
+        Authenticated administrator.
+
+    Raises
+    ------
+    HTTPException
+        403 if the account lacks administrator rights.
+
     """
     if not current_user.is_admin:
         raise HTTPException(
@@ -183,8 +233,16 @@ AdminUser = Annotated[User, Depends(get_admin_user)]
 def get_book_service(cursor: CursorDep) -> BookService:
     """Build a BookService bound to the request cursor.
 
-    :param cursor: Database cursor dependency
-    :return: A BookService instance
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    BookService
+        Service for catalog operations and Open Library lookups.
+
     """
     return BookService(BookDAO(cursor))
 
@@ -193,7 +251,19 @@ BookServiceDep = Annotated[BookService, Depends(get_book_service)]
 
 
 def get_library_service(cursor: CursorDep) -> LibraryService:
-    """Build a LibraryService bound to the request cursor."""
+    """Build a LibraryService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    LibraryService
+        Service for reading activity and library books.
+
+    """
     return LibraryService(LibraryDAO(cursor))
 
 
@@ -203,8 +273,16 @@ LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
 def get_playlist_service(cursor: CursorDep) -> PlaylistService:
     """Build a PlaylistService bound to the request cursor.
 
-    :param cursor: Database cursor dependency
-    :return: A PlaylistService instance
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    PlaylistService
+        Service for playlists and their books.
+
     """
     return PlaylistService(PlaylistDAO(cursor))
 
@@ -213,7 +291,19 @@ PlaylistServiceDep = Annotated[PlaylistService, Depends(get_playlist_service)]
 
 
 def get_review_service(cursor: CursorDep) -> ReviewService:
-    """Build a ReviewService bound to the request cursor."""
+    """Build a ReviewService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    ReviewService
+        Service for reviews and ratings.
+
+    """
     return ReviewService(
         ReviewDAO(cursor),
         BookDAO(cursor),
@@ -226,7 +316,19 @@ ReviewServiceDep = Annotated[ReviewService, Depends(get_review_service)]
 
 
 def get_quest_service(cursor: CursorDep) -> QuestService:
-    """Build a QuestService bound to the request cursor."""
+    """Build a QuestService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    QuestService
+        Service for reading quests and their progress.
+
+    """
     return QuestService(QuestDAO(cursor))
 
 
@@ -234,15 +336,42 @@ QuestServiceDep = Annotated[QuestService, Depends(get_quest_service)]
 
 
 def get_genre_wheel_service(cursor: CursorDep) -> GenreWheelService:
-    """Build a GenreWheelService bound to the request cursor."""
+    """Build a GenreWheelService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    GenreWheelService
+        Service for genre proportions in an avatar ring.
+
+    """
     return GenreWheelService(GenreWheelDAO(cursor))
 
 
 GenreWheelServiceDep = Annotated[
     GenreWheelService,
     Depends(get_genre_wheel_service),
+]
+
+
 def get_achievement_service(cursor: CursorDep) -> AchievementService:
-    """Build an AchievementService bound to the request cursor."""
+    """Build an AchievementService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    AchievementService
+        Service for reading achievements and their progress.
+
+    """
     return AchievementService(AchievementDAO(cursor))
 
 
@@ -255,8 +384,16 @@ AchievementServiceDep = Annotated[
 def get_stats_service(cursor: CursorDep) -> StatsService:
     """Build a StatsService bound to the request cursor.
 
-    :param cursor: Database cursor dependency
-    :return: A StatsService instance
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    StatsService
+        Service for reading statistics.
+
     """
     return StatsService(StatsDAO(cursor))
 
@@ -270,9 +407,18 @@ def get_recommendation_service(
 ) -> RecommendationService:
     """Build a RecommendationService bound to the request cursor.
 
-    :param cursor: Database cursor dependency
-    :param book_service: Book service dependency (same cursor)
-    :return: A RecommendationService instance
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+    book_service : BookService
+        Catalog service using the same cursor.
+
+    Returns
+    -------
+    RecommendationService
+        Service for personalized book recommendations.
+
     """
     return RecommendationService(
         RecommendationDAO(cursor),
@@ -288,7 +434,19 @@ RecommendationServiceDep = Annotated[
 
 
 def get_admin_service(cursor: CursorDep) -> AdminService:
-    """Build an AdminService bound to the request cursor."""
+    """Build an AdminService bound to the request cursor.
+
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Database cursor for the current request.
+
+    Returns
+    -------
+    AdminService
+        Service for account and review moderation.
+
+    """
     return AdminService(UserDAO(cursor), ReviewDAO(cursor))
 
 

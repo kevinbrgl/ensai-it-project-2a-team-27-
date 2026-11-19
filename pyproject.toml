@@ -1,7 +1,7 @@
 [project]
-name = "python-project-template"
-version = "0.1.0"
-description = "Add your description here"
+name = "ex-libris"
+version = "1.0.0"
+description = "Ex-Libris: reading tracker REST API (FastAPI + PostgreSQL) and its web frontend"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -28,7 +28,6 @@ dependencies = [
 
 [tool.ruff]
 line-length = 79
-namespace-packages = ["app"]
 
 [tool.ruff.lint]
 preview=true

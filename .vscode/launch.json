@@ -5,36 +5,18 @@
             "name": "Back-end FastAPI",
             "type": "debugpy",
             "request": "launch",
-            "module": "uv",
-            "args": [
-                "run",
-                "--project",
-                "backend",
-                "python",
-                "backend/src/main.py"
-            ],
+            "module": "uvicorn",
+            "args": ["src.main:app", "--host", "127.0.0.1", "--port", "8000"],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/backend/src"
-            }
+            "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Front-end Streamlit",
+            "name": "Front-end (app.py)",
             "type": "debugpy",
             "request": "launch",
-            "module": "uv",
-            "args": [
-                "run",
-                "streamlit",
-                "run",
-                "src/app.py"
-            ],
+            "program": "${workspaceFolder}/frontend/app.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/frontend",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}/frontend/src"
-            }
+            "cwd": "${workspaceFolder}/frontend"
         }
     ],
     "compounds": [
@@ -42,7 +24,7 @@
             "name": "🚀 Full Stack",
             "configurations": [
                 "Back-end FastAPI",
-                "Front-end Streamlit"
+                "Front-end (app.py)"
             ]
         }
     ]

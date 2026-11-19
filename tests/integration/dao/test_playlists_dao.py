@@ -25,9 +25,18 @@ from src.utils.exceptions import (
 def create_user(user_dao: UserDAO, prefix: str) -> int:
     """Insert a test user with a unique name and return its ID.
 
-    :param user_dao: DAO used to insert the user
-    :param prefix: Beginning of the username
-    :return: ID of the created user
+    Parameters
+    ----------
+    user_dao : UserDAO
+        DAO that inserts the test user.
+    prefix : str
+        Beginning of the username, followed by a random suffix.
+
+    Returns
+    -------
+    int
+        ID of the inserted user.
+
     """
     name = f"{prefix}_{uuid4().hex[:8]}"
     user = user_dao.create(
@@ -43,9 +52,18 @@ def create_user(user_dao: UserDAO, prefix: str) -> int:
 def create_book(cursor: RealDictCursor, title: str) -> int:
     """Insert a test book with a unique API ID and return its ID.
 
-    :param cursor: Test cursor
-    :param title: Title of the book
-    :return: ID of the created book
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Test cursor used to insert the book.
+    title : str
+        Title of the test book.
+
+    Returns
+    -------
+    int
+        ID of the inserted book.
+
     """
     cursor.execute(
         """

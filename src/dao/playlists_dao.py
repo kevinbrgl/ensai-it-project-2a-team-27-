@@ -1,4 +1,4 @@
-"""Data Access Object for playlist operations."""
+"""Database access for playlists and their books."""
 
 from psycopg2 import Error as DBError
 from psycopg2.errors import ForeignKeyViolation, UniqueViolation
@@ -22,12 +22,16 @@ from src.utils.exceptions import (
 
 
 class PlaylistDAO:
-    """DAO class for playlist operations."""
+    """Manage playlists and the books they contain."""
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize PlaylistDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
@@ -38,12 +42,25 @@ class PlaylistDAO:
     ) -> PlaylistRead:
         """Create a playlist for a user.
 
-        :param id_user: ID of the owner of the playlist
-        :param playlist_in: Name of the playlist
-        :raises PlaylistAlreadyExistsError: If the user already has a
-            playlist with this name
-        :raises DAOError: If the insertion fails or a DB error occurs
-        :return: The created playlist
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        playlist_in : PlaylistCreate
+            Name of the playlist.
+
+        Returns
+        -------
+        PlaylistRead
+            The created playlist.
+
+        Raises
+        ------
+        PlaylistAlreadyExistsError
+            If the user already has a playlist with this name.
+        DAOError
+            If the insertion fails or a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -69,9 +86,21 @@ class PlaylistDAO:
     def find_by_user_id(self, id_user: int) -> list[PlaylistRead]:
         """List the playlists of a user.
 
-        :param id_user: ID of the owner of the playlists
-        :raises DAOError: If a DB error occurs
-        :return: The playlists in creation order, or an empty list
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlists.
+
+        Returns
+        -------
+        list[PlaylistRead]
+            The playlists ordered by playlist ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -98,15 +127,29 @@ class PlaylistDAO:
     ) -> PlaylistRead:
         """Rename a playlist owned by a user.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist to rename
-        :param playlist_in: New name of the playlist
-        :raises PlaylistNotFoundError: If the playlist does not exist or
-            belongs to another user
-        :raises PlaylistAlreadyExistsError: If the user already has a
-            playlist with the new name
-        :raises DAOError: If a DB error occurs
-        :return: The renamed playlist
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist to rename.
+        playlist_in : PlaylistUpdate
+            New name of the playlist.
+
+        Returns
+        -------
+        PlaylistRead
+            The renamed playlist.
+
+        Raises
+        ------
+        PlaylistNotFoundError
+            If no playlist with this ID belongs to the user.
+        PlaylistAlreadyExistsError
+            If the user already has a playlist with the new name.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -132,11 +175,20 @@ class PlaylistDAO:
     def delete(self, id_user: int, id_playlist: int) -> None:
         """Delete a playlist owned by a user.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist to delete
-        :raises PlaylistNotFoundError: If the playlist does not exist or
-            belongs to another user
-        :raises DAOError: If a DB error occurs
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist to delete.
+
+        Raises
+        ------
+        PlaylistNotFoundError
+            If no playlist with this ID belongs to the user.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -158,11 +210,23 @@ class PlaylistDAO:
     def read(self, id_user: int, id_playlist: int) -> PlaylistRead | None:
         """Read a playlist owned by a user.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist to read
-        :raises DAOError: If a DB error occurs
-        :return: The playlist, or None if it does not exist or belongs to
-            another user
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist to read.
+
+        Returns
+        -------
+        PlaylistRead | None
+            The playlist owned by the user, or None if no such playlist exists.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -183,13 +247,27 @@ class PlaylistDAO:
     def add_book(self, id_playlist: int, id_book: int) -> PlaylistBookRead:
         """Add a book to a playlist.
 
-        :param id_playlist: ID of the playlist
-        :param id_book: ID of the book to add
-        :raises BookAlreadyInPlaylistError: If the book is already in the
-            playlist
-        :raises BookNotFoundError: If the book is not in the local database
-        :raises DAOError: If the insertion fails or a DB error occurs
-        :return: The added playlist entry
+        Parameters
+        ----------
+        id_playlist : int
+            ID of the playlist.
+        id_book : int
+            ID of the book to add.
+
+        Returns
+        -------
+        PlaylistBookRead
+            The added playlist entry.
+
+        Raises
+        ------
+        BookAlreadyInPlaylistError
+            If the book is already in the playlist.
+        BookNotFoundError
+            If the database rejects a missing playlist or book reference.
+        DAOError
+            If the insertion fails or a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -215,11 +293,23 @@ class PlaylistDAO:
         return PlaylistBookRead(**row)
 
     def find_books(self, id_playlist: int) -> list[Book]:
-        """List the books of a playlist, with their details.
+        """List a playlist's books with their details.
 
-        :param id_playlist: ID of the playlist
-        :raises DAOError: If a DB error occurs
-        :return: The books sorted by title, or an empty list
+        Parameters
+        ----------
+        id_playlist : int
+            ID of the playlist.
+
+        Returns
+        -------
+        list[Book]
+            The books ordered by title, then by book ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -244,10 +334,20 @@ class PlaylistDAO:
     def remove_book(self, id_playlist: int, id_book: int) -> None:
         """Remove a book from a playlist.
 
-        :param id_playlist: ID of the playlist
-        :param id_book: ID of the book to remove
-        :raises BookNotInPlaylistError: If the book is not in the playlist
-        :raises DAOError: If a DB error occurs
+        Parameters
+        ----------
+        id_playlist : int
+            ID of the playlist.
+        id_book : int
+            ID of the book to remove.
+
+        Raises
+        ------
+        BookNotInPlaylistError
+            If the book is absent from the playlist.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(

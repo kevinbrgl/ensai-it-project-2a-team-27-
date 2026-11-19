@@ -73,12 +73,26 @@ def get_book_reviews(
     }
     ```
     \f
-    :param book_id: ID of the book
-    :param service: Review service dependency
-    :param _current_user: Authenticated user dependency
-    :raises HTTPException: 404 if the book does not exist,
-        500 on database error
-    :return: The reviews, the average rating and the number of reviews
+
+    Parameters
+    ----------
+    book_id : int
+        ID of the book.
+    service : ReviewService
+        Review service dependency.
+    _current_user : User
+        Authenticated user dependency.
+
+    Returns
+    -------
+    BookReviews
+        The reviews, the average rating and the number of reviews.
+
+    Raises
+    ------
+    HTTPException
+        404 if the book does not exist, 500 on database error.
+
     """
     try:
         return service.get_book_reviews(book_id)
@@ -138,14 +152,29 @@ def create_review(
     }
     ```
     \f
-    :param book_id: ID of the book
-    :param review_in: Rating and comment of the review
-    :param service: Review service dependency
-    :param current_user: The authenticated user
-    :raises HTTPException: 404 if the book does not exist,
-        403 if the book is not in the user's library,
-        409 if the user already reviewed it, 500 on database error
-    :return: The created review
+
+    Parameters
+    ----------
+    book_id : int
+        ID of the book.
+    review_in : ReviewCreate
+        Rating and comment of the review.
+    service : ReviewService
+        Review service dependency.
+    current_user : User
+        The authenticated user.
+
+    Returns
+    -------
+    ReviewRead
+        The created review.
+
+    Raises
+    ------
+    HTTPException
+        404 if the book does not exist, 403 if the book is not in the user's
+        library, 409 if the user already reviewed it, 500 on database error.
+
     """
     try:
         return service.create_review(
@@ -220,13 +249,29 @@ def update_review(
     }
     ```
     \f
-    :param review_id: ID of the review
-    :param review_in: New rating and comment
-    :param service: Review service dependency
-    :param current_user: The authenticated user
-    :raises HTTPException: 404 if the review does not exist,
-        403 if the user is not the author, 500 on database error
-    :return: The updated review
+
+    Parameters
+    ----------
+    review_id : int
+        ID of the review.
+    review_in : ReviewUpdate
+        New rating and comment.
+    service : ReviewService
+        Review service dependency.
+    current_user : User
+        The authenticated user.
+
+    Returns
+    -------
+    ReviewRead
+        The updated review.
+
+    Raises
+    ------
+    HTTPException
+        404 if the review does not exist, 403 if the user is not the author,
+        500 on database error.
+
     """
     try:
         return service.update_review(
@@ -279,11 +324,22 @@ def delete_review(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param review_id: ID of the review
-    :param service: Review service dependency
-    :param current_user: The authenticated user
-    :raises HTTPException: 404 if the review does not exist,
-        403 if the user is not the author, 500 on database error
+
+    Parameters
+    ----------
+    review_id : int
+        ID of the review.
+    service : ReviewService
+        Review service dependency.
+    current_user : User
+        The authenticated user.
+
+    Raises
+    ------
+    HTTPException
+        404 if the review does not exist, 403 if the user is not the author,
+        500 on database error.
+
     """
     try:
         service.delete_review(current_user.id_user, review_id)
@@ -333,12 +389,26 @@ def list_user_reviews(
     **Good to know:** the list is **empty** when the user has not
     written any review.
     \f
-    :param user_id: ID of the user
-    :param service: Review service dependency
-    :param _current_user: Authenticated user dependency
-    :raises HTTPException: 404 if the user does not exist,
-        500 on database error
-    :return: The reviews of the user, newest first
+
+    Parameters
+    ----------
+    user_id : int
+        ID of the user.
+    service : ReviewService
+        Review service dependency.
+    _current_user : User
+        Authenticated user dependency.
+
+    Returns
+    -------
+    list[ReviewRead]
+        The reviews of the user, newest first.
+
+    Raises
+    ------
+    HTTPException
+        404 if the user does not exist, 500 on database error.
+
     """
     try:
         return service.list_user_reviews(user_id)

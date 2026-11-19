@@ -33,8 +33,16 @@ LONG_BOOK_PAGES = 480
 def register_and_login(client: TestClient) -> tuple[dict[str, str], int]:
     """Register and log in a new user.
 
-    :param client: Test client
-    :return: The user's auth headers and ID
+    Parameters
+    ----------
+    client : TestClient
+        Client that registers and logs in the user.
+
+    Returns
+    -------
+    tuple[dict[str, str], int]
+        Authorization headers and ID of the new user.
+
     """
     name = f"stats_{uuid4().hex[:8]}"
     registered = client.post(
@@ -69,10 +77,17 @@ def add_review(
 ) -> None:
     """Create a book and insert a review of it with the given rating.
 
-    :param cursor: Test cursor
-    :param book_dao: DAO used to create the book
-    :param id_user: ID of the author of the review
-    :param rating: Rating of the review, from 1 to 5
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Test cursor used to insert the review.
+    book_dao : BookDAO
+        DAO that inserts the test book.
+    id_user : int
+        ID of the user who wrote the review.
+    rating : int
+        Review rating on a scale of 1 to 5.
+
     """
     book = book_dao.create(BookCreate(title="Reviewed book"))
     cursor.execute(
@@ -90,11 +105,19 @@ def add_library_book(
 ) -> None:
     """Create a book and add it to a user's library through the API.
 
-    :param client: Test client
-    :param book_dao: DAO used to create the book
-    :param headers: Auth headers of the user
-    :param state: Reading state of the book
-    :param num_pages: Number of pages of the book
+    Parameters
+    ----------
+    client : TestClient
+        Client that submits the library request.
+    book_dao : BookDAO
+        DAO that inserts the test book.
+    headers : dict[str, str]
+        Authorization headers for the library owner.
+    state : str
+        Reading state for the library entry.
+    num_pages : int | None, optional
+        Page count of the book.
+
     """
     book = book_dao.create(BookCreate(title="Book", num_pages=num_pages))
     response = client.post(

@@ -7,12 +7,16 @@ RATINGS = range(1, 6)
 
 
 class StatsService:
-    """Service class building a user's reading statistics."""
+    """Compile reading statistics for users."""
 
     def __init__(self, dao: StatsDAO) -> None:
         """Initialize the service with a DAO.
 
-        :param dao: The statistics data access object
+        Parameters
+        ----------
+        dao : StatsDAO
+            The statistics data access object.
+
         """
         self.dao = dao
 
@@ -21,8 +25,16 @@ class StatsService:
 
         Every rating from 1 to 5 is listed, with a count of 0 when unused.
 
-        :param id_user: ID of the user
-        :return: The user's statistics
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        UserStats
+            Finished-book and page counts and breakdowns by genre and rating.
+
         """
         ratings = self.dao.count_ratings(id_user)
         return UserStats(

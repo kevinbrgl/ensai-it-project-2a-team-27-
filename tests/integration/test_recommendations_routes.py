@@ -113,6 +113,7 @@ def rate_as_other(
     """Return a function inserting a review written by another user."""
 
     def rate(id_book: int, rating: int) -> None:
+        """Add a review from the other user for the given book."""
         add_review(cursor, other_user_id, id_book, rating)
 
     return rate

@@ -1,19 +1,10 @@
-"""Ex-Libris frontend with Python only .
+"""Serve the compiled Ex-Libris frontend and forward API requests.
 
-- Serves the compiled React app from the ``dist/`` folder.
-- Forwards every ``/api/...`` request to the FastAPI backend, so the browser
-  talks to a single origin (the backend has no CORS configuration).
-- Works at the site root and behind the Onyxia/VSCode ``/proxy/<port>/`` or
-  ``/absproxy/<port>/`` URLs.
+Run ``python app.py`` from the frontend directory. The server works at
+the site root and behind the Onyxia or VS Code proxy.
 
-Usage (from this folder):
-
-    python app.py
-
-Settings, through environment variables:
-
-    BACKEND_URL    FastAPI address   (default http://127.0.0.1:8000)
-    FRONTEND_PORT  port to listen on (default 5000)
+The ``BACKEND_URL`` environment variable defaults to
+``http://127.0.0.1:8000``. ``FRONTEND_PORT`` defaults to ``5000``.
 """
 
 import os
@@ -44,16 +35,15 @@ HOP_BY_HOP = {
 
 
 class FrontendHandler(SimpleHTTPRequestHandler):
-    """Static files from dist/, with /api forwarded to the backend.
-
-    The dist/ directory is given with functools.partial in main().
-    """
+    """Serve frontend assets and forward API requests to FastAPI."""
 
     def _strip_prefix(self) -> None:
+        """Remove the Onyxia proxy prefix from the request path."""
         self.path = PREFIX.sub("", self.path, count=1) or "/"
 
     # --- API proxy -----------------------------------------------------
     def _proxy(self) -> None:
+        """Forward the request and write the backend response to the client."""
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else None
         # BACKEND_URL is checked to be http(s) in main().
@@ -92,6 +82,7 @@ class FrontendHandler(SimpleHTTPRequestHandler):
 
     # --- Static files with single-page-app fallback ---------------------
     def _serve_static(self) -> None:
+        """Serve an asset or fall back to the React app for client routes."""
         path = self.path.split("?", 1)[0]
         target = DIST / path.lstrip("/")
         if path != "/" and not target.is_file():
@@ -103,6 +94,7 @@ class FrontendHandler(SimpleHTTPRequestHandler):
             super().do_GET()
 
     def _handle(self) -> None:
+        """Dispatch HTTP requests to the API proxy or static file server."""
         self._strip_prefix()
         if self.path == "/api" or self.path.startswith("/api/"):
             self._proxy()
@@ -120,15 +112,25 @@ class FrontendHandler(SimpleHTTPRequestHandler):
     do_DELETE = _handle  # ruff: ignore[mixed-case-variable-in-class-scope]
 
     def log_message(self, _format: str, *args: object) -> None:
-        """Log one short line per request instead of the default format."""
+        """Write one line with the request method, path, and status.
+
+        Parameters
+        ----------
+        _format : str
+            Message format supplied by the base handler, which is ignored.
+        *args : object
+            Log arguments from the base handler. The second item, when
+            present, is used as the response status.
+
+        """
         status = args[1] if len(args) > 1 else ""
         sys.stderr.write(f"  {self.command} {self.path} -> {status}\n")
 
     def end_headers(self) -> None:
-        """Set cache rules so a new build is picked up on a normal reload.
+        """Set cache headers before sending the response headers.
 
-        index.html must always be revalidated; files in /assets/ have a
-        hash in their name, so they can be kept forever.
+        Cache build assets for one year and require revalidation for other
+        frontend files, including ``index.html``.
         """
         if self.path.startswith("/assets/"):
             self.send_header(
@@ -141,7 +143,11 @@ class FrontendHandler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
-    """Check the setup, then serve the app until Ctrl+C."""
+    """Validate the configuration and serve the app until interrupted.
+
+    Exit with an error if the backend URL lacks an HTTP scheme or the
+    frontend build cannot be found.
+    """
     if not BACKEND_URL.startswith(("http://", "https://")):
         sys.exit("BACKEND_URL must start with http:// or https://.")
     if not (DIST / "index.html").is_file():

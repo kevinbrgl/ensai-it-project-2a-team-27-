@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+from psycopg2.extras import RealDictCursor
 from pytest_mock import MockerFixture
 
 from src.core.config import settings
@@ -24,7 +25,16 @@ USERS_URL = f"{settings.API_STR}/users"
 PASSWORD_URL = f"{settings.API_STR}/users/me/password"
 PASSWORD = "motdepasse123"
 NEW_PASSWORD = "nouveaumdp456"
-PUBLIC_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
+# Your own account (GET /users/me) includes your email address.
+OWN_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
+# Other users' profiles never include the email address.
+PUBLIC_FIELDS = {
+    "id_user",
+    "username",
+    "bio",
+    "profile_picture",
+    "profile_visibility",
+}
 
 
 @pytest.fixture
@@ -101,10 +111,10 @@ class TestReadSelf:
         client: TestClient,
         auth_headers: dict[str, str],
     ) -> None:
-        """The response holds the public fields only, never the password."""
+        """The response holds the account fields only, never the password."""
         body = client.get(ME_URL, headers=auth_headers).json()
 
-        assert set(body) == PUBLIC_FIELDS
+        assert set(body) == OWN_FIELDS
         assert "password_hash" not in body
 
     def test_no_token(self, client: TestClient) -> None:
@@ -149,7 +159,7 @@ class TestReadUser:
         body = response.json()
         assert body["id_user"] == target_id
         assert body["username"] == other_username
-        assert body["email"] == f"{other_username}@ensai.fr"
+        assert "email" not in body
         assert body["bio"] is None
 
     def test_only_public_fields(
@@ -180,7 +190,7 @@ class TestReadUser:
         username: str,
         auth_headers: dict[str, str],
     ) -> None:
-        """My own ID gives the same profile as GET /users/me."""
+        """My own ID gives the public view of GET /users/me."""
         me = client.get(ME_URL, headers=auth_headers).json()
 
         response = client.get(
@@ -189,8 +199,11 @@ class TestReadUser:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == me
-        assert response.json()["username"] == username
+        body = response.json()
+        assert body["username"] == username
+        assert {key: body[key] for key in OWN_FIELDS - {"email"}} == {
+            key: me[key] for key in OWN_FIELDS - {"email"}
+        }
 
     def test_not_found(
         self,
@@ -751,10 +764,6 @@ class TestGetMyQuestsRoute:
         }
 
 
-class TestGetUserGenreWheelRoute:
-    """Integration tests for GET /api/users/{userId}/genre-wheel."""
-
-    def test_get_genre_wheel_success(
 class TestGetMyAchievementsRoute:
     """Integration tests for GET /api/users/me/achievements."""
 
@@ -763,20 +772,6 @@ class TestGetMyAchievementsRoute:
         client: TestClient,
         auth_headers: dict[str, str],
     ) -> None:
-        """Retrieving user genre wheel returns 200 with model structure."""
-        response = client.get(
-            f"{USERS_URL}/1/genre-wheel",
-            headers=auth_headers,
-        )
-        assert response.status_code == status.HTTP_200_OK
-        wheel = response.json()
-        assert "id_user" in wheel
-        assert "is_empty" in wheel
-        assert "empty_color" in wheel
-        assert "total_books" in wheel
-        assert "segments" in wheel
-
-    def test_get_genre_wheel_user_not_found(
         """Retrieving my achievements returns 200 with list of trophies."""
         response = client.get(
             f"{USERS_URL}/me/achievements",
@@ -802,14 +797,6 @@ class TestGetMyAchievementsRoute:
         client: TestClient,
         auth_headers: dict[str, str],
     ) -> None:
-        """Non-existing user returns 404."""
-        response = client.get(
-            f"{USERS_URL}/999999/genre-wheel",
-            headers=auth_headers,
-        )
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_get_genre_wheel_unauthenticated(
         """Filtering with status=locked returns only locked achievements."""
         response = client.get(
             f"{USERS_URL}/me/achievements?status=locked",
@@ -825,8 +812,54 @@ class TestGetMyAchievementsRoute:
         client: TestClient,
     ) -> None:
         """Unauthenticated request returns 401."""
-        response = client.get(f"{USERS_URL}/1/genre-wheel")
         response = client.get(f"{USERS_URL}/me/achievements")
+        assert response.status_code in {
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        }
+
+
+class TestGetUserGenreWheelRoute:
+    """Integration tests for GET /api/users/{userId}/genre-wheel."""
+
+    def test_get_genre_wheel_success(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Retrieving user genre wheel returns 200 with model structure."""
+        my_id = client.get(ME_URL, headers=auth_headers).json()["id_user"]
+
+        response = client.get(
+            f"{USERS_URL}/{my_id}/genre-wheel",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        wheel = response.json()
+        assert wheel["id_user"] == my_id
+        assert "is_empty" in wheel
+        assert "empty_color" in wheel
+        assert "total_books" in wheel
+        assert "segments" in wheel
+
+    def test_get_genre_wheel_user_not_found(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Non-existing user returns 404."""
+        response = client.get(
+            f"{USERS_URL}/999999/genre-wheel",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_genre_wheel_unauthenticated(
+        self,
+        client: TestClient,
+    ) -> None:
+        """Unauthenticated request returns 401."""
+        response = client.get(f"{USERS_URL}/1/genre-wheel")
         assert response.status_code in {
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
@@ -982,7 +1015,7 @@ class TestUpdatePassword:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert set(response.json()) == PUBLIC_FIELDS
+        assert set(response.json()) == OWN_FIELDS
 
     def test_login_with_new_password(
         self,
@@ -1098,3 +1131,217 @@ class TestUpdatePassword:
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.fixture
+def other_headers(client: TestClient, other_username: str) -> dict[str, str]:
+    """Log the second user in and return the header that carries its token."""
+    response = client.post(
+        LOGIN_URL,
+        data={"username": other_username, "password": PASSWORD},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+class TestPrivateProfile:
+    """A private profile hides its library and activity from other users."""
+
+    @pytest.fixture
+    def private_id(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> int:
+        """Make the logged-in user's profile private and return its ID."""
+        response = client.patch(
+            f"{ME_URL}/settings",
+            json={"profile_visibility": "private"},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        return response.json()["id_user"]
+
+    @pytest.mark.parametrize(
+        "section",
+        ["library", "playlists", "stats", "genre-wheel"],
+    )
+    def test_hidden_from_other_users(
+        self,
+        client: TestClient,
+        private_id: int,
+        other_headers: dict[str, str],
+        section: str,
+    ) -> None:
+        """Another user gets 403 on every private section."""
+        response = client.get(
+            f"{USERS_URL}/{private_id}/{section}",
+            headers=other_headers,
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "This profile is private."
+
+    def test_hidden_from_followers(
+        self,
+        client: TestClient,
+        private_id: int,
+        other_headers: dict[str, str],
+    ) -> None:
+        """Following a private profile does not reveal its library."""
+        follow = client.post(
+            f"{USERS_URL}/{private_id}/follow",
+            headers=other_headers,
+        )
+        assert follow.status_code == status.HTTP_204_NO_CONTENT
+
+        response = client.get(
+            f"{USERS_URL}/{private_id}/library",
+            headers=other_headers,
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.parametrize(
+        "section",
+        ["library", "playlists", "genre-wheel"],
+    )
+    def test_visible_to_owner(
+        self,
+        client: TestClient,
+        private_id: int,
+        auth_headers: dict[str, str],
+        section: str,
+    ) -> None:
+        """The owner still sees their own private sections."""
+        response = client.get(
+            f"{USERS_URL}/{private_id}/{section}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_profile_card_still_visible(
+        self,
+        client: TestClient,
+        private_id: int,
+        other_headers: dict[str, str],
+    ) -> None:
+        """The profile card stays visible, so the user can be followed."""
+        response = client.get(
+            f"{USERS_URL}/{private_id}",
+            headers=other_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["profile_visibility"] == "private"
+
+
+class TestEmailNotShared:
+    """Other users never receive someone's email address."""
+
+    def test_search_hides_email(
+        self,
+        client: TestClient,
+        other_username: str,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """Search results do not include email addresses."""
+        response = client.get(
+            SEARCH_URL,
+            params={"username": other_username},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert all("email" not in user for user in response.json())
+
+    def test_followers_hide_email(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_headers: dict[str, str],
+    ) -> None:
+        """Follower lists do not include email addresses."""
+        my_id = client.get(ME_URL, headers=auth_headers).json()["id_user"]
+        client.post(f"{USERS_URL}/{my_id}/follow", headers=other_headers)
+
+        response = client.get(
+            f"{USERS_URL}/{my_id}/followers",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert "email" not in response.json()[0]
+
+
+class TestProfileValidation:
+    """Invalid profile updates are refused before reaching the database."""
+
+    @pytest.mark.parametrize("field", ["username", "email"])
+    def test_null_required_field_422(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        field: str,
+    ) -> None:
+        """Null username or email returns 422 instead of a database error."""
+        response = client.patch(
+            ME_URL,
+            json={field: None, "bio": "Still here."},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_picture_link_too_long_422(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """A picture link longer than the column returns 422."""
+        response = client.patch(
+            ME_URL,
+            json={"profile_picture": "https://example.com/" + "a" * 300},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+class TestPasswordBytes:
+    """bcrypt reads 72 bytes only, so longer passwords are refused."""
+
+    def test_register_over_72_bytes_422(self, client: TestClient) -> None:
+        """56 characters but 92 bytes: refused at registration."""
+        name = f"pw_{uuid4().hex[:8]}"
+        response = client.post(
+            REGISTER_URL,
+            json={
+                "username": name,
+                "email": f"{name}@ensai.fr",
+                "password": "é" * 36 + "A" * 20,
+            },
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+class TestDeletedAccountToken:
+    """A token whose account no longer exists is rejected."""
+
+    def test_deleted_account_403(
+        self,
+        client: TestClient,
+        cursor: RealDictCursor,
+        username: str,
+        auth_headers: dict[str, str],
+    ) -> None:
+        """The token gets the same 403 as any invalid token."""
+        cursor.execute("DELETE FROM users WHERE username = %s", (username,))
+
+        response = client.get(ME_URL, headers=auth_headers)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "Could not validate credentials"

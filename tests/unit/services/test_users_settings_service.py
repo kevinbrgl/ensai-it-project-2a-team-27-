@@ -19,6 +19,7 @@ ID_USER = 1
 
 
 def _user(**kwargs: object) -> User:
+    """Create a service test user with the supplied settings."""
     return User(
         id_user=ID_USER,
         username="alice",

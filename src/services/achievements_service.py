@@ -17,7 +17,28 @@ from src.models.achievements import (
 
 @dataclass(frozen=True)
 class AchievementDefinition:
-    """Static definition of an achievement milestone in Ex-Libris."""
+    """Define an achievement milestone and its tracked metric.
+
+    Attributes
+    ----------
+    id_achievement : str
+        Stable achievement identifier.
+    title : str
+        Display title.
+    description : str
+        Description of the requirement.
+    category : AchievementCategory
+        Activity category.
+    tier : AchievementTier
+        Achievement tier.
+    icon : str
+        Icon displayed with the milestone.
+    target : int
+        Metric value required to reach the milestone.
+    stat_key : str
+        Key of the user statistic evaluated for this milestone.
+
+    """
 
     id_achievement: str
     title: str
@@ -31,8 +52,16 @@ class AchievementDefinition:
     def evaluate(self, current_stat: int) -> Achievement:
         """Evaluate milestone achievement against a current user metric.
 
-        :param current_stat: Current metric count achieved by the user
-        :return: Evaluated Achievement schema instance
+        Parameters
+        ----------
+        current_stat : int
+            Current metric count achieved by the user.
+
+        Returns
+        -------
+        Achievement
+            Evaluated Achievement schema instance.
+
         """
         bounded_stat = max(0, current_stat)
         bounded_target = max(1, self.target)
@@ -182,15 +211,23 @@ ACHIEVEMENT_DEFINITIONS: tuple[AchievementDefinition, ...] = (
 
 
 class AchievementService:
-    """Service class evaluating achievement milestones for users.
+    """Evaluate achievement milestones for users.
 
-    :attr dao: Associated AchievementDAO instance
+    Attributes
+    ----------
+    dao : AchievementDAO
+        Associated AchievementDAO instance.
+
     """
 
     def __init__(self, achievement_dao: AchievementDAO) -> None:
         """Initialize AchievementService with an AchievementDAO.
 
-        :param achievement_dao: DAO used to retrieve user statistics
+        Parameters
+        ----------
+        achievement_dao : AchievementDAO
+            DAO used to retrieve user statistics.
+
         """
         self.dao = achievement_dao
 
@@ -201,9 +238,19 @@ class AchievementService:
     ) -> list[Achievement]:
         """Get the list of achievements and unlock status for a user.
 
-        :param user_id: ID of the user
-        :param status_filter: Filter by 'all', 'unlocked', or 'locked'
-        :return: List of evaluated Achievement schemas
+        Parameters
+        ----------
+        user_id : int
+            ID of the user.
+        status_filter : {'all', 'unlocked', 'locked'}, optional
+            Which unlock status to include. By default, include all
+            achievements.
+
+        Returns
+        -------
+        list[Achievement]
+            List of evaluated Achievement schemas.
+
         """
         stats: AchievementUserStats = self.dao.get_user_stats(user_id)
         stats_dict = stats.model_dump()

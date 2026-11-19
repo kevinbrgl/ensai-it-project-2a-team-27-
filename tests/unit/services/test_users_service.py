@@ -8,18 +8,21 @@ from unittest.mock import Mock
 
 import jwt
 import pytest
+from pydantic import ValidationError
 from pytest_mock import MockerFixture
 
 from src.core.config import settings
 from src.core.security import ALGORITHM, verify_password
 from src.dao.users_dao import UserDAO
 from src.models import Token, User, UserCreate, UserRegister
+from src.models.users import UserUpdatePassword
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
     AuthError,
     EmailAlreadyExistsError,
     NotFollowingError,
+    PrivateProfileError,
     SelfFollowError,
     SelfUnfollowError,
     UserAlreadyExistsError,
@@ -558,3 +561,47 @@ class TestGetFollowing:
 
         mock_dao.read.assert_called_once_with(999)
         mock_dao.get_following.assert_not_called()
+
+
+class TestEnsureProfileVisible:
+    """Tests for UserService.ensure_profile_visible."""
+
+    def test_public_profile_visible_to_anyone(self, db_user: User) -> None:
+        """A public profile can be seen by another user."""
+        UserService.ensure_profile_visible(db_user, viewer_id=2)
+
+    def test_private_profile_visible_to_owner(self, db_user: User) -> None:
+        """The owner of a private profile can still see it."""
+        db_user.profile_visibility = "private"
+
+        UserService.ensure_profile_visible(db_user, viewer_id=1)
+
+    def test_private_profile_hidden_from_others(self, db_user: User) -> None:
+        """Another user gets PrivateProfileError on a private profile."""
+        db_user.profile_visibility = "private"
+
+        with pytest.raises(PrivateProfileError):
+            UserService.ensure_profile_visible(db_user, viewer_id=2)
+
+
+class TestPasswordLength:
+    """bcrypt ignores what comes after 72 bytes, so longer is refused."""
+
+    def test_72_bytes_accepted(self) -> None:
+        """36 two-byte letters make exactly 72 bytes: accepted."""
+        user = UserRegister(username=USERNAME, email=EMAIL, password="é" * 36)
+
+        assert user.password == "é" * 36
+
+    def test_more_than_72_bytes_refused(self) -> None:
+        """A password under 72 characters but over 72 bytes is refused."""
+        with pytest.raises(ValidationError, match="72 bytes"):
+            UserRegister(username=USERNAME, email=EMAIL, password="é" * 37)
+
+    def test_new_password_more_than_72_bytes_refused(self) -> None:
+        """The same limit applies when changing the password."""
+        with pytest.raises(ValidationError, match="72 bytes"):
+            UserUpdatePassword(
+                current_password=PASSWORD,
+                new_password="é" * 37,
+            )

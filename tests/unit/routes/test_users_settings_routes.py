@@ -29,6 +29,7 @@ ME_FIELDS = {
 
 
 def _user(**kwargs: object) -> User:
+    """Create a route test user with the supplied settings."""
     return User(
         id_user=ID_USER,
         username="alice",

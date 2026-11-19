@@ -13,12 +13,16 @@ from src.utils.exceptions import PlaylistNotFoundError
 
 
 class PlaylistService:
-    """Service class for managing a user's playlists."""
+    """Manage personal book playlists."""
 
     def __init__(self, dao: PlaylistDAO) -> None:
         """Initialize the service with a DAO.
 
-        :param dao: The playlist data access object
+        Parameters
+        ----------
+        dao : PlaylistDAO
+            The playlist data access object.
+
         """
         self.dao = dao
 
@@ -29,17 +33,39 @@ class PlaylistService:
     ) -> PlaylistRead:
         """Create a playlist for the user.
 
-        :param id_user: ID of the owner of the playlist
-        :param playlist_in: Name of the playlist
-        :return: The created playlist
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        playlist_in : PlaylistCreate
+            Name of the playlist.
+
+        Returns
+        -------
+        PlaylistRead
+            The created playlist.
+
+        Notes
+        -----
+        A playlist with the same name for this user raises
+        ``PlaylistAlreadyExistsError``.
+
         """
         return self.dao.create(id_user, playlist_in)
 
     def list_playlists(self, id_user: int) -> list[PlaylistRead]:
         """List the playlists of the user.
 
-        :param id_user: ID of the owner of the playlists
-        :return: The playlists, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlists.
+
+        Returns
+        -------
+        list[PlaylistRead]
+            The playlists, or an empty list if there are none.
+
         """
         return self.dao.find_by_user_id(id_user)
 
@@ -51,18 +77,42 @@ class PlaylistService:
     ) -> PlaylistRead:
         """Rename one of the user's playlists.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist to rename
-        :param playlist_in: New name of the playlist
-        :return: The renamed playlist
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist to rename.
+        playlist_in : PlaylistUpdate
+            New name of the playlist.
+
+        Returns
+        -------
+        PlaylistRead
+            The renamed playlist.
+
+        Notes
+        -----
+        An unknown or inaccessible playlist raises ``PlaylistNotFoundError``.
+        A duplicate name for this user raises ``PlaylistAlreadyExistsError``.
+
         """
         return self.dao.rename(id_user, id_playlist, playlist_in)
 
     def delete_playlist(self, id_user: int, id_playlist: int) -> None:
         """Delete one of the user's playlists.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist to delete
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist to delete.
+
+        Notes
+        -----
+        An unknown or inaccessible playlist raises ``PlaylistNotFoundError``.
+
         """
         self.dao.delete(id_user, id_playlist)
 
@@ -73,11 +123,23 @@ class PlaylistService:
     ) -> PlaylistRead:
         """Return one of the user's playlists.
 
-        :param id_user: ID of the user who must own the playlist
-        :param id_playlist: ID of the playlist
-        :raises PlaylistNotFoundError: If the playlist does not exist or
-            belongs to another user
-        :return: The playlist
+        Parameters
+        ----------
+        id_user : int
+            ID of the user who must own the playlist.
+        id_playlist : int
+            ID of the playlist.
+
+        Returns
+        -------
+        PlaylistRead
+            The playlist.
+
+        Raises
+        ------
+        PlaylistNotFoundError
+            If the playlist is absent from the user's playlists.
+
         """
         playlist = self.dao.read(id_user, id_playlist)
         if playlist is None:
@@ -92,12 +154,26 @@ class PlaylistService:
     ) -> PlaylistBookRead:
         """Add a book to one of the user's playlists.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist
-        :param book_in: ID of the book to add
-        :raises PlaylistNotFoundError: If the playlist does not exist or
-            belongs to another user
-        :return: The added playlist entry
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist.
+        book_in : PlaylistBookAdd
+            ID of the book to add.
+
+        Returns
+        -------
+        PlaylistBookRead
+            The added playlist entry.
+
+        Notes
+        -----
+        An unknown or inaccessible playlist raises ``PlaylistNotFoundError``.
+        A duplicate entry raises ``BookAlreadyInPlaylistError``. An unknown
+        book ID raises ``BookNotFoundError``.
+
         """
         self._get_own_playlist(id_user, id_playlist)
         return self.dao.add_book(id_playlist, book_in.id_book)
@@ -109,11 +185,22 @@ class PlaylistService:
     ) -> PlaylistDetails:
         """Return one of the user's playlists, with its books.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist
-        :raises PlaylistNotFoundError: If the playlist does not exist or
-            belongs to another user
-        :return: The playlist and the details of its books
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist.
+
+        Returns
+        -------
+        PlaylistDetails
+            The playlist and the details of its books.
+
+        Notes
+        -----
+        An unknown or inaccessible playlist raises ``PlaylistNotFoundError``.
+
         """
         playlist = self._get_own_playlist(id_user, id_playlist)
         books = self.dao.find_books(id_playlist)
@@ -127,11 +214,20 @@ class PlaylistService:
     ) -> None:
         """Remove a book from one of the user's playlists.
 
-        :param id_user: ID of the owner of the playlist
-        :param id_playlist: ID of the playlist
-        :param id_book: ID of the book to remove
-        :raises PlaylistNotFoundError: If the playlist does not exist or
-            belongs to another user
+        Parameters
+        ----------
+        id_user : int
+            ID of the owner of the playlist.
+        id_playlist : int
+            ID of the playlist.
+        id_book : int
+            ID of the book to remove.
+
+        Notes
+        -----
+        An unknown or inaccessible playlist raises ``PlaylistNotFoundError``.
+        A missing playlist entry raises ``BookNotInPlaylistError``.
+
         """
         self._get_own_playlist(id_user, id_playlist)
         self.dao.remove_book(id_playlist, id_book)

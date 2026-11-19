@@ -78,15 +78,23 @@ DEFAULT_PALETTE: tuple[str, ...] = (
 
 
 class GenreWheelService:
-    """Service evaluating genre proportions and colors for user profiles.
+    """Compute genre proportions and colors for user profiles.
 
-    :attr dao: Associated GenreWheelDAO instance
+    Attributes
+    ----------
+    dao : GenreWheelDAO
+        Associated GenreWheelDAO instance.
+
     """
 
     def __init__(self, dao: GenreWheelDAO) -> None:
         """Initialize GenreWheelService with a GenreWheelDAO.
 
-        :param dao: DAO used to retrieve user activities and ratings
+        Parameters
+        ----------
+        dao : GenreWheelDAO
+            DAO used to retrieve user activities and ratings.
+
         """
         self.dao = dao
 
@@ -94,8 +102,19 @@ class GenreWheelService:
     def resolve_color(genre: str) -> str:
         """Resolve a consistent hex color for a book genre.
 
-        :param genre: Genre name string
-        :return: Hex color code (e.g. #F43F5E)
+        Known genres use fixed colors. Other names map to a palette color based
+        on their normalized spelling.
+
+        Parameters
+        ----------
+        genre : str
+            Genre name string.
+
+        Returns
+        -------
+        str
+            Hex color code (e.g. #F43F5E).
+
         """
         normalized = genre.strip().lower()
         if normalized in GENRE_COLORS:
@@ -113,9 +132,21 @@ class GenreWheelService:
     ) -> float:
         """Calculate the individual weight score of a finished book.
 
-        :param rating: User review rating between 1 and 5 (or None)
-        :param is_favorite: Whether marked as favorite
-        :return: Computed weight score
+        The review rating sets the base weight. A favorite book receives a
+        fixed bonus.
+
+        Parameters
+        ----------
+        rating : int | None
+            User review rating between 1 and 5 (or None).
+        is_favorite : bool
+            Whether marked as favorite.
+
+        Returns
+        -------
+        float
+            Computed weight score.
+
         """
         base = (
             BASE_RATING_WEIGHTS.get(rating, DEFAULT_UNRATED_WEIGHT)
@@ -132,8 +163,21 @@ class GenreWheelService:
     ) -> tuple[dict[str, float], dict[str, int], dict[str, list[int]]]:
         """Aggregate scores, counts, and ratings per book category.
 
-        :param books: List of book records with category and ratings
-        :return: Tuple of (scores, counts, ratings) by category
+        Parameters
+        ----------
+        books : list[dict[str, Any]]
+            Finished-book records with category, review rating and favorite
+            status.
+
+        Returns
+        -------
+        scores : dict[str, float]
+            Total weight per category.
+        counts : dict[str, int]
+            Finished-book count per category.
+        ratings : dict[str, list[int]]
+            Integer review ratings per category.
+
         """
         scores: dict[str, float] = defaultdict(float)
         counts: dict[str, int] = defaultdict(int)
@@ -164,12 +208,26 @@ class GenreWheelService:
         counts: dict[str, int],
         ratings: dict[str, list[int]],
     ) -> list[GenreWheelSegment]:
-        """Build and normalize genre segments from aggregated metrics.
+        """Select genre segments and normalize their shares.
 
-        :param scores: Total score per genre
-        :param counts: Total book count per genre
-        :param ratings: Collected ratings per genre
-        :return: Normalized list of GenreWheelSegment instances
+        Keep up to the configured maximum number of genres in descending weight
+        order and normalize their shares to 100 percent.
+
+        Parameters
+        ----------
+        scores : dict[str, float]
+            Total score per genre.
+        counts : dict[str, int]
+            Total book count per genre.
+        ratings : dict[str, list[int]]
+            Collected ratings per genre.
+
+        Returns
+        -------
+        list[GenreWheelSegment]
+            Genre segments in descending weight order, or an empty list when
+            the total weight is zero.
+
         """
         total_weight = sum(scores.values())
         if total_weight <= 0.0 or not scores:
@@ -231,8 +289,16 @@ class GenreWheelService:
     def get_genre_wheel(self, user_id: int) -> GenreWheel:
         """Build the avatar genre color wheel for a given user.
 
-        :param user_id: ID of the user whose wheel is built
-        :return: GenreWheel model containing segments or empty state
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose wheel is built.
+
+        Returns
+        -------
+        GenreWheel
+            GenreWheel model containing segments or empty state.
+
         """
         books: list[dict[str, Any]] = self.dao.get_user_completed_books(
             user_id,

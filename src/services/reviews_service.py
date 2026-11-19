@@ -19,7 +19,7 @@ from src.utils.exceptions import (
 
 
 class ReviewService:
-    """Service class for managing reviews and ratings."""
+    """Manage book reviews and ratings."""
 
     def __init__(
         self,
@@ -30,10 +30,17 @@ class ReviewService:
     ) -> None:
         """Initialize the service with its DAOs.
 
-        :param review_dao: The review data access object
-        :param book_dao: The book data access object
-        :param user_dao: The user data access object
-        :param library_dao: The library data access object
+        Parameters
+        ----------
+        review_dao : ReviewDAO
+            The review data access object.
+        book_dao : BookDAO
+            The book data access object.
+        user_dao : UserDAO
+            The user data access object.
+        library_dao : LibraryDAO
+            The library data access object.
+
         """
         self.review_dao = review_dao
         self.book_dao = book_dao
@@ -43,9 +50,21 @@ class ReviewService:
     def get_book_reviews(self, id_book: int) -> BookReviews:
         """Return the reviews of a book and its average rating.
 
-        :param id_book: ID of the book
-        :raises BookNotFoundError: If the book does not exist
-        :return: The reviews, the average rating and the number of reviews
+        Parameters
+        ----------
+        id_book : int
+            ID of the book.
+
+        Returns
+        -------
+        BookReviews
+            The reviews, the average rating and the number of reviews.
+
+        Raises
+        ------
+        BookNotFoundError
+            If the book does not exist.
+
         """
         if self.book_dao.read(id_book) is None:
             raise BookNotFoundError(id_book)
@@ -67,13 +86,32 @@ class ReviewService:
     ) -> ReviewRead:
         """Write a review on a book of the user's library.
 
-        :param id_user: ID of the author
-        :param id_book: ID of the book
-        :param review_in: Rating and comment of the review
-        :raises BookNotFoundError: If the book does not exist
-        :raises BookNotInLibraryError: If the book is not in the
-            author's library
-        :return: The created review
+        Parameters
+        ----------
+        id_user : int
+            ID of the author.
+        id_book : int
+            ID of the book.
+        review_in : ReviewCreate
+            Rating and comment of the review.
+
+        Returns
+        -------
+        ReviewRead
+            The created review.
+
+        Raises
+        ------
+        BookNotFoundError
+            If the book does not exist.
+        BookNotInLibraryError
+            If the book is not in the author's library.
+
+        Notes
+        -----
+        A second review of the same book by this user raises
+        ``ReviewAlreadyExistsError``.
+
         """
         if self.book_dao.read(id_book) is None:
             raise BookNotFoundError(id_book)
@@ -82,12 +120,24 @@ class ReviewService:
         return self.review_dao.create(id_user, id_book, review_in)
 
     def _check_author(self, id_user: int, id_review: int) -> None:
-        """Make sure that the user wrote the review.
+        """Verify that the user authored the review.
 
-        :param id_user: ID of the user making the request
-        :param id_review: ID of the review
-        :raises ReviewNotFoundError: If the review does not exist
-        :raises NotReviewAuthorError: If the user is not the author
+        Parameters
+        ----------
+        id_user : int
+            ID of the user making the request.
+        id_review : int
+            ID of the review.
+
+        Raises
+        ------
+        NotReviewAuthorError
+            If the request came from a user other than the author.
+
+        Notes
+        -----
+        A missing review raises ``ReviewNotFoundError``.
+
         """
         review = self.review_dao.find_by_id(id_review)
         if review.id_user != id_user:
@@ -99,12 +149,27 @@ class ReviewService:
         id_review: int,
         review_in: ReviewUpdate,
     ) -> ReviewRead:
-        """Edit a review, only if the user is its author.
+        """Update a review as its author.
 
-        :param id_user: ID of the user making the request
-        :param id_review: ID of the review
-        :param review_in: New rating and comment
-        :return: The updated review
+        Parameters
+        ----------
+        id_user : int
+            ID of the user making the request.
+        id_review : int
+            ID of the review.
+        review_in : ReviewUpdate
+            New rating and comment.
+
+        Returns
+        -------
+        ReviewRead
+            The updated review.
+
+        Notes
+        -----
+        A missing review raises ``ReviewNotFoundError``. A request from
+        someone other than the author raises ``NotReviewAuthorError``.
+
         """
         self._check_author(id_user, id_review)
         return self.review_dao.update(id_review, review_in)
@@ -112,8 +177,18 @@ class ReviewService:
     def delete_review(self, id_user: int, id_review: int) -> None:
         """Delete a review, only if the user is its author.
 
-        :param id_user: ID of the user making the request
-        :param id_review: ID of the review
+        Parameters
+        ----------
+        id_user : int
+            ID of the user making the request.
+        id_review : int
+            ID of the review.
+
+        Notes
+        -----
+        A missing review raises ``ReviewNotFoundError``. A request from
+        someone other than the author raises ``NotReviewAuthorError``.
+
         """
         self._check_author(id_user, id_review)
         self.review_dao.delete(id_review)
@@ -121,9 +196,21 @@ class ReviewService:
     def list_user_reviews(self, id_user: int) -> list[ReviewRead]:
         """List the reviews written by a user.
 
-        :param id_user: ID of the user
-        :raises UserNotFoundError: If the user does not exist
-        :return: The reviews, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        list[ReviewRead]
+            The reviews, or an empty list if there are none.
+
+        Raises
+        ------
+        UserNotFoundError
+            If the user does not exist.
+
         """
         if self.user_dao.read(id_user) is None:
             raise UserNotFoundError(user_id=id_user)

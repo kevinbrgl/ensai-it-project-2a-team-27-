@@ -12,7 +12,7 @@ runtime dependencies.
 
 ## 1. Quick start — Python only, no Node.js
 
-The `dist/` folder already contains the compiled app, and `serve.py` serves
+The `dist/` folder already contains the compiled app, and `app.py` serves
 it with the Python standard library. Nothing to install.
 
 1. Start the backend, from the project root (first terminal):
@@ -35,9 +35,9 @@ it with the Python standard library. Nothing to install.
    - on Onyxia/VSCode: your VSCode URL followed by `/proxy/5000/`
      (for example `https://user-xxxx.user.lab.sspcloud.fr/proxy/5000/`)
 
-`serve.py` forwards every `/api` request to the backend. To change the
+`app.py` forwards every `/api` request to the backend. To change the
 defaults, set environment variables, e.g.
-`BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5000 python app.py`.
+`BACKEND_URL=http://127.0.0.1:8000 FRONTEND_PORT=5001 uv run python app.py`.
 
 > `dist/` is the compiled version of `src/`. If you **change the code** in
 > `src/`, rebuild it with Node.js (section 2): `npm run build`. Otherwise you
@@ -79,8 +79,8 @@ cp .env.example .env
 |---|---|---|
 | `VITE_BACKEND_URL` | `http://127.0.0.1:8000` | Where the FastAPI server runs. The dev server forwards every `/api` request there. |
 | `VITE_API_URL` | *(empty)* | Only for a deployed build that calls a backend on another domain (needs CORS on the backend). Leave it empty. |
-| `VITE_PORT` | `5173` | Port of the dev server. |
-| `VITE_BASE_PATH` | `/` | Sub-path in development. On Onyxia, use `/absproxy/5173/` and open `<your VSCode URL>/absproxy/5173/`. |
+| `VITE_PORT` | `5000` | Port of the dev server (stop `app.py` first, it uses the same port). |
+| `VITE_BASE_PATH` | `/` | Sub-path in development. On Onyxia, use `/absproxy/5000/` and open `<your VSCode URL>/absproxy/5000/`. |
 
 ### Run
 
@@ -88,19 +88,19 @@ cp .env.example .env
 npm run dev -- --host
 ```
 
-Open <http://localhost:5173> (or `<VSCode URL>/absproxy/5173/` on Onyxia).
+Open <http://localhost:5000> (or `<VSCode URL>/absproxy/5000/` on Onyxia).
 Changes in `src/` appear instantly.
 
 | Command | What it does |
 |---|---|
-| `npm run build` | Rebuilds `dist/` (then `python serve.py` serves the new version) |
+| `npm run build` | Rebuilds `dist/` (then `uv run python app.py` serves the new version) |
 | `npm run preview` | Serves `dist/` with Node instead of Python |
 | `npm run lint` | Checks the code with ESLint |
 
 ### Why a proxy?
 
-The backend has no CORS middleware, so a browser page on `localhost:5173`
-cannot call `localhost:8000` directly. Both `serve.py` and Vite's dev server
+The backend has no CORS middleware, so a browser page on `localhost:5000`
+cannot call `localhost:8000` directly. Both `app.py` and Vite's dev server
 forward `/api/*` to the backend instead, so the browser only ever talks to one
 origin.
 
@@ -118,9 +118,9 @@ origin.
 | **My library** | Tabs by status and favorites, genre filter, sorting, pagination, inline status change, like, favorite, remove (with confirmation). |
 | **Shelves** | Create, rename, delete (with confirmation) shelves, see their covers, remove books. |
 | **Readers** | Search users, follow / unfollow, see who you follow and who follows you. |
-| **Reader profile** | Their library, reviews, shelves, followers, following, and stats (shown once you follow them, as the API requires). |
+| **Reader profile** | Their name, bio and picture, library, reviews, shelves, followers, following, and stats (shown once you follow them, as the API requires). A private profile only shows its reviews and followers to others. Admins can suspend or ban the reader. |
 | **Progress** | Books finished, genre and rating breakdowns, quests with XP. |
-| **Settings** | Edit username, email, bio and picture link; change password. |
+| **Settings** | Edit username, email, bio and picture link; change password; day or night theme; public or private profile. |
 
 Every action gives feedback (toast message, inline error or loading state),
 lists have skeleton loaders, and empty and error states offer a next step.
@@ -137,18 +137,20 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | POST | `/auth/register` | Create account |
 | POST | `/auth/login` (form data) | Sign in |
 | POST | `/auth/logout` | Sign out |
-| GET | `/users/me` | Session check, sidebar |
+| GET | `/users/me/settings` | Session check, sidebar, theme |
+| PATCH | `/users/me/settings` | Settings, theme and profile visibility |
 | PATCH | `/users/me` | Settings, profile |
 | PUT | `/users/me/password` | Settings, password |
 | GET | `/users/me/stats` | Progress, own profile |
 | GET | `/users/me/quests?status=` | Home, Progress |
 | GET | `/users/search?username=&limit=` | Readers |
+| GET | `/users/{id}` | Profile (name, bio, picture, visibility) |
 | POST / DELETE | `/users/{id}/follow` | Follow buttons |
 | GET | `/users/{id}/followers` | Readers, profile |
 | GET | `/users/{id}/following` | Readers, profile |
-| GET | `/users/{id}/library?status=` | Profile |
-| GET | `/users/{id}/playlists` | Profile |
-| GET | `/users/{id}/stats` | Profile (403 if not followed) |
+| GET | `/users/{id}/library?status=` | Profile (403 if private) |
+| GET | `/users/{id}/playlists` | Profile (403 if private) |
+| GET | `/users/{id}/stats` | Profile (403 if not followed or private) |
 | GET | `/users/{id}/reviews` | Profile |
 | GET | `/books/search?q=&limit=` | Discover, sidebar search |
 | GET | `/books?category=&author=` | Catalog |
@@ -160,6 +162,7 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | POST | `/library/books` | Add to library |
 | DELETE | `/library/books/{id}` | Remove from library |
 | PATCH | `/library/books/{id}/status` | Change status |
+| PATCH | `/library/books/{id}/dates` | Reading dates |
 | POST | `/library/books/{id}/like` | Like toggle |
 | POST | `/library/books/{id}/favorite` | Favorite toggle |
 | GET / POST | `/playlists` | Shelves |
@@ -167,6 +170,8 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | POST | `/playlists/{id}/books` | Save to shelf |
 | DELETE | `/playlists/{id}/books/{bookId}` | Remove from shelf |
 | GET | `/recommendations?genre=&sort=&limit=` | Home, Discover |
+| POST | `/admin/users/{id}/suspend`, `/admin/users/{id}/ban` | Profile, moderation menu (admins) |
+| DELETE | `/admin/reviews/{id}` | Book page, moderation (admins) |
 
 ---
 
@@ -174,7 +179,7 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 
 ```
 frontend/
-├── serve.py                Python server for dist/ (no Node.js needed)
+├── app.py                  Python server for dist/ (no Node.js needed)
 ├── dist/                   Compiled app, generated by `npm run build`
 ├── index.html              HTML entry, fonts
 ├── vite.config.js          Dev server + /api proxy
@@ -216,9 +221,9 @@ Conventions:
 
 These come from the current API; the frontend does not invent endpoints for them.
 
-- **No “get user by id” route.** Reviews and profiles only carry a user id, so a
-  reader’s name is shown when the app has already seen it (search results,
-  followers, following). Otherwise it reads “Reader #12”.
+- **Review authors** are only given by their id, so a reviewer’s name is shown
+  when the app has already seen that reader (search results, followers, a
+  visited profile). Otherwise it reads “Reader #12”.
 - **Other readers’ shelves** are listed by name only: `GET /playlists/{id}` is
   restricted to the owner.
 - **Book search needs Open Library.** If the backend cannot reach
@@ -229,5 +234,3 @@ These come from the current API; the frontend does not invent endpoints for them
   pages link to the Open Library page instead.
 - **Quest titles** are written in French by the backend and shown as-is.
 - **No account deletion** endpoint exists, so the settings page doesn’t offer it.
-- **Docker:** `docker-compose.yml` at the project root still builds the old
-  Streamlit frontend; it was not changed.

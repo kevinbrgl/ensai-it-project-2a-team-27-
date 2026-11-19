@@ -14,7 +14,19 @@ from src.utils.exceptions import (
 
 
 def _to_status(user: User) -> ModerationStatus:
-    """Build the moderation status of a user."""
+    """Build the moderation status of a user.
+
+    Parameters
+    ----------
+    user : User
+        Account whose moderation status is needed.
+
+    Returns
+    -------
+    ModerationStatus
+        The user ID, username, ban flag and suspension end time.
+
+    """
     return ModerationStatus(
         id_user=user.id_user,
         username=user.username,
@@ -24,25 +36,41 @@ def _to_status(user: User) -> ModerationStatus:
 
 
 class AdminService:
-    """Service class for the moderation actions of administrators."""
+    """Suspend and ban accounts and remove reviews."""
 
     def __init__(self, user_dao: UserDAO, review_dao: ReviewDAO) -> None:
         """Initialize the service with its DAOs.
 
-        :param user_dao: The user data access object
-        :param review_dao: The review data access object
+        Parameters
+        ----------
+        user_dao : UserDAO
+            The user data access object.
+        review_dao : ReviewDAO
+            The review data access object.
+
         """
         self.user_dao = user_dao
         self.review_dao = review_dao
 
     def _check_target(self, admin_id: int, user_id: int) -> None:
-        """Make sure the target user can be moderated by this admin.
+        """Validate the target of an administrator's moderation action.
 
-        :param admin_id: ID of the admin making the request
-        :param user_id: ID of the targeted user
-        :raises SelfModerationError: If the admin targets themself
-        :raises UserNotFoundError: If the target does not exist
-        :raises AdminModerationError: If the target is an admin
+        Parameters
+        ----------
+        admin_id : int
+            ID of the admin making the request.
+        user_id : int
+            ID of the targeted user.
+
+        Raises
+        ------
+        SelfModerationError
+            If the administrator targets their own account.
+        UserNotFoundError
+            If the target account does not exist.
+        AdminModerationError
+            If the target is another administrator.
+
         """
         if admin_id == user_id:
             raise SelfModerationError
@@ -60,10 +88,30 @@ class AdminService:
     ) -> ModerationStatus:
         """Suspend an account for a number of days.
 
-        :param admin_id: ID of the admin making the request
-        :param user_id: ID of the user to suspend
-        :param days: Length of the suspension in days
-        :return: The new moderation status of the user
+        Parameters
+        ----------
+        admin_id : int
+            ID of the admin making the request.
+        user_id : int
+            ID of the user to suspend.
+        days : int
+            Length of the suspension in days.
+
+        Returns
+        -------
+        ModerationStatus
+            The new moderation status of the user.
+
+        Raises
+        ------
+        UserNotFoundError
+            If the target account does not exist.
+
+        Notes
+        -----
+        Targeting one's own account raises ``SelfModerationError``. Targeting
+        another administrator raises ``AdminModerationError``.
+
         """
         self._check_target(admin_id, user_id)
         until = datetime.now(UTC) + timedelta(days=days)
@@ -75,9 +123,28 @@ class AdminService:
     def ban_user(self, admin_id: int, user_id: int) -> ModerationStatus:
         """Permanently ban an account.
 
-        :param admin_id: ID of the admin making the request
-        :param user_id: ID of the user to ban
-        :return: The new moderation status of the user
+        Parameters
+        ----------
+        admin_id : int
+            ID of the admin making the request.
+        user_id : int
+            ID of the user to ban.
+
+        Returns
+        -------
+        ModerationStatus
+            The new moderation status of the user.
+
+        Raises
+        ------
+        UserNotFoundError
+            If the target account does not exist.
+
+        Notes
+        -----
+        Targeting one's own account raises ``SelfModerationError``. Targeting
+        another administrator raises ``AdminModerationError``.
+
         """
         self._check_target(admin_id, user_id)
         user = self.user_dao.set_banned(user_id, banned=True)
@@ -88,7 +155,14 @@ class AdminService:
     def delete_review(self, review_id: int) -> None:
         """Remove any review.
 
-        :param review_id: ID of the review
-        :raises ReviewNotFoundError: If the review does not exist
+        Parameters
+        ----------
+        review_id : int
+            ID of the review.
+
+        Notes
+        -----
+        A missing review raises ``ReviewNotFoundError``.
+
         """
         self.review_dao.delete(review_id)

@@ -1,4 +1,4 @@
-"""Data Access Object for library operations."""
+"""Database access for users' book libraries."""
 
 from datetime import date
 
@@ -20,12 +20,16 @@ from src.utils.exceptions import (
 
 
 class LibraryDAO:
-    """DAO class for user library operations."""
+    """Manage reading activity and favorites in user libraries."""
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize LibraryDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
@@ -36,12 +40,27 @@ class LibraryDAO:
     ) -> LibraryBookRead:
         """Add a book to a user's library with a reading state.
 
-        :param id_user: ID of the user
-        :param book_in: Book ID and state to add
-        :raises BookAlreadyInLibraryError: If the user already added this book
-        :raises BookNotFoundError: If the book is not in the local database
-        :raises DAOError: If the insertion fails or a DB error occurs
-        :return: The created Library activity object
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        book_in : LibraryBookAdd
+            Book ID and state to add.
+
+        Returns
+        -------
+        LibraryBookRead
+            The new library entry, including its initial reading state.
+
+        Raises
+        ------
+        BookAlreadyInLibraryError
+            If the user already added this book.
+        BookNotFoundError
+            If the database rejects a missing user or book reference.
+        DAOError
+            If the insertion fails or a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -67,13 +86,25 @@ class LibraryDAO:
         return LibraryBookRead(**row)
 
     def read(self, id_user: int, id_book: int) -> LibraryBookRead | None:
-        """Read one book of a user's library.
+        """Find a book's entry in a user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book
-        :raises DAOError: If a DB error occurs
-        :return: The library activity, or None if the book is not in
-            the user's library
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book.
+
+        Returns
+        -------
+        LibraryBookRead | None
+            The library entry, or None if absent from the user's library.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -95,10 +126,20 @@ class LibraryDAO:
     def remove_book(self, id_user: int, id_book: int) -> None:
         """Remove a book from a user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book to remove
-        :raises BookNotInLibraryError: If the book is not in the library
-        :raises DAOError: If a DB error occurs
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book to remove.
+
+        Raises
+        ------
+        BookNotInLibraryError
+            If the book is absent from the library.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -118,13 +159,27 @@ class LibraryDAO:
             raise BookNotInLibraryError(id_book)
 
     def toggle_like(self, id_user: int, id_book: int) -> LibraryBookRead:
-        """Toggle the like on a book in a user's library.
+        """Toggle the like flag on a book in a user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book to like or unlike
-        :raises BookNotInLibraryError: If the book is not in the library
-        :raises DAOError: If a DB error occurs
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book to like or unlike.
+
+        Returns
+        -------
+        LibraryBookRead
+            The library entry with its updated like flag.
+
+        Raises
+        ------
+        BookNotInLibraryError
+            If the book is absent from the library.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -152,11 +207,25 @@ class LibraryDAO:
     ) -> LibraryBookRead:
         """Toggle the favorite flag on a book in a user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book to add to or remove from favorites
-        :raises BookNotInLibraryError: If the book is not in the library
-        :raises DAOError: If a DB error occurs
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book to add to or remove from favorites.
+
+        Returns
+        -------
+        LibraryBookRead
+            The library entry with its updated favorite flag.
+
+        Raises
+        ------
+        BookNotInLibraryError
+            If the book is absent from the library.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -185,12 +254,27 @@ class LibraryDAO:
     ) -> LibraryBookRead:
         """Update the reading state of a book in a user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book to update
-        :param state: The new reading state
-        :raises BookNotInLibraryError: If the book is not in the library
-        :raises DAOError: If a DB error occurs
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book to update.
+        state : str
+            The new reading state.
+
+        Returns
+        -------
+        LibraryBookRead
+            The library entry with its updated reading state.
+
+        Raises
+        ------
+        BookNotInLibraryError
+            If the book is absent from the library.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -220,16 +304,32 @@ class LibraryDAO:
     ) -> LibraryBookRead:
         """Set the reading dates of a book in a user's library.
 
-        Both dates are written: pass the stored value for a date that
-        must not change, and None to erase a date.
+        The update writes both dates. Pass the stored date to preserve it
+        or pass None to clear it.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book to update
-        :param started_at: Date the user started the book, or None
-        :param finished_at: Date the user finished the book, or None
-        :raises BookNotInLibraryError: If the book is not in the library
-        :raises DAOError: If a DB error occurs
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book to update.
+        started_at : date | None
+            Date the user started the book, or None to clear it.
+        finished_at : date | None
+            Date the user finished the book, or None to clear it.
+
+        Returns
+        -------
+        LibraryBookRead
+            The library entry with its updated reading dates.
+
+        Raises
+        ------
+        BookNotInLibraryError
+            If the book is absent from the library.
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -254,11 +354,23 @@ class LibraryDAO:
         self,
         id_user: int,
     ) -> list[LibraryBookDetails]:
-        """List a user's favorite books, with their details.
+        """List a user's favorite books with their details.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: The favorite books, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        list[LibraryBookDetails]
+            Library entries and book details ordered by book ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -289,10 +401,23 @@ class LibraryDAO:
     ) -> list[LibraryBookDetails]:
         """List a user's books, optionally filtered by reading state.
 
-        :param id_user: ID of the user
-        :param status: Optional reading state to filter by
-        :raises DAOError: If a DB error occurs
-        :return: The user's books, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        status : str | None, optional
+            Reading state to match. Defaults to None to include all states.
+
+        Returns
+        -------
+        list[LibraryBookDetails]
+            Matching library entries and book details ordered by book ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         query = """
             SELECT uba.id_user, uba.id_book, uba.state,

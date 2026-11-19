@@ -41,6 +41,7 @@ def _create_account(client: TestClient, prefix: str) -> Account:
 
 
 def _make_admin(cursor: RealDictCursor, id_user: int) -> None:
+    """Grant administrator privileges to the test account."""
     cursor.execute(
         "UPDATE users SET is_admin = TRUE WHERE id_user = %s",
         (id_user,),
@@ -48,6 +49,21 @@ def _make_admin(cursor: RealDictCursor, id_user: int) -> None:
 
 
 def _login(client: TestClient, username: str) -> int:
+    """Attempt a login with the test account's shared password.
+
+    Parameters
+    ----------
+    client : TestClient
+        Client for requests to the authentication routes.
+    username : str
+        Username of the account to authenticate.
+
+    Returns
+    -------
+    int
+        HTTP status code returned by the login route.
+
+    """
     return client.post(
         LOGIN_URL,
         data={"username": username, "password": PASSWORD},

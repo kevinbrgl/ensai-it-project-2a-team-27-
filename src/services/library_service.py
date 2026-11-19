@@ -14,12 +14,16 @@ from src.utils.exceptions import (
 
 
 class LibraryService:
-    """Service class for managing a user's library."""
+    """Manage books and reading activity in personal libraries."""
 
     def __init__(self, dao: LibraryDAO) -> None:
         """Initialize the service with a DAO.
 
-        :param dao: The library data access object
+        Parameters
+        ----------
+        dao : LibraryDAO
+            The library data access object.
+
         """
         self.dao = dao
 
@@ -30,26 +34,62 @@ class LibraryService:
     ) -> LibraryBookRead:
         """Add a book to the user's library.
 
-        :param id_user: ID of the user
-        :param book_in: Data containing the book ID and reading state
-        :return: The created library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        book_in : LibraryBookAdd
+            Data containing the book ID and reading state.
+
+        Returns
+        -------
+        LibraryBookRead
+            The created library activity.
+
+        Notes
+        -----
+        A duplicate entry raises ``BookAlreadyInLibraryError``. An unknown book
+        ID raises ``BookNotFoundError``.
+
         """
         return self.dao.add_book(id_user, book_in)
 
     def remove_book_from_library(self, id_user: int, id_book: int) -> None:
         """Remove a book from the user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book to remove
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book to remove.
+
+        Notes
+        -----
+        A missing library entry raises ``BookNotInLibraryError``.
+
         """
         self.dao.remove_book(id_user, id_book)
 
     def toggle_like(self, id_user: int, id_book: int) -> LibraryBookRead:
         """Like or unlike a book in the user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book.
+
+        Returns
+        -------
+        LibraryBookRead
+            The updated library activity.
+
+        Notes
+        -----
+        A missing library entry raises ``BookNotInLibraryError``.
+
         """
         return self.dao.toggle_like(id_user, id_book)
 
@@ -60,9 +100,22 @@ class LibraryService:
     ) -> LibraryBookRead:
         """Add or remove a book from the user's favorites.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book.
+
+        Returns
+        -------
+        LibraryBookRead
+            The updated library activity.
+
+        Notes
+        -----
+        A missing library entry raises ``BookNotInLibraryError``.
+
         """
         return self.dao.toggle_favorite(id_user, id_book)
 
@@ -74,10 +127,24 @@ class LibraryService:
     ) -> LibraryBookRead:
         """Update the reading status of a book in the user's library.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book
-        :param state: The new reading state
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book.
+        state : str
+            The new reading state.
+
+        Returns
+        -------
+        LibraryBookRead
+            The updated library activity.
+
+        Notes
+        -----
+        A missing library entry raises ``BookNotInLibraryError``.
+
         """
         return self.dao.update_status(id_user, id_book, state)
 
@@ -89,17 +156,32 @@ class LibraryService:
     ) -> LibraryBookRead:
         """Update the reading dates of a book in the user's library.
 
-        Only the dates that were sent are changed. A date that was not
-        sent keeps its stored value, which is used for the comparison.
+        Only the dates that were sent are changed. A date that was not sent
+        keeps its stored value, which is used for the comparison.
 
-        :param id_user: ID of the user
-        :param id_book: ID of the book
-        :param dates_in: New start and/or end date
-        :raises ValueError: If no date is given
-        :raises BookNotInLibraryError: If the book is not in the library
-        :raises InvalidReadingDatesError: If the resulting end date is
-            before the resulting start date
-        :return: The updated library activity
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        id_book : int
+            ID of the book.
+        dates_in : LibraryBookUpdateDates
+            New start and/or end date.
+
+        Returns
+        -------
+        LibraryBookRead
+            The updated library activity.
+
+        Raises
+        ------
+        ValueError
+            If no date is given.
+        BookNotInLibraryError
+            If the book is not in the library.
+        InvalidReadingDatesError
+            If the resulting end date is before the resulting start date.
+
         """
         changes = dates_in.model_dump(exclude_unset=True)
         if not changes:
@@ -129,8 +211,16 @@ class LibraryService:
     def list_favorites(self, id_user: int) -> list[LibraryBookDetails]:
         """List the favorite books of the user's library.
 
-        :param id_user: ID of the user
-        :return: The favorite books, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        list[LibraryBookDetails]
+            The favorite books, or an empty list if there are none.
+
         """
         return self.dao.find_favorites_by_user_id(id_user)
 
@@ -139,10 +229,19 @@ class LibraryService:
         id_user: int,
         status: str | None = None,
     ) -> list[LibraryBookDetails]:
-        """List the books in the user's library, optionally filtered by status.
+        """List the books in a user's library.
 
-        :param id_user: ID of the user
-        :param status: Optional reading state to filter by
-        :return: The user's books, or an empty list if there are none
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        status : str | None, optional
+            Reading state to filter by.
+
+        Returns
+        -------
+        list[LibraryBookDetails]
+            The user's books, or an empty list if there are none.
+
         """
         return self.dao.find_books_by_user_id(id_user, status)

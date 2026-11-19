@@ -33,9 +33,13 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def postgres_dsn(self) -> PostgresDsn:
-        """Compute postgres url from variables.
+        """Build the PostgreSQL connection URL from the database settings.
 
-        :return: The postgres url as data source name
+        Returns
+        -------
+        PostgresDsn
+            Connection URL with the configured host, port, and credentials.
+
         """
         return PostgresDsn.build(
             scheme="postgresql",

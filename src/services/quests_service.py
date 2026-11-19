@@ -12,7 +12,26 @@ from src.models.quests import Quest, QuestCategory, QuestUserStats
 
 @dataclass(frozen=True)
 class QuestDefinition:
-    """Static definition of a quest in Ex-Libris."""
+    """Define a quest and its tracked metric.
+
+    Attributes
+    ----------
+    id_quest : str
+        Stable quest identifier.
+    title : str
+        Display title.
+    description : str
+        Description of the requirement.
+    category : QuestCategory
+        Activity category.
+    target : int
+        Metric value required to reach the milestone.
+    reward_xp : int
+        Experience points awarded for completing the quest.
+    stat_key : str
+        Key of the user statistic evaluated for this milestone.
+
+    """
 
     id_quest: str
     title: str
@@ -25,8 +44,16 @@ class QuestDefinition:
     def evaluate(self, current: int) -> Quest:
         """Evaluate quest progress against a current metric value.
 
-        :param current: Current value achieved by the user
-        :return: Evaluated Quest schema instance
+        Parameters
+        ----------
+        current : int
+            Current value achieved by the user.
+
+        Returns
+        -------
+        Quest
+            Evaluated Quest schema instance.
+
         """
         bounded_current = max(0, current)
         bounded_target = max(1, self.target)
@@ -111,15 +138,23 @@ QUEST_DEFINITIONS: tuple[QuestDefinition, ...] = (
 
 
 class QuestService:
-    """Service class for evaluating user quests.
+    """Evaluate user quests and their completion status.
 
-    :attr dao: Associated QuestDAO instance
+    Attributes
+    ----------
+    dao : QuestDAO
+        Associated QuestDAO instance.
+
     """
 
     def __init__(self, quest_dao: QuestDAO) -> None:
         """Initialize QuestService with a QuestDAO.
 
-        :param quest_dao: DAO used to retrieve user metrics
+        Parameters
+        ----------
+        quest_dao : QuestDAO
+            DAO used to retrieve user metrics.
+
         """
         self.dao = quest_dao
 
@@ -130,10 +165,18 @@ class QuestService:
     ) -> list[Quest]:
         """Get the list of quests and current progress for a user.
 
-        :param user_id: ID of the user
-        :param status_filter: Filter by 'all', 'active' (not completed),
-            or 'completed'
-        :return: List of evaluated Quest objects
+        Parameters
+        ----------
+        user_id : int
+            ID of the user.
+        status_filter : {'all', 'active', 'completed'}, optional
+            Which completion status to include. By default, include all quests.
+
+        Returns
+        -------
+        list[Quest]
+            List of evaluated Quest objects.
+
         """
         stats: QuestUserStats = self.dao.get_user_stats(user_id)
         stats_dict = stats.model_dump()

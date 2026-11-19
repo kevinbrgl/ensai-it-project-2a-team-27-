@@ -56,13 +56,28 @@ def search_books(
     - Find a book before adding it to your library
     - Discover the books of an author
     \f
-    :param service: Book service dependency
-    :param _current_user: Authenticated user dependency
-    :param q: Search query parameter
-    :param limit: Maximum number of books to return
-    :raises HTTPException: 502 if Open Library is unavailable,
-        500 if a database error occurs
-    :return: List of found books
+
+    Parameters
+    ----------
+    service : BookService
+        Book service dependency.
+    _current_user : User
+        Authenticated user dependency.
+    q : str
+        Title or author search text.
+    limit : int, optional
+        Maximum number of books to return. Defaults to 10.
+
+    Returns
+    -------
+    list[Book]
+        List of found books.
+
+    Raises
+    ------
+    HTTPException
+        502 if Open Library is unavailable, 500 if a database error occurs.
+
     """
     try:
         return service.search_books(query=q, limit=limit)
@@ -110,12 +125,28 @@ def get_books(
     **Behaviour:** both filters can be combined. Without any filter,
     the **whole catalog** is returned.
     \f
-    :param service: Book service dependency
-    :param _current_user: Authenticated user dependency
-    :param category: Optional category filter
-    :param author: Optional author filter
-    :raises HTTPException: 500 if a database error occurs
-    :return: List of found books from the local catalog
+
+    Parameters
+    ----------
+    service : BookService
+        Book service dependency.
+    _current_user : User
+        Authenticated user dependency.
+    category : str | None, optional
+        Category to filter by.
+    author : str | None, optional
+        Author to filter by.
+
+    Returns
+    -------
+    list[Book]
+        List of found books from the local catalog.
+
+    Raises
+    ------
+    HTTPException
+        500 if a database error occurs.
+
     """
     try:
         return service.get_books(category=category, author=author)
@@ -163,12 +194,27 @@ def get_book_details(
     - if Open Library is unavailable, the book is still returned,
       with an **empty** `editions` list
     \f
-    :param book_id: Unique database identifier of the book
-    :param service: Book service dependency
-    :param _current_user: Authenticated user dependency
-    :raises HTTPException: 404 if the book is not found in database,
-        500 if a database error occurs
-    :return: The book with all metadata and its editions
+
+    Parameters
+    ----------
+    book_id : int
+        Unique database identifier of the book.
+    service : BookService
+        Book service dependency.
+    _current_user : User
+        Authenticated user dependency.
+
+    Returns
+    -------
+    BookDetails
+        The book with all metadata and its editions.
+
+    Raises
+    ------
+    HTTPException
+        404 if the book is not found in database, 500 if a database error
+        occurs.
+
     """
     try:
         return service.get_book_details(book_id)

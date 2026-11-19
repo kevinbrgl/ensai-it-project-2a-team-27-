@@ -48,8 +48,10 @@ def register(service: UserServiceDep, user_in: UserRegister) -> User:
     **Rules:**
 
     - 👤 `username`: 3 to 30 characters, must be **unique**
-    - 📧 `email`: a valid address, must be **unique**
-    - 🔑 `password`: 8 to 72 characters
+    - 📧 `email`: a valid address of at most 100 characters, must be
+      **unique**
+    - 🔑 `password`: 8 to 72 characters, and at most 72 bytes (accented
+      letters and emoji count as several bytes)
 
     **Good to know:** the password is never returned by the API.
 
@@ -63,11 +65,25 @@ def register(service: UserServiceDep, user_in: UserRegister) -> User:
     }
     ```
     \f
-    :param service: User service dependency
-    :param user_in: User registration data (username, email, password)
-    :raises HTTPException: 409 if the username or email is already used,
-        500 if the registration fails
-    :return: The created user (without the password hash)
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    user_in : UserRegister
+        User registration data (username, email, password).
+
+    Returns
+    -------
+    User
+        Newly created account data.
+
+    Raises
+    ------
+    HTTPException
+        409 if the username or email is already used, 500 if the registration
+        fails.
+
     """
     try:
         return service.register(user_in)
@@ -121,11 +137,25 @@ def login(
     **Access refused:** a **banned** or **suspended** account cannot
     log in.
     \f
-    :param service: User service dependency
-    :param form_data: Login form (username and password fields)
-    :raises HTTPException: 401 if the username or password is incorrect,
-        403 if the account is banned or suspended, 500 if the login fails
-    :return: The access token and its type
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    form_data : OAuth2PasswordRequestForm
+        Submitted username and password form fields.
+
+    Returns
+    -------
+    Token
+        The access token and its type.
+
+    Raises
+    ------
+    HTTPException
+        401 if the username or password is incorrect, 403 if the account is
+        banned or suspended, 500 if the login fails.
+
     """
     try:
         return service.login(form_data.username, form_data.password)
@@ -168,10 +198,21 @@ def logout(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param service: Token service dependency
-    :param token: The token sent with the request
-    :param _current_user: The authenticated user (checks the token)
-    :raises HTTPException: 500 if the revocation fails
+
+    Parameters
+    ----------
+    service : TokenService
+        Token service dependency.
+    token : str
+        Bearer token to revoke.
+    _current_user : User
+        Authenticated user whose token has been validated.
+
+    Raises
+    ------
+    HTTPException
+        500 if the revocation fails.
+
     """
     try:
         service.revoke(token)

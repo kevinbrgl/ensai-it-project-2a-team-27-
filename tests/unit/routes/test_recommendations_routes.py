@@ -81,6 +81,7 @@ class TestGetRecommendationsRoute:
         """Endpoint rejects requests without a valid token."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor

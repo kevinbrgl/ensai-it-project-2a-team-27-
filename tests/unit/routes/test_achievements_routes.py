@@ -55,6 +55,7 @@ def client(mock_service: Mock, auth_user: User) -> Generator[TestClient]:
     """Return a TestClient with overridden dependencies."""
 
     def dummy_cursor() -> Generator[Mock]:
+        """Yield a mock cursor for the route dependency."""
         yield Mock()
 
     app.dependency_overrides[get_cursor] = dummy_cursor
@@ -149,6 +150,7 @@ class TestGetMyAchievementsUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor

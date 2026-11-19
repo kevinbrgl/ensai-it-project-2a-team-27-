@@ -1,1 +1,1 @@
-"""API layer: routers and dependencies."""
+"""HTTP routers and dependencies for the application."""

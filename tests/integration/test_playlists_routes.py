@@ -25,9 +25,18 @@ MAX_NAME_LENGTH = 100
 def login_new_user(client: TestClient, prefix: str) -> dict[str, str]:
     """Register and log in a new user, then return its auth headers.
 
-    :param client: Test client
-    :param prefix: Beginning of the username (a random suffix is added)
-    :return: The header that carries the user's token
+    Parameters
+    ----------
+    client : TestClient
+        Client that registers and logs in the user.
+    prefix : str
+        Beginning of the username, followed by a random suffix.
+
+    Returns
+    -------
+    dict[str, str]
+        Authorization header containing the user's bearer token.
+
     """
     name = f"{prefix}_{uuid4().hex[:8]}"
     client.post(
@@ -54,10 +63,20 @@ def create_playlist(
 ) -> int:
     """Create a playlist through the API and return its ID.
 
-    :param client: Test client
-    :param headers: Auth headers of the owner
-    :param name: Name of the playlist
-    :return: ID of the created playlist
+    Parameters
+    ----------
+    client : TestClient
+        Client that submits the playlist creation request.
+    headers : dict[str, str]
+        Authorization headers for the playlist owner.
+    name : str
+        Name of the new playlist.
+
+    Returns
+    -------
+    int
+        ID of the created playlist.
+
     """
     response = client.post(PLAYLISTS_URL, headers=headers, json={"name": name})
     assert response.status_code == status.HTTP_201_CREATED
@@ -67,9 +86,18 @@ def create_playlist(
 def create_book(cursor: RealDictCursor, title: str) -> int:
     """Insert a test book with a unique API ID and return its ID.
 
-    :param cursor: Test cursor
-    :param title: Title of the book
-    :return: ID of the created book
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Test cursor used to insert the book.
+    title : str
+        Title of the test book.
+
+    Returns
+    -------
+    int
+        ID of the inserted book.
+
     """
     cursor.execute(
         """

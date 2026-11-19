@@ -1,4 +1,4 @@
-"""Data Access Object for quest user metrics.
+"""Database access for user metrics used by quests.
 
 Provides aggregated reading, library, and social metrics for users.
 All database errors are wrapped in DAOError.
@@ -14,25 +14,45 @@ from src.utils.exceptions import DAOError
 
 
 class QuestDAO:
-    """DAO class for querying aggregated user stats for quests.
+    """Query the reading and social metrics used by quests.
 
-    :attr cur: Database cursor (RealDictCursor)
+    Attributes
+    ----------
+    cur : RealDictCursor
+        PostgreSQL cursor that fetches rows as dictionaries.
+
     """
 
     def __init__(self, cur: RealDictCursor) -> None:
         """Initialize the QuestDAO with a database cursor.
 
-        :param cur: psycopg2 RealDictCursor
+        Parameters
+        ----------
+        cur : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cur
 
     def get_user_stats(self, user_id: int) -> QuestUserStats:
         """Retrieve aggregated quest metrics for a user.
 
-        :param user_id: ID of the user whose metrics to compute
-        :raises DAOError: If a database error occurs
-        :return: QuestUserStats containing counts for books, categories,
-            favorites, and follows
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose metrics to compute.
+
+        Returns
+        -------
+        QuestUserStats
+            Counts of completed books, books in progress, favorites, distinct
+            categories, and accounts the user follows.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(

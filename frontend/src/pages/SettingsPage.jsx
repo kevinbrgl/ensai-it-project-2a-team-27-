@@ -173,7 +173,10 @@ function PreferencesForm() {
       <div className={styles.setting}>
         <div>
           <h3 className={styles.settingLabel}>Profile visibility</h3>
-          <p className={styles.text}>Choose whether your profile is public or private.</p>
+          <p className={styles.text}>
+            When private, other readers can still find you, follow you and read your reviews, but not see your library, shelves or
+            reading stats.
+          </p>
         </div>
         <SegmentedControl
           label="Profile visibility"

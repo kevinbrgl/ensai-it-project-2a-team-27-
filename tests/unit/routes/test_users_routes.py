@@ -33,7 +33,14 @@ from src.utils.exceptions import (
 )
 
 USERS_URL = f"{settings.API_STR}/users"
-PUBLIC_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
+# What other users see of a profile: never the email address.
+PUBLIC_FIELDS = {
+    "id_user",
+    "username",
+    "bio",
+    "profile_picture",
+    "profile_visibility",
+}
 PAGES_READ = 3200
 
 
@@ -180,6 +187,7 @@ class TestSearchUsersUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
@@ -216,7 +224,7 @@ class TestReadUserUnitRoute:
         data = response.json()
         assert data["id_user"] == fake_matched_user.id_user
         assert data["username"] == "alicia"
-        assert data["email"] == "alicia@ensai.fr"
+        assert "email" not in data
         assert set(data.keys()) == PUBLIC_FIELDS
         assert "password_hash" not in data
         mock_service.read.assert_called_once_with(2)
@@ -278,6 +286,7 @@ class TestReadUserUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
@@ -372,6 +381,7 @@ class TestFollowUserUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
@@ -466,6 +476,7 @@ class TestUnfollowUserUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
@@ -507,7 +518,7 @@ class TestGetFollowersUnitRoute:
         assert len(data) == 1
         assert data[0]["id_user"] == follower.id_user
         assert data[0]["username"] == "bob"
-        assert data[0]["email"] == "bob@ensai.fr"
+        assert "email" not in data[0]
         assert "password_hash" not in data[0]
         assert set(data[0].keys()) == PUBLIC_FIELDS
         mock_service.get_followers.assert_called_once_with(1)
@@ -559,6 +570,7 @@ class TestGetFollowersUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
@@ -600,7 +612,7 @@ class TestGetFollowingUnitRoute:
         assert len(data) == 1
         assert data[0]["id_user"] == followed.id_user
         assert data[0]["username"] == "bob"
-        assert data[0]["email"] == "bob@ensai.fr"
+        assert "email" not in data[0]
         assert "password_hash" not in data[0]
         assert set(data[0].keys()) == PUBLIC_FIELDS
         mock_service.get_following.assert_called_once_with(1)
@@ -654,6 +666,7 @@ class TestGetFollowingUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
@@ -770,6 +783,29 @@ class TestGetUserStatsUnitRoute:
         )
         mock_service.read.assert_called_once_with(user_id=3)
         mock_service.get_following.assert_called_once_with(1)
+
+    def test_get_user_stats_private_profile_403(
+        self,
+        client: TestClient,
+        mock_service: Mock,
+        mock_stats_service: Mock,
+    ) -> None:
+        """A private profile hides its stats, even from its followers."""
+        friend = User(
+            id_user=2,
+            username="bob",
+            email="bob@ensai.fr",
+            password_hash="hash",
+            profile_visibility="private",
+        )
+        mock_service.read.return_value = friend
+        mock_service.get_following.return_value = [friend]
+
+        response = client.get(f"{USERS_URL}/2/stats")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "This profile is private."
+        mock_stats_service.get_stats.assert_not_called()
 
     def test_get_user_stats_not_found_404(
         self,

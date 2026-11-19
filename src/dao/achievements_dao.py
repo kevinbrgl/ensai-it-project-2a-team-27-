@@ -1,4 +1,4 @@
-"""Data Access Object for user achievement metrics.
+"""Database access for user achievement metrics.
 
 Provides aggregated reading, community, social, and collection stats.
 All database errors are caught and re-raised as DAOError.
@@ -14,24 +14,44 @@ from src.utils.exceptions import DAOError
 
 
 class AchievementDAO:
-    """DAO class querying aggregated user statistics for achievements.
+    """Query the reading and social metrics used to award achievements.
 
-    :attr cur: Database cursor (RealDictCursor)
+    Attributes
+    ----------
+    cur : RealDictCursor
+        PostgreSQL cursor that fetches rows as dictionaries.
+
     """
 
     def __init__(self, cur: RealDictCursor) -> None:
         """Initialize the AchievementDAO with a database cursor.
 
-        :param cur: psycopg2 RealDictCursor
+        Parameters
+        ----------
+        cur : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cur
 
     def get_user_stats(self, user_id: int) -> AchievementUserStats:
         """Retrieve aggregated achievement metrics for a user.
 
-        :param user_id: ID of the user whose metrics to compute
-        :raises DAOError: If a database error occurs
-        :return: AchievementUserStats containing reading and social counts
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose metrics to compute.
+
+        Returns
+        -------
+        AchievementUserStats
+            Aggregate reading, review, follow, favorite, and playlist metrics.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(

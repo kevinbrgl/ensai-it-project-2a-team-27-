@@ -1,4 +1,4 @@
-"""Data Access Object for reading statistics."""
+"""Database access for reading and rating statistics."""
 
 from psycopg2 import Error as DBError
 from psycopg2.extras import RealDictCursor
@@ -8,21 +8,37 @@ from src.utils.exceptions import DAOError
 
 
 class StatsDAO:
-    """DAO class computing a user's reading statistics."""
+    """Aggregate a user's reading activity and ratings."""
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize StatsDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
     def count_finished_books(self, id_user: int) -> int:
         """Count the books a user has finished reading.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: Number of books with the COMPLETED state
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        int
+            Number of books with the COMPLETED reading state.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -43,11 +59,23 @@ class StatsDAO:
     def sum_pages_read(self, id_user: int) -> int:
         """Sum the pages of the books a user has finished reading.
 
-        Books without a known number of pages count as 0.
+        Books with an unknown page count contribute zero pages.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: Total number of pages of the COMPLETED books
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        int
+            Total number of pages across completed books.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -68,13 +96,24 @@ class StatsDAO:
         return int(row["pages"]) if row else 0
 
     def count_genres(self, id_user: int) -> list[GenreCount]:
-        """Count the books read or being read by a user, by category.
+        """Count books a user is reading or has finished, by category.
 
-        Books the user only wants to read are not counted.
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: One entry per category, the most frequent first
+        Returns
+        -------
+        list[GenreCount]
+            One count per category, ordered by descending count and then
+            category name.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -99,9 +138,21 @@ class StatsDAO:
     def count_ratings(self, id_user: int) -> dict[int, int]:
         """Count the reviews written by a user, by rating.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: The number of reviews for each rating that was used
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        dict[int, int]
+            The number of reviews for each rating that was used.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(

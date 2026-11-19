@@ -9,7 +9,11 @@ from src.core.config import settings
 def init_pool(app: FastAPI) -> None:
     """Initialize the PostgreSQL connection pool and attach it to the app.
 
-    :param app: FastAPI application instance
+    Parameters
+    ----------
+    app : FastAPI
+        Application whose state will hold the connection pool.
+
     """
     app.state.db_pool = ThreadedConnectionPool(
         minconn=1,
@@ -19,8 +23,12 @@ def init_pool(app: FastAPI) -> None:
 
 
 def close_pool(app: FastAPI) -> None:
-    """Close all connections of the pool.
+    """Close all connections in the application's PostgreSQL pool.
 
-    :param app: FastAPI application instance
+    Parameters
+    ----------
+    app : FastAPI
+        Application whose connection pool will be closed.
+
     """
     app.state.db_pool.closeall()

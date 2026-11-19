@@ -24,8 +24,16 @@ LONG_BOOK_PAGES = 480
 def create_user(user_dao: UserDAO) -> int:
     """Insert a test user with a unique name and return its ID.
 
-    :param user_dao: DAO used to insert the user
-    :return: ID of the created user
+    Parameters
+    ----------
+    user_dao : UserDAO
+        DAO that inserts the test user.
+
+    Returns
+    -------
+    int
+        ID of the inserted user.
+
     """
     name = f"stats_{uuid4().hex[:8]}"
     user = user_dao.create(
@@ -49,14 +57,26 @@ def add_book(  # ruff: ignore[too-many-arguments]
 ) -> int:
     """Create a book and add it to a user's library with a reading state.
 
-    :param book_dao: DAO used to create the book
-    :param library_dao: DAO used to add the book to the library
-    :param id_user: ID of the user
-    :param state: Reading state (READING, WANT_TO_READ, COMPLETED
-        or ABANDONED)
-    :param category: Category of the book
-    :param num_pages: Number of pages of the book
-    :return: ID of the created book
+    Parameters
+    ----------
+    book_dao : BookDAO
+        DAO that inserts the test book.
+    library_dao : LibraryDAO
+        DAO that adds the book to the user's library.
+    id_user : int
+        ID of the user whose library receives the book.
+    state : str
+        Reading state, such as ``COMPLETED`` or ``WANT_TO_READ``.
+    category : str | None, optional
+        Book category.
+    num_pages : int | None, optional
+        Page count of the book.
+
+    Returns
+    -------
+    int
+        ID of the inserted book.
+
     """
     book = book_dao.create(
         BookCreate(
@@ -80,10 +100,17 @@ def add_review(
 ) -> None:
     """Create a book and insert a review of it with the given rating.
 
-    :param cursor: Test cursor
-    :param book_dao: DAO used to create the book
-    :param id_user: ID of the author of the review
-    :param rating: Rating of the review, from 1 to 5
+    Parameters
+    ----------
+    cursor : RealDictCursor
+        Test cursor used to insert the review.
+    book_dao : BookDAO
+        DAO that inserts the test book.
+    id_user : int
+        ID of the user who wrote the review.
+    rating : int
+        Review rating on a scale of 1 to 5.
+
     """
     book = book_dao.create(BookCreate(title="Reviewed book"))
     cursor.execute(

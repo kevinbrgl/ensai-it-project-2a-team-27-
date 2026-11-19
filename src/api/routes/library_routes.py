@@ -61,11 +61,27 @@ def add_book(
     }
     ```
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param book_in: Data for the book to add
-    :raises HTTPException: 409 if already in library, 500 on database error
-    :return: The newly created reading activity
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    book_in : LibraryBookAdd
+        Catalog book ID and initial reading status.
+
+    Returns
+    -------
+    LibraryBookRead
+        The newly created reading activity.
+
+    Raises
+    ------
+    HTTPException
+        404 if the book does not exist in the catalog, 409 if it is already in
+        the user's library, or 500 on a database error.
+
     """
     try:
         return service.add_book_to_library(current_user.id_user, book_in)
@@ -117,10 +133,21 @@ def remove_book(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param id_book: ID of the book to remove
-    :raises HTTPException: 404 if not in library, 500 on database error
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    id_book : int
+        ID of the book to remove.
+
+    Raises
+    ------
+    HTTPException
+        404 if not in library, 500 on database error.
+
     """
     try:
         service.remove_book_from_library(current_user.id_user, id_book)
@@ -168,11 +195,26 @@ def toggle_like(
     **Good to know:** the book must already be **in your library**.
     The new value is returned in `is_liked`.
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param id_book: ID of the book to like or unlike
-    :raises HTTPException: 404 if not in library, 500 on database error
-    :return: The updated reading activity
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    id_book : int
+        ID of the book to like or unlike.
+
+    Returns
+    -------
+    LibraryBookRead
+        Reading activity with the updated like flag.
+
+    Raises
+    ------
+    HTTPException
+        404 if not in library, 500 on database error.
+
     """
     try:
         return service.toggle_like(current_user.id_user, id_book)
@@ -220,11 +262,26 @@ def toggle_favorite(
     **Good to know:** the book must already be **in your library**.
     The new value is returned in `is_favorite`.
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param id_book: ID of the book to add to or remove from favorites
-    :raises HTTPException: 404 if not in library, 500 on database error
-    :return: The updated reading activity
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    id_book : int
+        ID of the book to add to or remove from favorites.
+
+    Returns
+    -------
+    LibraryBookRead
+        Reading activity with the updated favorite flag.
+
+    Raises
+    ------
+    HTTPException
+        404 if not in library, 500 on database error.
+
     """
     try:
         return service.toggle_favorite(current_user.id_user, id_book)
@@ -283,12 +340,28 @@ def update_book_status(
     }
     ```
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param id_book: ID of the book to update
-    :param status_in: The new status
-    :raises HTTPException: 404 if not in library, 500 on database error
-    :return: The updated reading activity
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    id_book : int
+        ID of the book to update.
+    status_in : LibraryBookUpdateStatus
+        Request containing the new reading status.
+
+    Returns
+    -------
+    LibraryBookRead
+        The updated reading activity.
+
+    Raises
+    ------
+    HTTPException
+        404 if not in library, 500 on database error.
+
     """
     try:
         return service.update_book_status(
@@ -354,14 +427,29 @@ def update_book_dates(
     }
     ```
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param id_book: ID of the book to update
-    :param dates_in: The new reading dates
-    :raises HTTPException: 400 if there is nothing to update or if the
-        end date is before the start date, 404 if not in library,
-        500 on database error
-    :return: The updated reading activity
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    id_book : int
+        ID of the book to update.
+    dates_in : LibraryBookUpdateDates
+        Reading dates to set or clear.
+
+    Returns
+    -------
+    LibraryBookRead
+        The updated reading activity.
+
+    Raises
+    ------
+    HTTPException
+        400 if there is nothing to update or if the end date is before the
+        start date, 404 if not in library, 500 on database error.
+
     """
     try:
         return service.update_book_dates(
@@ -430,11 +518,26 @@ def list_books(
 
     **Good to know:** the list is **empty** when no book matches.
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :param status_filter: Optional status to filter by
-    :raises HTTPException: 500 on database error
-    :return: The list of library books
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+    status_filter : str | None, optional
+        Reading status to filter by.
+
+    Returns
+    -------
+    list[LibraryBookDetails]
+        The list of library books.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.list_books(current_user.id_user, status_filter)
@@ -469,10 +572,24 @@ def list_favorites(
     **Good to know:** the list is **empty** when you have no favorite
     yet.
     \f
-    :param service: Library service dependency
-    :param current_user: The authenticated user
-    :raises HTTPException: 500 on database error
-    :return: The favorite books, sorted by book ID
+
+    Parameters
+    ----------
+    service : LibraryService
+        Library service dependency.
+    current_user : User
+        The authenticated user.
+
+    Returns
+    -------
+    list[LibraryBookDetails]
+        The favorite books, sorted by book ID.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.list_favorites(current_user.id_user)

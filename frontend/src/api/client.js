@@ -67,15 +67,14 @@ function defaultMessage(status) {
   return `Request failed (${status}).`;
 }
 
-// The backend answers 403 "Could not validate credentials" for expired or
-// revoked tokens, 403 "This account …" for banned or suspended accounts,
-// and 404 "No such user in database" if the account is gone.
+// The backend answers 403 "Could not validate credentials" for expired,
+// revoked or invalid tokens and for deleted accounts, and 403 "This account …"
+// for banned or suspended accounts.
 function isSessionError(status, message) {
   return (
     (status === 403 && message === 'Could not validate credentials') ||
     (status === 403 && message.startsWith('This account')) ||
-    (status === 401 && message === 'Not authenticated') ||
-    (status === 404 && message === 'No such user in database')
+    (status === 401 && message === 'Not authenticated')
   );
 }
 

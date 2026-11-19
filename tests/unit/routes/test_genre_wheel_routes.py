@@ -42,14 +42,25 @@ def mock_user_service() -> Mock:
 
 @pytest.fixture
 def auth_user() -> User:
-    """Return a dummy authenticated User."""
+    """Return the authenticated User viewing the wheel (ID 2)."""
+    return User(
+        id_user=2,
+        username="viewer",
+        email="viewer@ensai.fr",
+        password_hash="fakehash",
+        bio="Hello",
+        profile_picture=None,
+    )
+
+
+@pytest.fixture
+def target_user() -> User:
+    """Return the public User whose wheel is requested (ID 1)."""
     return User(
         id_user=1,
         username="testuser",
         email="test@ensai.fr",
         password_hash="fakehash",
-        bio="Hello",
-        profile_picture=None,
     )
 
 
@@ -62,6 +73,7 @@ def client(
     """Return a TestClient with overridden dependencies."""
 
     def dummy_cursor() -> Generator[Mock]:
+        """Yield a mock cursor for the route dependency."""
         yield Mock()
 
     app.dependency_overrides[get_cursor] = dummy_cursor
@@ -105,9 +117,10 @@ class TestGetGenreWheelUnitRoute:
         mock_user_service: Mock,
         mock_wheel_service: Mock,
         sample_wheel: GenreWheel,
+        target_user: User,
     ) -> None:
         """Retrieving genre wheel returns 200 with segments payload."""
-        mock_user_service.read.return_value = None
+        mock_user_service.read.return_value = target_user
         mock_wheel_service.get_genre_wheel.return_value = sample_wheel
 
         response = client.get(GENRE_WHEEL_URL)
@@ -128,21 +141,56 @@ class TestGetGenreWheelUnitRoute:
         mock_user_service: Mock,
     ) -> None:
         """Non-existing user returns 404 Not Found."""
-        mock_user_service.read.side_effect = UserNotFoundError("Missing user")
+        mock_user_service.read.side_effect = UserNotFoundError(user_id=1)
 
         response = client.get(GENRE_WHEEL_URL)
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == "User not found."
 
+    def test_get_genre_wheel_private_profile_403(
+        self,
+        client: TestClient,
+        mock_user_service: Mock,
+        mock_wheel_service: Mock,
+        target_user: User,
+    ) -> None:
+        """Another user's private profile returns 403 and no wheel."""
+        target_user.profile_visibility = "private"
+        mock_user_service.read.return_value = target_user
+
+        response = client.get(GENRE_WHEEL_URL)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "This profile is private."
+        mock_wheel_service.get_genre_wheel.assert_not_called()
+
+    def test_get_genre_wheel_own_private_profile_200(
+        self,
+        client: TestClient,
+        mock_user_service: Mock,
+        mock_wheel_service: Mock,
+        sample_wheel: GenreWheel,
+        auth_user: User,
+    ) -> None:
+        """The owner of a private profile still sees their own wheel."""
+        auth_user.profile_visibility = "private"
+        mock_user_service.read.return_value = auth_user
+        mock_wheel_service.get_genre_wheel.return_value = sample_wheel
+
+        response = client.get(f"{settings.API_STR}/users/2/genre-wheel")
+
+        assert response.status_code == status.HTTP_200_OK
+
     def test_get_genre_wheel_dao_error_500(
         self,
         client: TestClient,
         mock_user_service: Mock,
         mock_wheel_service: Mock,
+        target_user: User,
     ) -> None:
         """DAOError returns 500 Internal Server Error."""
-        mock_user_service.read.return_value = None
+        mock_user_service.read.return_value = target_user
         mock_wheel_service.get_genre_wheel.side_effect = DAOError("DB error")
 
         response = client.get(GENRE_WHEEL_URL)
@@ -158,6 +206,7 @@ class TestGetGenreWheelUnitRoute:
         """Unauthenticated request is rejected with 401 or 403."""
 
         def dummy_cursor() -> Generator[Mock]:
+            """Yield a mock cursor for the route dependency."""
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor

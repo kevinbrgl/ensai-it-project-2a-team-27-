@@ -38,15 +38,20 @@ export function UserPage() {
   const isMe = id === me.id_user;
   const [tab, setTab] = useSearchParamState('tab', 'library');
 
+  const validId = Number.isInteger(id) && id > 0;
   const followers = useAsync(() => usersApi.getFollowers(id), [id]);
   const following = useAsync(() => usersApi.getFollowing(id), [id]);
+  // A user seen earlier (search, followers…) gives a name to show at once,
+  // while GET /users/{id} loads the bio, picture and visibility.
+  const fetched = useAsync(() => usersApi.getUser(id), [id], { skip: isMe || !validId });
 
-  // No "get user by id" route exists: the name comes from users seen elsewhere.
-  const profile = isMe ? me : usersApi.getKnownUser(id);
+  const profile = isMe ? me : fetched.data || usersApi.getKnownUser(id);
   const name = profile?.username || `Reader #${id}`;
+  // Your own library stays visible to you when your profile is private.
+  const isPrivate = !isMe && profile?.profile_visibility === 'private';
   useDocumentTitle(name);
 
-  if (followers.error?.status === 404 || (!Number.isInteger(id) || id < 1)) {
+  if (!validId || followers.error?.status === 404 || fetched.error?.status === 404) {
     return (
       <EmptyState icon="users" title="This reader doesn’t exist" action={<Button to="/readers">Find readers</Button>}>
         The account may have been deleted.
@@ -89,22 +94,40 @@ export function UserPage() {
         <SegmentedControl label="Profile sections" options={tabs} value={tab} onChange={setTab} />
       </div>
 
-      {tab === 'library' && <UserLibrary id={id} />}
+      {isPrivate && ['library', 'shelves', 'stats'].includes(tab) && <PrivateState name={name} />}
+      {!isPrivate && tab === 'library' && <UserLibrary id={id} name={name} />}
       {tab === 'reviews' && <UserReviews id={id} isMe={isMe} />}
-      {tab === 'shelves' && <UserShelves id={id} isMe={isMe} />}
-      {tab === 'stats' && <UserStats id={id} isMe={isMe} name={name} social={social} profile={profile} />}
+      {!isPrivate && tab === 'shelves' && <UserShelves id={id} isMe={isMe} name={name} />}
+      {!isPrivate && tab === 'stats' && <UserStats id={id} isMe={isMe} name={name} social={social} profile={profile} />}
       {tab === 'followers' && <PeopleList state={followers} social={social} meId={me.id_user} empty={`Nobody follows ${isMe ? 'you' : name} yet.`} />}
       {tab === 'following' && <PeopleList state={following} social={social} meId={me.id_user} empty={`${isMe ? 'You don’t' : `${name} doesn’t`} follow anyone yet.`} />}
     </>
   );
 }
 
-function UserLibrary({ id }) {
+// The API answers 403 with this message when a profile is private.
+const PRIVATE_PROFILE = 'This profile is private.';
+
+function isPrivateError(error) {
+  return error?.status === 403 && error.message === PRIVATE_PROFILE;
+}
+
+function PrivateState({ name }) {
+  return (
+    <EmptyState icon="lock" title={`${name}’s profile is private`}>
+      Their library, shelves and reading stats are only visible to them. Their reviews stay public.
+    </EmptyState>
+  );
+}
+
+function UserLibrary({ id, name }) {
   const [status, setStatus] = useSearchParamState('status', 'all');
   const { data, error, loading, reload } = useAsync(
     () => usersApi.getUserLibrary(id, status === 'all' ? undefined : status),
     [id, status],
   );
+  // The profile may have become private after this page was loaded.
+  if (isPrivateError(error)) return <PrivateState name={name} />;
   return (
     <>
       <div className={page.toolbar}>
@@ -148,8 +171,9 @@ function UserReviews({ id, isMe }) {
   );
 }
 
-function UserShelves({ id, isMe }) {
+function UserShelves({ id, isMe, name }) {
   const { data, error, loading, reload } = useAsync(() => usersApi.getUserPlaylists(id), [id]);
+  if (isPrivateError(error)) return <PrivateState name={name} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading) return <ListSkeleton />;
   if (!data.length) return <EmptyState icon="shelves" title="No shelves yet" />;
@@ -176,6 +200,7 @@ function UserStats({ id, isMe, name, social, profile }) {
     () => (isMe ? usersApi.getMyStats() : usersApi.getUserStats(id)),
     [id, isMe, followsThem],
   );
+  if (isPrivateError(error)) return <PrivateState name={name} />;
   if (error?.status === 403) {
     return (
       <EmptyState

@@ -85,14 +85,17 @@ def id_book(cursor: RealDictCursor) -> int:
 
 
 def _book_reviews_url(id_book: int) -> str:
+    """Build the URL for a book's reviews."""
     return f"{settings.API_STR}/books/{id_book}/reviews"
 
 
 def _review_url(id_review: int) -> str:
+    """Build the URL for an individual review."""
     return f"{settings.API_STR}/reviews/{id_review}"
 
 
 def _user_reviews_url(id_user: int) -> str:
+    """Build the URL for a user's reviews."""
     return f"{settings.API_STR}/users/{id_user}/reviews"
 
 

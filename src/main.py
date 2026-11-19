@@ -25,7 +25,22 @@ INIT_SQL = Path(__file__).resolve().parent.parent / "data" / "init.sql"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-    """Open the DB pool, create missing tables, close the pool at shutdown."""
+    """Manage the database connection pool over the application lifespan.
+
+    Run the database initialization script before serving requests and
+    close the pool when the application shuts down.
+
+    Parameters
+    ----------
+    app : FastAPI
+        Application whose state holds the connection pool.
+
+    Yields
+    ------
+    None
+        Control to FastAPI once database initialization is complete.
+
+    """
     init_pool(app)
     pool = app.state.db_pool
     conn = pool.getconn()

@@ -15,7 +15,10 @@ export function getKnownUser(idUser) {
   return knownUsers.get(Number(idUser)) || null;
 }
 
-/** GET /users/{id} → UserRead (public profile of any user) */
+/**
+ * GET /users/{id} → UserPublic: id_user, username, bio, profile_picture and
+ * profile_visibility (never the email address).
+ */
 export async function getUser(idUser) {
   const user = await request(`/users/${idUser}`);
   remember([user]);
@@ -54,7 +57,7 @@ export function changePassword(currentPassword, newPassword) {
   });
 }
 
-/** GET /users/search?username=&limit= → UserRead[] */
+/** GET /users/search?username=&limit= → UserPublic[] */
 export async function searchUsers(username, limit = 20) {
   return remember(await request('/users/search', { query: { username, limit } }));
 }
@@ -69,12 +72,12 @@ export function unfollowUser(idUser) {
   return request(`/users/${idUser}/follow`, { method: 'DELETE' });
 }
 
-/** GET /users/{id}/followers → UserRead[] */
+/** GET /users/{id}/followers → UserPublic[] */
 export async function getFollowers(idUser) {
   return remember(await request(`/users/${idUser}/followers`));
 }
 
-/** GET /users/{id}/following → UserRead[] */
+/** GET /users/{id}/following → UserPublic[] */
 export async function getFollowing(idUser) {
   return remember(await request(`/users/${idUser}/following`));
 }

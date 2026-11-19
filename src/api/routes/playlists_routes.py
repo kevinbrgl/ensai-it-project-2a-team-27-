@@ -59,12 +59,27 @@ def create_playlist(
     }
     ```
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :param playlist_in: Name of the playlist to create
-    :raises HTTPException: 409 if the user already has a playlist with this
-        name, 500 on database error
-    :return: The created playlist
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+    playlist_in : PlaylistCreate
+        Request containing the playlist name.
+
+    Returns
+    -------
+    PlaylistRead
+        The created playlist.
+
+    Raises
+    ------
+    HTTPException
+        409 if the user already has a playlist with this name, 500 on database
+        error.
+
     """
     try:
         return service.create_playlist(current_user.id_user, playlist_in)
@@ -105,10 +120,24 @@ def list_playlists(
     **Good to know:** the list is **empty** when you have no playlist
     yet.
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :raises HTTPException: 500 on database error
-    :return: The playlists, in creation order
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+
+    Returns
+    -------
+    list[PlaylistRead]
+        The playlists, in creation order.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.list_playlists(current_user.id_user)
@@ -159,14 +188,29 @@ def rename_playlist(
     }
     ```
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :param id_playlist: ID of the playlist to rename
-    :param playlist_in: New name of the playlist
-    :raises HTTPException: 404 if the playlist is not found or belongs to
-        another user, 409 if the new name is already used, 500 on database
-        error
-    :return: The renamed playlist
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+    id_playlist : int
+        ID of the playlist to rename.
+    playlist_in : PlaylistUpdate
+        Request containing the new playlist name.
+
+    Returns
+    -------
+    PlaylistRead
+        The renamed playlist.
+
+    Raises
+    ------
+    HTTPException
+        404 if the playlist is not found or belongs to another user, 409 if the
+        new name is already used, 500 on database error.
+
     """
     try:
         return service.rename_playlist(
@@ -224,11 +268,22 @@ def delete_playlist(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :param id_playlist: ID of the playlist to delete
-    :raises HTTPException: 404 if the playlist is not found or belongs to
-        another user, 500 on database error
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+    id_playlist : int
+        ID of the playlist to delete.
+
+    Raises
+    ------
+    HTTPException
+        404 if the playlist is not found or belongs to another user, 500 on
+        database error.
+
     """
     try:
         service.delete_playlist(current_user.id_user, id_playlist)
@@ -286,13 +341,29 @@ def add_book_to_playlist(
     }
     ```
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :param id_playlist: ID of the playlist
-    :param book_in: ID of the book to add
-    :raises HTTPException: 404 if the playlist or the book is not found,
-        409 if the book is already in the playlist, 500 on database error
-    :return: The added playlist entry
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+    id_playlist : int
+        ID of the playlist.
+    book_in : PlaylistBookAdd
+        Request containing the catalog book ID.
+
+    Returns
+    -------
+    PlaylistBookRead
+        The added playlist entry.
+
+    Raises
+    ------
+    HTTPException
+        404 if the playlist or the book is not found, 409 if the book is
+        already in the playlist, 500 on database error.
+
     """
     try:
         return service.add_book_to_playlist(
@@ -355,12 +426,27 @@ def get_playlist(
     **Good to know:** a playlist that belongs to **another user** is
     answered as **not found**.
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :param id_playlist: ID of the playlist
-    :raises HTTPException: 404 if the playlist is not found or belongs to
-        another user, 500 on database error
-    :return: The playlist and the details of its books
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+    id_playlist : int
+        ID of the playlist.
+
+    Returns
+    -------
+    PlaylistDetails
+        The playlist and the details of its books.
+
+    Raises
+    ------
+    HTTPException
+        404 if the playlist is not found or belongs to another user, 500 on
+        database error.
+
     """
     try:
         return service.get_playlist(current_user.id_user, id_playlist)
@@ -407,12 +493,24 @@ def remove_book_from_playlist(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param service: Playlist service dependency
-    :param current_user: The authenticated user
-    :param id_playlist: ID of the playlist
-    :param id_book: ID of the book to remove
-    :raises HTTPException: 404 if the playlist is not found or the book is
-        not in it, 500 on database error
+
+    Parameters
+    ----------
+    service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        The authenticated user.
+    id_playlist : int
+        ID of the playlist.
+    id_book : int
+        ID of the book to remove.
+
+    Raises
+    ------
+    HTTPException
+        404 if the playlist is not found or the book is not in it, 500 on
+        database error.
+
     """
     try:
         service.remove_book_from_playlist(

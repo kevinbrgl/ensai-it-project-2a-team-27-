@@ -32,6 +32,7 @@ REVIEW_URL = f"{settings.API_STR}/admin/reviews/{ID_REVIEW}"
 
 
 def _user(*, is_admin: bool) -> User:
+    """Create a test user with the given administrator flag."""
     return User(
         id_user=ADMIN_ID,
         username="boss",
@@ -48,6 +49,21 @@ def mock_service() -> Mock:
 
 
 def _client(mock_service: Mock, user: User) -> Generator[TestClient]:
+    """Provide a client with mocked moderation and authentication.
+
+    Parameters
+    ----------
+    mock_service : Mock
+        Moderation service used by the admin routes.
+    user : User
+        Account returned by the authentication override.
+
+    Yields
+    ------
+    TestClient
+        Client with the dependency overrides active during the test.
+
+    """
     app.dependency_overrides[get_admin_service] = lambda: mock_service
     app.dependency_overrides[get_user] = lambda: user
     yield TestClient(app)

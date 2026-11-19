@@ -1,4 +1,4 @@
-"""Data Access Object for book recommendations."""
+"""Database access for book recommendation queries."""
 
 from psycopg2 import Error as DBError
 from psycopg2.extras import RealDictCursor
@@ -9,12 +9,16 @@ from src.utils.exceptions import DAOError
 
 
 class RecommendationDAO:
-    """DAO class for the queries used to recommend books."""
+    """Query reading preferences and candidate book ratings."""
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize RecommendationDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
@@ -23,12 +27,26 @@ class RecommendationDAO:
         id_user: int,
         min_rating: int,
     ) -> list[GenreCount]:
-        """Count the books a user rated at least min_rating, by category.
+        """Count books that meet a user rating threshold, by category.
 
-        :param id_user: ID of the user
-        :param min_rating: Minimum rating for a book to be counted
-        :raises DAOError: If a DB error occurs
-        :return: One entry per category, the most frequent first
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+        min_rating : int
+            Minimum rating for a book to be counted.
+
+        Returns
+        -------
+        list[GenreCount]
+            One count per nonblank category, ordered by descending count and
+            then by category name.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -55,9 +73,21 @@ class RecommendationDAO:
     def find_library_api_keys(self, id_user: int) -> set[str]:
         """Return the Open Library keys of the books in a user's library.
 
-        :param id_user: ID of the user
-        :raises DAOError: If a DB error occurs
-        :return: The id_book_api of every library book that has one
+        Parameters
+        ----------
+        id_user : int
+            ID of the user.
+
+        Returns
+        -------
+        set[str]
+            The external keys for library books that have a stored key.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -78,12 +108,24 @@ class RecommendationDAO:
         return {row["id_book_api"] for row in rows}
 
     def get_average_ratings(self, book_ids: list[int]) -> dict[int, float]:
-        """Return the local average rating of several books.
+        """Calculate the average local rating for each requested book.
 
-        :param book_ids: IDs of the books
-        :raises DAOError: If a DB error occurs
-        :return: The average rating (2 decimals) of each reviewed book;
-            books without reviews are absent
+        Parameters
+        ----------
+        book_ids : list[int]
+            IDs of the books.
+
+        Returns
+        -------
+        dict[int, float]
+            Average ratings rounded to two decimal places, keyed by local
+            book ID. Only reviewed books appear.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         if not book_ids:
             return {}
@@ -114,13 +156,29 @@ class RecommendationDAO:
         limit: int,
         category: str | None = None,
     ) -> list[tuple[Book, float]]:
-        """Return the best rated books that are not in a user's library.
+        """Find the highest-rated books outside a user's library.
 
-        :param id_user: ID of the user whose library is excluded
-        :param limit: Maximum number of books to return
-        :param category: Optional category filter
-        :raises DAOError: If a DB error occurs
-        :return: The books with their average rating, best first
+        Parameters
+        ----------
+        id_user : int
+            ID of the user whose library books are excluded.
+        limit : int
+            Maximum number of books to return.
+        category : str | None, optional
+            Case-insensitive category substring. Defaults to None.
+
+        Returns
+        -------
+        list[tuple[Book, float]]
+            Books paired with average ratings rounded to two decimal places.
+            Results are ordered by descending average rating, descending review
+            count, and ascending book ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         query = """
             SELECT b.id_book, b.id_book_api, b.title, b.author,

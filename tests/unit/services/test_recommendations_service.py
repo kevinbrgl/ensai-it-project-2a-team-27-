@@ -77,6 +77,7 @@ def book_service(mocker: MockerFixture) -> Mock:
     ids = count(1)
 
     def save(book_create: BookCreate) -> Book:
+        """Turn a book payload into a book with the next local ID."""
         return Book(id_book=next(ids), **book_create.model_dump())
 
     service.save_book.side_effect = save

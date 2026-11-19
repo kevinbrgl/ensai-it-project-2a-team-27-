@@ -1,4 +1,4 @@
-"""Data Access Object for revoked tokens."""
+"""Database access for revoked token hashes."""
 
 from datetime import datetime
 
@@ -9,24 +9,43 @@ from src.utils.exceptions import DAOError
 
 
 class TokenDAO:
-    """DAO class for the revoked tokens table.
+    """Store and look up revoked token hashes.
 
-    :attr cur: Database cursor (RealDictCursor)
+    Attributes
+    ----------
+    cur : RealDictCursor
+        PostgreSQL cursor that fetches rows as dictionaries.
+
     """
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize TokenDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
     def revoke(self, token_hash: str, expires_at: datetime) -> None:
-        """Store a token hash in the revoked list (no error if present).
+        """Add a token hash to the revoked list.
 
-        :param token_hash: SHA-256 hash of the token
-        :param expires_at: Expiration date of the token
-        :raises DAOError: If a DB error occurs
+        A previously stored hash retains its original expiration time.
+
+        Parameters
+        ----------
+        token_hash : str
+            SHA-256 hash of the token.
+        expires_at : datetime
+            Expiration date and time of the token.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -41,11 +60,23 @@ class TokenDAO:
             raise DAOError from exc
 
     def is_revoked(self, token_hash: str) -> bool:
-        """Tell whether a token hash is in the revoked list.
+        """Check whether a token hash is on the revoked list.
 
-        :param token_hash: SHA-256 hash of the token
-        :raises DAOError: If a DB error occurs
-        :return: True if the token is revoked
+        Parameters
+        ----------
+        token_hash : str
+            SHA-256 hash of the token.
+
+        Returns
+        -------
+        bool
+            True if the token hash is present, or False otherwise.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(

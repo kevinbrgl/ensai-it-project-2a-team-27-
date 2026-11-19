@@ -30,6 +30,7 @@ from src.utils.exceptions import (
     AuthError,
     EmailAlreadyExistsError,
     IncorrectPasswordError,
+    PrivateProfileError,
     SamePasswordError,
     SelfFollowError,
     SelfUnfollowError,
@@ -39,26 +40,48 @@ from src.utils.exceptions import (
 
 
 class UserService:
-    """Service class for user business logic.
+    """Manage accounts, authentication, and follow relationships.
 
-    :attr dao: Associated UserDAO object
+    Attributes
+    ----------
+    dao : UserDAO
+        Associated UserDAO object.
+
     """
 
     def __init__(self, user_dao: UserDAO) -> None:
         """Initialize UserService with a UserDAO.
 
-        :param user_dao: DAO used to access users
+        Parameters
+        ----------
+        user_dao : UserDAO
+            DAO used to access users.
+
         """
         self.dao = user_dao
 
     def authenticate(self, username: str, password: str) -> User:
         """Authenticate a user by username and password.
 
-        :param username: Username of the user
-        :param password: Password of the user
-        :raises UserNotFoundError: Raised if user is not found
-        :raises AuthError: Raised if password is incorrect
-        :return: The authenticated User object
+        Parameters
+        ----------
+        username : str
+            Username of the user.
+        password : str
+            Password of the user.
+
+        Returns
+        -------
+        User
+            The authenticated User object.
+
+        Raises
+        ------
+        UserNotFoundError
+            If the username does not exist.
+        AuthError
+            If the password is incorrect.
+
         """
         db_user = self.dao.read_by_username(username)
         if db_user is None:
@@ -70,13 +93,25 @@ class UserService:
     def login(self, username: str, password: str) -> Token:
         """Authenticate a user and create an access token.
 
-        :param username: Username of the user
-        :param password: Plain password of the user
-        :raises UserNotFoundError: Raised if user is not found
-        :raises AuthError: Raised if password is incorrect
-        :raises AccountBannedError: Raised if the account is banned
-        :raises AccountSuspendedError: Raised if the account is suspended
-        :return: Token containing the JWT and its type
+        Parameters
+        ----------
+        username : str
+            Username of the user.
+        password : str
+            Plain password of the user.
+
+        Returns
+        -------
+        Token
+            Token containing the JWT and its type.
+
+        Notes
+        -----
+        An unknown username raises ``UserNotFoundError`` and an incorrect
+        password raises ``AuthError``. A banned account raises
+        ``AccountBannedError``. A suspended account raises
+        ``AccountSuspendedError``.
+
         """
         user = self.authenticate(username, password)
         self.ensure_active(user)
@@ -94,10 +129,23 @@ class UserService:
     def register(self, user_in: UserRegister) -> User:
         """Register a new user.
 
-        :param user_in: User registration data
-        :raises UserAlreadyExistsError: Raised if the username is taken
-        :raises EmailAlreadyExistsError: Raised if the email is taken
-        :return: The created User object
+        Parameters
+        ----------
+        user_in : UserRegister
+            User registration data.
+
+        Returns
+        -------
+        User
+            The created User object.
+
+        Raises
+        ------
+        UserAlreadyExistsError
+            If the username is taken.
+        EmailAlreadyExistsError
+            If the email is taken.
+
         """
         if self.dao.read_by_username(user_in.username) is not None:
             raise UserAlreadyExistsError(user_in.username)
@@ -114,9 +162,21 @@ class UserService:
     def read(self, user_id: int) -> User:
         """Read a user by their ID.
 
-        :param user_id: ID of the user to read
-        :raises UserNotFoundError: Raised if user is not found
-        :return: The User object
+        Parameters
+        ----------
+        user_id : int
+            ID of the user to read.
+
+        Returns
+        -------
+        User
+            The User object.
+
+        Raises
+        ------
+        UserNotFoundError
+            If user is not found.
+
         """
         user = self.dao.read(user_id)
         if user is None:
@@ -126,9 +186,21 @@ class UserService:
     def read_by_username(self, username: str) -> User:
         """Read a user by their username.
 
-        :param username: Username of the user to read
-        :raises UserNotFoundError: Raised if user is not found
-        :return: The User object
+        Parameters
+        ----------
+        username : str
+            Username of the user to read.
+
+        Returns
+        -------
+        User
+            The User object.
+
+        Raises
+        ------
+        UserNotFoundError
+            If user is not found.
+
         """
         user = self.dao.read_by_username(username)
         if user is None:
@@ -138,9 +210,18 @@ class UserService:
     def search_users(self, username: str, limit: int = 10) -> list[User]:
         """Search users whose username matches the query.
 
-        :param username: Query string to match
-        :param limit: Maximum number of users to return
-        :return: List of matching User objects
+        Parameters
+        ----------
+        username : str
+            Query string to match.
+        limit : int, optional
+            Maximum number of users to return.
+
+        Returns
+        -------
+        list[User]
+            Matching users, or an empty list for a blank query or no matches.
+
         """
         query = username.strip()
         if not query:
@@ -150,11 +231,24 @@ class UserService:
     def follow_user(self, follower_id: int, following_id: int) -> None:
         """Follow another user.
 
-        :param follower_id: ID of the follower
-        :param following_id: ID of the user being followed
-        :raises SelfFollowError: If a user attempts to follow themselves
-        :raises UserNotFoundError: If the target user does not exist
-        :raises AlreadyFollowingError: If already following the target user
+        Parameters
+        ----------
+        follower_id : int
+            ID of the follower.
+        following_id : int
+            ID of the user being followed.
+
+        Raises
+        ------
+        SelfFollowError
+            If a user attempts to follow themselves.
+        UserNotFoundError
+            If the target user does not exist.
+
+        Notes
+        -----
+        An existing follow relationship raises ``AlreadyFollowingError``.
+
         """
         if follower_id == following_id:
             raise SelfFollowError
@@ -165,11 +259,24 @@ class UserService:
     def unfollow_user(self, follower_id: int, following_id: int) -> None:
         """Unfollow another user.
 
-        :param follower_id: ID of the follower
-        :param following_id: ID of the user being unfollowed
-        :raises SelfUnfollowError: If a user attempts to unfollow themselves
-        :raises UserNotFoundError: If the target user does not exist
-        :raises NotFollowingError: If not currently following the target user
+        Parameters
+        ----------
+        follower_id : int
+            ID of the follower.
+        following_id : int
+            ID of the user being unfollowed.
+
+        Raises
+        ------
+        SelfUnfollowError
+            If a user attempts to unfollow themselves.
+        UserNotFoundError
+            If the target user does not exist.
+
+        Notes
+        -----
+        A missing follow relationship raises ``NotFollowingError``.
+
         """
         if follower_id == following_id:
             raise SelfUnfollowError
@@ -180,9 +287,21 @@ class UserService:
     def get_followers(self, user_id: int) -> list[User]:
         """Get the followers of a user.
 
-        :param user_id: ID of the user whose followers to retrieve
-        :raises UserNotFoundError: If the user does not exist
-        :return: List of User objects who follow the user
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose followers to retrieve.
+
+        Returns
+        -------
+        list[User]
+            List of User objects who follow the user.
+
+        Raises
+        ------
+        UserNotFoundError
+            If the user does not exist.
+
         """
         if self.dao.read(user_id) is None:
             raise UserNotFoundError(user_id=user_id)
@@ -191,9 +310,21 @@ class UserService:
     def get_following(self, user_id: int) -> list[User]:
         """Get the users followed by a user.
 
-        :param user_id: ID of the user whose followed users to retrieve
-        :raises UserNotFoundError: If the user does not exist
-        :return: List of User objects followed by the user
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose followed users to retrieve.
+
+        Returns
+        -------
+        list[User]
+            List of User objects followed by the user.
+
+        Raises
+        ------
+        UserNotFoundError
+            If the user does not exist.
+
         """
         if self.dao.read(user_id) is None:
             raise UserNotFoundError(user_id=user_id)
@@ -206,12 +337,27 @@ class UserService:
     ) -> User:
         """Update a user's password.
 
-        :param current_user: The logged-in user
-        :param body: Password update data
-        :raises IncorrectPasswordError: If current password is incorrect
-        :raises SamePasswordError: If new password is the same as old
-        :raises UserNotFoundError: If user is not found after update
-        :return: The updated User object
+        Parameters
+        ----------
+        current_user : User
+            The logged-in user.
+        body : UserUpdatePassword
+            Password update data.
+
+        Returns
+        -------
+        User
+            The updated User object.
+
+        Raises
+        ------
+        IncorrectPasswordError
+            If current password is incorrect.
+        SamePasswordError
+            If new password is the same as old.
+        UserNotFoundError
+            If user is not found after update.
+
         """
         if not verify_password(
             body.current_password,
@@ -234,10 +380,29 @@ class UserService:
     def update(self, user_id: int, user_in: UserUpdate) -> User:
         """Update a user's information.
 
-        :param user_id: ID of the user to update
-        :param user_in: User update data
-        :raises UserNotFoundError: Raised if user is not found after update
-        :return: The updated User object
+        Parameters
+        ----------
+        user_id : int
+            ID of the user to update.
+        user_in : UserUpdate
+            User update data.
+
+        Returns
+        -------
+        User
+            The updated User object.
+
+        Raises
+        ------
+        UserNotFoundError
+            If user is not found after update.
+
+        Notes
+        -----
+        An empty update raises ``ValueError``. A duplicate username raises
+        ``UserAlreadyExistsError`` and a duplicate email address raises
+        ``EmailAlreadyExistsError``.
+
         """
         user = self.dao.update(
             user_id,
@@ -249,11 +414,20 @@ class UserService:
 
     @staticmethod
     def ensure_active(user: User) -> None:
-        """Check that an account is neither banned nor suspended.
+        """Check whether an account can be used.
 
-        :param user: The user to check
-        :raises AccountBannedError: If the account is banned
-        :raises AccountSuspendedError: If the suspension is still running
+        Parameters
+        ----------
+        user : User
+            The user to check.
+
+        Raises
+        ------
+        AccountBannedError
+            If the account is banned.
+        AccountSuspendedError
+            If the suspension is still running.
+
         """
         if user.is_banned:
             raise AccountBannedError
@@ -263,18 +437,56 @@ class UserService:
         ):
             raise AccountSuspendedError(user.suspended_until)
 
+    @staticmethod
+    def ensure_profile_visible(user: User, viewer_id: int) -> None:
+        """Check whether a viewer may see a user's library and activity.
+
+        A private profile only shows its library, shelves, statistics and
+        genre wheel to its owner. The username, bio and picture stay
+        visible, so the user can still be found and followed.
+
+        Parameters
+        ----------
+        user : User
+            The user whose profile is being viewed.
+        viewer_id : int
+            ID of the authenticated user viewing the profile.
+
+        Raises
+        ------
+        PrivateProfileError
+            If the profile is private and the viewer is not its owner.
+
+        """
+        if user.profile_visibility == "private" and user.id_user != viewer_id:
+            raise PrivateProfileError
+
     def update_settings(
         self,
         user_id: int,
         settings_in: UserSettingsUpdate,
     ) -> User:
-        """Update the theme and/or profile visibility of a user.
+        """Update a user's theme, profile visibility, or both.
 
-        :param user_id: ID of the user
-        :param settings_in: New settings
-        :raises ValueError: If no setting is given
-        :raises UserNotFoundError: If the user does not exist
-        :return: The updated User object
+        Parameters
+        ----------
+        user_id : int
+            ID of the user.
+        settings_in : UserSettingsUpdate
+            New settings.
+
+        Returns
+        -------
+        User
+            The updated User object.
+
+        Raises
+        ------
+        ValueError
+            If no setting is given.
+        UserNotFoundError
+            If the user does not exist.
+
         """
         if (
             settings_in.theme is None

@@ -1,8 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
 Provides endpoints for profile reading, search, follow, unfollow,
-followers, following, quests, genre wheel, settings, and updates.
-followers, following, quests, achievements, settings, and updates.
+followers, following, quests, achievements, genre wheel, settings, and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -14,7 +13,6 @@ from fastapi import APIRouter, HTTPException, Query, status
 from src.api.deps import (
     AchievementServiceDep,
     CurrentUser,
-    CursorDep,
     GenreWheelServiceDep,
     LibraryServiceDep,
     PlaylistServiceDep,
@@ -22,10 +20,9 @@ from src.api.deps import (
     StatsServiceDep,
     UserServiceDep,
 )
-from src.dao.users_dao import UserDAO
 from src.models import (
-    GenreWheel,
     Achievement,
+    GenreWheel,
     Quest,
     User,
     UserRead,
@@ -35,7 +32,7 @@ from src.models import (
 from src.models.library import LibraryBookDetails
 from src.models.playlists import PlaylistRead
 from src.models.stats import UserStats
-from src.models.users import UserMe, UserSettingsUpdate
+from src.models.users import UserMe, UserPublic, UserSettingsUpdate
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
@@ -43,6 +40,7 @@ from src.utils.exceptions import (
     EmailAlreadyExistsError,
     IncorrectPasswordError,
     NotFollowingError,
+    PrivateProfileError,
     SamePasswordError,
     SelfFollowError,
     SelfUnfollowError,
@@ -52,6 +50,8 @@ from src.utils.exceptions import (
 
 router = APIRouter(prefix="/users", tags=["Users"])
 logger = logging.getLogger(__name__)
+
+PRIVATE_PROFILE = "This profile is private."
 
 
 @router.get("/me", response_model=UserRead, summary="👤 Get my profile")
@@ -65,8 +65,17 @@ def read_self(current_user: CurrentUser) -> User:
     **Good to know:** the password is **never** returned. For your
     theme and visibility, use the settings route.
     \f
-    :param current_user: The current authenticated user
-    :return: The user information
+
+    Parameters
+    ----------
+    current_user : User
+        The current authenticated user.
+
+    Returns
+    -------
+    User
+        Account data for the authenticated user.
+
     """
     return current_user
 
@@ -102,8 +111,17 @@ def read_my_settings(current_user: CurrentUser) -> User:
     }
     ```
     \f
-    :param current_user: The current authenticated user
-    :return: The user information and settings
+
+    Parameters
+    ----------
+    current_user : User
+        The current authenticated user.
+
+    Returns
+    -------
+    User
+        The user information and settings.
+
     """
     return current_user
 
@@ -148,12 +166,27 @@ def update_my_settings(
     }
     ```
     \f
-    :param service: User service dependency
-    :param current_user: The current authenticated user
-    :param settings_in: New settings
-    :raises HTTPException: 400 if there is nothing to update,
-        404 if the user is not found, 500 on database error
-    :return: The updated user, with their settings
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    current_user : User
+        The current authenticated user.
+    settings_in : UserSettingsUpdate
+        Theme and profile visibility to update.
+
+    Returns
+    -------
+    User
+        The updated user, with their settings.
+
+    Raises
+    ------
+    HTTPException
+        400 if there is nothing to update, 404 if the user is not found, 500 on
+        database error.
+
     """
     try:
         return service.update_settings(current_user.id_user, settings_in)
@@ -214,11 +247,26 @@ def get_my_quests(
     **Good to know:** progress is computed from your activity: books
     finished, categories explored, users followed and favorites.
     \f
-    :param service: Quest service dependency
-    :param current_user: Authenticated user making the request
-    :param status_filter: Filter to retrieve 'all', 'active', or 'completed'
-    :raises HTTPException: 500 on database error
-    :return: List of Quest objects with calculated progress
+
+    Parameters
+    ----------
+    service : QuestService
+        Quest service dependency.
+    current_user : User
+        Authenticated user making the request.
+    status_filter : {'all', 'active', 'completed'}, optional
+        Completion status to filter by. Defaults to 'all'.
+
+    Returns
+    -------
+    list[Quest]
+        Quests with their calculated progress.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.get_quests(
@@ -266,11 +314,26 @@ def get_my_achievements(
     **Returns, for each achievement:** category, tier (Bronze, Silver, Gold,
     Platinum), visual icon, current progress, target, and unlock status.
     \f
-    :param service: Achievement service dependency
-    :param current_user: Authenticated user making the request
-    :param status_filter: Filter for 'all', 'unlocked', or 'locked'
-    :raises HTTPException: 500 on database error
-    :return: List of Achievement objects with unlock status
+
+    Parameters
+    ----------
+    service : AchievementService
+        Achievement service dependency.
+    current_user : User
+        Authenticated user making the request.
+    status_filter : {'all', 'unlocked', 'locked'}, optional
+        Unlock status to filter by. Defaults to 'all'.
+
+    Returns
+    -------
+    list[Achievement]
+        Achievements with their progress and unlock status.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.get_achievements(
@@ -290,7 +353,7 @@ def get_my_achievements(
 
 @router.get(
     "/search",
-    response_model=list[UserRead],
+    response_model=list[UserPublic],
     status_code=status.HTTP_200_OK,
     summary="🔍 Search users",
     responses={500: {"description": "Database error"}},
@@ -329,12 +392,28 @@ def search_users(
 
     **Use case:** find a friend in order to follow them.
     \f
-    :param service: User service dependency
-    :param _current_user: The authenticated user making the request
-    :param username: Username query string
-    :param limit: Maximum number of users to return
-    :raises HTTPException: 500 on database error
-    :return: List of matching users
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    _current_user : User
+        The authenticated user making the request.
+    username : str
+        Case-insensitive username substring.
+    limit : int, optional
+        Maximum number of users to return. Defaults to 10.
+
+    Returns
+    -------
+    list[User]
+        List of matching users.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.search_users(username=username, limit=limit)
@@ -349,7 +428,7 @@ def search_users(
 # Declared after /me and /search, so that it does not shadow them.
 @router.get(
     "/{user_id}",
-    response_model=UserRead,
+    response_model=UserPublic,
     status_code=status.HTTP_200_OK,
     summary="👤 See the profile of a user",
     responses={
@@ -366,17 +445,33 @@ def read_user(
 
     🔒 Authentication required
 
-    **Returns:** their ID, username, email, bio and profile picture.
+    **Returns:** their ID, username, bio, profile picture and profile
+    visibility (`public` or `private`).
 
-    **Good to know:** the password and the private settings are
-    **never** returned.
+    **Good to know:** the email address, the password and the other
+    settings are **never** returned. A private profile still shows
+    this card, so the user can be found and followed.
     \f
-    :param service: User service dependency
-    :param _current_user: Authenticated user making the request
-    :param user_id: ID of the user whose profile to retrieve
-    :raises HTTPException: 404 if the user is not found,
-        500 on database error
-    :return: The user's public profile
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    _current_user : User
+        Authenticated user making the request.
+    user_id : int
+        ID of the user whose profile to retrieve.
+
+    Returns
+    -------
+    User
+        Account data for the requested user.
+
+    Raises
+    ------
+    HTTPException
+        404 if the user is not found, 500 on database error.
+
     """
     try:
         return service.read(user_id)
@@ -423,13 +518,22 @@ def follow_user(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param service: User service dependency
-    :param current_user: Authenticated user making the request (follower)
-    :param user_id: ID of the user to follow (following)
-    :raises HTTPException: 400 if user attempts to follow themselves,
-        404 if target user is not found,
-        409 if already following,
-        500 on database error
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    current_user : User
+        Authenticated user starting the follow.
+    user_id : int
+        ID of the user to follow (following).
+
+    Raises
+    ------
+    HTTPException
+        400 if user attempts to follow themselves, 404 if target user is not
+        found, 409 if already following, 500 on database error.
+
     """
     try:
         service.follow_user(
@@ -489,12 +593,22 @@ def unfollow_user(
 
     **Response:** `204 No Content`, with an empty body.
     \f
-    :param service: User service dependency
-    :param current_user: Authenticated user making the request (follower)
-    :param user_id: ID of the user to unfollow (following)
-    :raises HTTPException: 400 if user attempts to unfollow themselves,
-        404 if target user is not found or not currently followed,
-        500 on database error
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    current_user : User
+        Authenticated user ending the follow.
+    user_id : int
+        ID of the user to unfollow (following).
+
+    Raises
+    ------
+    HTTPException
+        400 if user attempts to unfollow themselves, 404 if target user is not
+        found or not currently followed, 500 on database error.
+
     """
     try:
         service.unfollow_user(
@@ -530,7 +644,7 @@ def unfollow_user(
 
 @router.get(
     "/{user_id}/followers",
-    response_model=list[UserRead],
+    response_model=list[UserPublic],
     status_code=status.HTTP_200_OK,
     summary="👥 List the followers of a user",
     responses={
@@ -552,12 +666,26 @@ def get_followers(
     **Good to know:** use your own user ID to see **your**
     followers. The list is **empty** when nobody follows the user.
     \f
-    :param service: User service dependency
-    :param _current_user: Authenticated user making the request
-    :param user_id: ID of the user whose followers to retrieve
-    :raises HTTPException: 404 if the user is not found,
-        500 on database error
-    :return: List of followers
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    _current_user : User
+        Authenticated user making the request.
+    user_id : int
+        ID of the user whose followers to retrieve.
+
+    Returns
+    -------
+    list[User]
+        List of followers.
+
+    Raises
+    ------
+    HTTPException
+        404 if the user is not found, 500 on database error.
+
     """
     try:
         return service.get_followers(user_id)
@@ -576,7 +704,7 @@ def get_followers(
 
 @router.get(
     "/{user_id}/following",
-    response_model=list[UserRead],
+    response_model=list[UserPublic],
     status_code=status.HTTP_200_OK,
     summary="👥 List the users followed by a user",
     responses={
@@ -598,12 +726,26 @@ def get_following(
     **Good to know:** use your own user ID to see who **you**
     follow. The list is **empty** when the user follows nobody.
     \f
-    :param service: User service dependency
-    :param _current_user: Authenticated user making the request
-    :param user_id: ID of the user whose followed users to retrieve
-    :raises HTTPException: 404 if the user is not found,
-        500 on database error
-    :return: List of followed users
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    _current_user : User
+        Authenticated user making the request.
+    user_id : int
+        ID of the user whose followed users to retrieve.
+
+    Returns
+    -------
+    list[User]
+        List of followed users.
+
+    Raises
+    ------
+    HTTPException
+        404 if the user is not found, 500 on database error.
+
     """
     try:
         return service.get_following(user_id)
@@ -628,10 +770,11 @@ def get_following(
         400: {"description": "Nothing to update"},
         404: {"description": "User not found"},
         409: {"description": "Username or email already used"},
+        500: {"description": "Database error"},
     },
 )
 def update_self(
-    cursor: CursorDep,
+    service: UserServiceDep,
     current_user: CurrentUser,
     user_in: UserUpdate,
 ) -> User:
@@ -645,9 +788,12 @@ def update_self(
     **Available fields:**
 
     - 👤 `username`: 3 to 30 characters, must be **unique**
-    - 📧 `email`: a valid address, must be **unique**
+    - 📧 `email`: a valid address of at most 100 characters, must be
+      **unique**
     - 📝 `bio`: a short text about you
-    - 🖼️ `profile_picture`: link to your picture
+    - 🖼️ `profile_picture`: link to your picture, at most 255 characters
+
+    `username` and `email` cannot be set to `null`.
 
     **Example request:**
 
@@ -657,20 +803,30 @@ def update_self(
     }
     ```
     \f
-    :param cursor: Database cursor dependency
-    :param current_user: The current authenticated user
-    :param user_in: User update data
-    :raises HTTPException: 400 if there is nothing to update,
-        404 if the user is not found,
-        409 if the new username or email is already used
-    :return: The updated User object
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    current_user : User
+        The current authenticated user.
+    user_in : UserUpdate
+        Profile fields to update.
+
+    Returns
+    -------
+    User
+        Account data with the requested profile changes.
+
+    Raises
+    ------
+    HTTPException
+        400 if there is nothing to update, 404 if the user is not found, 409 if
+        the new username or email is already used, 500 on database error.
+
     """
     try:
-        return UserService(UserDAO(cursor)).update(
-            current_user.id_user,
-            user_in,
-        )
-
+        return service.update(current_user.id_user, user_in)
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -691,6 +847,15 @@ def update_self(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Nothing to update.",
         ) from None
+    except DAOError:
+        logger.exception(
+            "Failed to update the profile of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update the profile.",
+        ) from None
 
 
 @router.put(
@@ -701,10 +866,11 @@ def update_self(
         400: {"description": "New password is the same as the current one"},
         403: {"description": "Wrong current password"},
         404: {"description": "User not found"},
+        500: {"description": "Database error"},
     },
 )
 def update_self_password(
-    cursor: CursorDep,
+    service: UserServiceDep,
     current_user: CurrentUser,
     user_in: UserUpdatePassword,
 ) -> User:
@@ -715,7 +881,8 @@ def update_self_password(
     **Fields:**
 
     - 🔐 `current_password`: your password today, to prove it is you
-    - 🔑 `new_password`: 8 to 72 characters
+    - 🔑 `new_password`: 8 to 72 characters, and at most 72 bytes
+      (accented letters and emoji count as several bytes)
 
     **Rule:** the new password must be **different** from the
     current one.
@@ -729,18 +896,31 @@ def update_self_password(
     }
     ```
     \f
-    :param cursor: Database cursor dependency
-    :param current_user: The current authenticated user
-    :param user_in: Password update data
-    :raises HTTPException: 400 if the new password is the same as the
-        current one, 403 if the current password is wrong,
-        404 if the user is not found
-    :return: The updated User object
+
+    Parameters
+    ----------
+    service : UserService
+        User service dependency.
+    current_user : User
+        The current authenticated user.
+    user_in : UserUpdatePassword
+        Current password and requested new password.
+
+    Returns
+    -------
+    User
+        Account data after the password change.
+
+    Raises
+    ------
+    HTTPException
+        400 if the new password is the same as the current one, 403 if the
+        current password is wrong, 404 if the user is not found, 500 on
+        database error.
+
     """
     try:
-        return UserService(
-            UserDAO(cursor),
-        ).update_password(current_user, user_in)
+        return service.update_password(current_user, user_in)
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -756,12 +936,22 @@ def update_self_password(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Wrong password provided",
         ) from None
+    except DAOError:
+        logger.exception(
+            "Failed to change the password of user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not change the password.",
+        ) from None
 
 
 @router.get(
     "/{user_id}/library",
     summary="📚 See the library of a user",
     responses={
+        403: {"description": "This profile is private"},
         404: {"description": "User not found"},
         500: {"description": "Database error"},
     },
@@ -769,7 +959,7 @@ def update_self_password(
 def get_user_library(
     user_service: UserServiceDep,
     library_service: LibraryServiceDep,
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     user_id: int,
     status_filter: Annotated[
         str | None,
@@ -792,20 +982,44 @@ def get_user_library(
     like, favorite flag and reading dates of the user.
 
     **Good to know:** every logged-in user can see the library of
-    **any user**, even without following them.
+    **any public profile**, even without following them. A **private**
+    profile only shows its library to its owner.
     \f
-    :param user_service: User service dependency
-    :param library_service: Library service dependency
-    :param _current_user: Authenticated user making the request
-    :param user_id: ID of the user whose library to retrieve
-    :param status_filter: Optional reading state to filter by
-    :raises HTTPException: 404 if the user is not found,
-        500 on database error
-    :return: The books of the user's library
+
+    Parameters
+    ----------
+    user_service : UserService
+        User service dependency.
+    library_service : LibraryService
+        Library service dependency.
+    current_user : User
+        Authenticated user making the request.
+    user_id : int
+        ID of the user whose library to retrieve.
+    status_filter : str | None, optional
+        Reading status to filter by.
+
+    Returns
+    -------
+    list[LibraryBookDetails]
+        The books of the user's library.
+
+    Raises
+    ------
+    HTTPException
+        403 if the profile is private, 404 if the user is not found, 500 on
+        database error.
+
     """
     try:
-        user_service.read(user_id)
+        target = user_service.read(user_id)
+        UserService.ensure_profile_visible(target, current_user.id_user)
         return library_service.list_books(user_id, status_filter)
+    except PrivateProfileError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=PRIVATE_PROFILE,
+        ) from None
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -823,6 +1037,7 @@ def get_user_library(
     "/{user_id}/playlists",
     summary="🎵 See the playlists of a user",
     responses={
+        403: {"description": "This profile is private"},
         404: {"description": "User not found"},
         500: {"description": "Database error"},
     },
@@ -830,7 +1045,7 @@ def get_user_library(
 def get_user_playlists(
     user_service: UserServiceDep,
     playlist_service: PlaylistServiceDep,
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     user_id: int,
 ) -> list[PlaylistRead]:
     """List the **playlists of another user**, in creation order.
@@ -841,19 +1056,42 @@ def get_user_playlists(
     books.
 
     **Good to know:** every logged-in user can see the playlists of
-    **any user**, even without following them.
+    **any public profile**, even without following them. A **private**
+    profile only shows its playlists to its owner.
     \f
-    :param user_service: User service dependency
-    :param playlist_service: Playlist service dependency
-    :param _current_user: Authenticated user making the request
-    :param user_id: ID of the user whose playlists to retrieve
-    :raises HTTPException: 404 if the user is not found,
-        500 on database error
-    :return: The user's playlists, in creation order
+
+    Parameters
+    ----------
+    user_service : UserService
+        User service dependency.
+    playlist_service : PlaylistService
+        Playlist service dependency.
+    current_user : User
+        Authenticated user making the request.
+    user_id : int
+        ID of the user whose playlists to retrieve.
+
+    Returns
+    -------
+    list[PlaylistRead]
+        The user's playlists, in creation order.
+
+    Raises
+    ------
+    HTTPException
+        403 if the profile is private, 404 if the user is not found, 500 on
+        database error.
+
     """
     try:
-        user_service.read(user_id)
+        target = user_service.read(user_id)
+        UserService.ensure_profile_visible(target, current_user.id_user)
         return playlist_service.list_playlists(user_id)
+    except PrivateProfileError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=PRIVATE_PROFILE,
+        ) from None
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -905,10 +1143,24 @@ def read_my_stats(
     }
     ```
     \f
-    :param service: Statistics service dependency
-    :param current_user: The authenticated user
-    :raises HTTPException: 500 on database error
-    :return: The user's statistics
+
+    Parameters
+    ----------
+    service : StatsService
+        Statistics service dependency.
+    current_user : User
+        The authenticated user.
+
+    Returns
+    -------
+    UserStats
+        The user's statistics.
+
+    Raises
+    ------
+    HTTPException
+        500 on database error.
+
     """
     try:
         return service.get_stats(current_user.id_user)
@@ -927,7 +1179,10 @@ def read_my_stats(
     "/{user_id}/stats",
     summary="📊 See the reading statistics of a friend",
     responses={
-        403: {"description": "You must follow this user"},
+        403: {
+            "description": "You must follow this user, or the profile "
+            "is private",
+        },
         404: {"description": "User not found"},
         500: {"description": "Database error"},
     },
@@ -943,7 +1198,7 @@ def get_user_stats(
     🔒 Authentication required, **followers only**
 
     **Rule:** you must **follow** this user, otherwise the access is
-    refused.
+    refused. A **private** profile never shares its statistics.
 
     **Returns:**
 
@@ -952,31 +1207,51 @@ def get_user_stats(
     - 🏷️ `genres`: number of books of their library **per category**
     - ⭐ `ratings`: number of their reviews **per rating**
     \f
-    :param user_id: ID of the user whose stats are being requested
-    :param current_user: The authenticated user making the request
-    :param user_service: The user service to check if the target user exists
-    :param stats_service: The stats service to retrieve reading statistics
-    :raises HTTPException: If the user is not found, not followed,
-     or on DB error
-    :return: The target user's reading statistics
+
+    Parameters
+    ----------
+    user_id : int
+        ID of the user whose stats are being requested.
+    current_user : User
+        The authenticated user making the request.
+    user_service : UserService
+        Service used to check user existence and follow status.
+    stats_service : StatsService
+        Service used to retrieve reading statistics.
+
+    Returns
+    -------
+    UserStats
+        The target user's reading statistics.
+
+    Raises
+    ------
+    HTTPException
+        403 if the profile is private or the authenticated user does not
+        follow the requested user, 404 if the requested user does not exist,
+        or 500 on a database error.
+
     """
     try:
-        # 1. Vérifier que l'utilisateur cible existe
-        user_service.read(user_id=user_id)
+        target = user_service.read(user_id=user_id)
+        UserService.ensure_profile_visible(target, current_user.id_user)
 
-        # 2. Vérifier que l'utilisateur courant suit bien l'utilisateur cible
-        following = user_service.get_following(current_user.id_user)
-        is_following = any(user.id_user == user_id for user in following)
-
+        is_following = any(
+            user.id_user == user_id
+            for user in user_service.get_following(current_user.id_user)
+        )
         if not is_following:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You must follow this user to view their stats.",
             )
 
-        # 3. Récupérer et renvoyer les statistiques
         return stats_service.get_stats(id_user=user_id)
-
+    except PrivateProfileError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=PRIVATE_PROFILE,
+        ) from None
     except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -995,13 +1270,14 @@ def get_user_stats(
     status_code=status.HTTP_200_OK,
     summary="🎨 Get the avatar genre color wheel of a user",
     responses={
+        403: {"description": "This profile is private"},
         404: {"description": "User not found"},
         500: {"description": "Database error"},
     },
 )
 def get_user_genre_wheel(
     user_id: int,
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     user_service: UserServiceDep,
     wheel_service: GenreWheelServiceDep,
 ) -> GenreWheel:
@@ -1011,7 +1287,8 @@ def get_user_genre_wheel(
 
     Computes weighted proportions for each genre based on completed reads,
     review ratings, and favorite markers. Returns an empty grey state
-    when the user has not completed any book yet.
+    when the user has not completed any book yet. A **private** profile
+    only shows its wheel to its owner.
 
     **Returns:**
 
@@ -1020,16 +1297,39 @@ def get_user_genre_wheel(
     - 🔲 `empty_color`: Neutral fallback color code (#9CA3AF)
     - 📚 `total_books`: Total completed books considered
     \f
-    :param user_id: ID of the user whose wheel is requested
-    :param _current_user: Authenticated user making the request
-    :param user_service: User service to verify user existence
-    :param wheel_service: Genre wheel service computing proportions
-    :raises HTTPException: 404 if user not found, 500 on database error
-    :return: GenreWheel model instance
+
+    Parameters
+    ----------
+    user_id : int
+        ID of the user whose wheel is requested.
+    current_user : User
+        Authenticated user making the request.
+    user_service : UserService
+        Service used to check that the requested user exists.
+    wheel_service : GenreWheelService
+        Service that calculates the user's genre proportions.
+
+    Returns
+    -------
+    GenreWheel
+        Weighted genre segments and the empty-state color.
+
+    Raises
+    ------
+    HTTPException
+        403 if the profile is private, 404 if user not found, 500 on database
+        error.
+
     """
     try:
-        user_service.read(user_id=user_id)
+        target = user_service.read(user_id=user_id)
+        UserService.ensure_profile_visible(target, current_user.id_user)
         return wheel_service.get_genre_wheel(user_id=user_id)
+    except PrivateProfileError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=PRIVATE_PROFILE,
+        ) from None
     except UserNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

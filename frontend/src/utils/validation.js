@@ -15,10 +15,15 @@ export function validateEmail(value) {
   return null;
 }
 
+// bcrypt only reads the first 72 bytes of a password, and accented letters or
+// emoji take several bytes each, so the length in bytes is checked too.
+const encoder = new TextEncoder();
+
 export function validatePassword(value) {
   if (!value) return 'Enter a password.';
   if (value.length < 8) return 'At least 8 characters.';
   if (value.length > 72) return 'At most 72 characters.';
+  if (encoder.encode(value).length > 72) return 'Too long: accented letters and emoji count as several characters.';
   return null;
 }
 

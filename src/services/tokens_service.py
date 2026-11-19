@@ -13,29 +13,54 @@ from src.dao.tokens_dao import TokenDAO
 def hash_token(token: str) -> str:
     """Return the SHA-256 hash of a token.
 
-    :param token: The JWT
-    :return: Hexadecimal hash
+    Parameters
+    ----------
+    token : str
+        The JWT.
+
+    Returns
+    -------
+    str
+        Hexadecimal hash.
+
     """
     return hashlib.sha256(token.encode()).hexdigest()
 
 
 class TokenService:
-    """Service class for revoking and checking tokens.
+    """Revoke access tokens and check their revocation status.
 
-    :attr dao: Associated TokenDAO object
+    Attributes
+    ----------
+    dao : TokenDAO
+        Associated TokenDAO object.
+
     """
 
     def __init__(self, token_dao: TokenDAO) -> None:
         """Initialize TokenService with a TokenDAO.
 
-        :param token_dao: DAO used to access revoked tokens
+        Parameters
+        ----------
+        token_dao : TokenDAO
+            DAO used to access revoked tokens.
+
         """
         self.dao = token_dao
 
     def revoke(self, token: str) -> None:
         """Revoke a token until its natural expiration.
 
-        :param token: The JWT to revoke
+        Parameters
+        ----------
+        token : str
+            The JWT to revoke.
+
+        Notes
+        -----
+        An invalid or expired JWT raises ``jwt.InvalidTokenError``. A missing
+        expiration claim raises ``KeyError``.
+
         """
         payload = jwt.decode(
             token,
@@ -46,9 +71,17 @@ class TokenService:
         self.dao.revoke(hash_token(token), expires_at)
 
     def is_revoked(self, token: str) -> bool:
-        """Tell whether a token has been revoked.
+        """Check whether a token has been revoked.
 
-        :param token: The JWT to check
-        :return: True if the token is revoked
+        Parameters
+        ----------
+        token : str
+            The JWT to check.
+
+        Returns
+        -------
+        bool
+            True if the token is revoked, otherwise False.
+
         """
         return self.dao.is_revoked(hash_token(token))

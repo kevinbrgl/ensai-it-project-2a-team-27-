@@ -7,22 +7,22 @@ from datetime import UTC, datetime
 
 
 class UserNotFoundError(Exception):
-    """Raised when a user is not found.
-
-    :param user_id: ID of the user (optional)
-    :param username: Username of the user (optional)
-    """
+    """Raised when a user is not found."""
 
     def __init__(
         self,
         user_id: int | None = None,
         username: str | None = None,
     ) -> None:
-        """Initialize UserNotFoundError.
+        """Initialize the error for a missing user.
 
-        :param user_id: ID of the user (optional)
-        :param username: Username of the user (optional)
-        :return: None
+        Parameters
+        ----------
+        user_id : int | None, optional
+            Database ID of the user. Takes priority when provided.
+        username : str | None, optional
+            Username used when no ID is supplied.
+
         """
         if user_id:
             msg = f"No user found for id={user_id}"
@@ -34,16 +34,16 @@ class UserNotFoundError(Exception):
 
 
 class DAOError(Exception):
-    """Raised for errors in the Data Access Object (DAO) layer.
-
-    :param message: Error message (optional)
-    """
+    """Raised for errors in the Data Access Object (DAO) layer."""
 
     def __init__(self, message: str | None = None) -> None:
-        """Initialize DAOError.
+        """Initialize the error raised by a DAO.
 
-        :param message: Error message (optional)
-        :return: None
+        Parameters
+        ----------
+        message : str | None, optional
+            Custom error message. Uses a generic DAO message by default.
+
         """
         if message is None:
             message = "Something went wrong in the DAO."
@@ -54,10 +54,7 @@ class AuthError(Exception):
     """Raised for authentication errors."""
 
     def __init__(self) -> None:
-        """Initialize AuthError.
-
-        :return: None
-        """
+        """Initialize the error for credentials that could not be validated."""
         super().__init__("Could not validate credentials")
 
 
@@ -65,10 +62,7 @@ class IncorrectPasswordError(Exception):
     """Raised when an incorrect password is provided."""
 
     def __init__(self) -> None:
-        """Initialize IncorrectPasswordError.
-
-        :return: None
-        """
+        """Initialize the error for an incorrect password."""
         super().__init__("Incorrect password provided")
 
 
@@ -76,54 +70,51 @@ class SamePasswordError(Exception):
     """Raised when the new password is the same as the old password."""
 
     def __init__(self) -> None:
-        """Initialize SamePasswordError.
-
-        :return: None
-        """
+        """Initialize the error for reusing the current password."""
         super().__init__("New password must be different from the old one.")
 
 
 class UserAlreadyExistsError(Exception):
-    """Raised when attempting to create a user with an existing username.
-
-    :param username: Username that already exists
-    """
+    """Raised when attempting to create a user with an existing username."""
 
     def __init__(self, username: str) -> None:
-        """Initialize UserAlreadyExistsError.
+        """Initialize the error for a duplicate username.
 
-        :param username: Username that already exists
-        :return: None
+        Parameters
+        ----------
+        username : str
+            Username that is already registered.
+
         """
         super().__init__(f"Username {username} already exists")
 
 
 class EmailAlreadyExistsError(Exception):
-    """Raised when attempting to create a user with an existing email.
-
-    :param email: Email that already exists
-    """
+    """Raised when attempting to create a user with an existing email."""
 
     def __init__(self, email: str) -> None:
-        """Initialize EmailAlreadyExistsError.
+        """Initialize the error for a duplicate email address.
 
-        :param email: Email that already exists
-        :return: None
+        Parameters
+        ----------
+        email : str
+            Email address that is already registered.
+
         """
         super().__init__(f"Email {email} already exists")
 
 
 class ExternalServiceError(Exception):
-    """Raised when an external service is unavailable.
-
-    :param message: Error message (optional)
-    """
+    """Raised when an external service is unavailable."""
 
     def __init__(self, message: str | None = None) -> None:
-        """Initialize ExternalServiceError.
+        """Initialize the error raised for an unavailable external service.
 
-        :param message: Error message (optional)
-        :return: None
+        Parameters
+        ----------
+        message : str | None, optional
+            Custom error message. Uses a generic message by default.
+
         """
         if message is None:
             message = "External service is currently unavailable."
@@ -134,16 +125,16 @@ ExternalServiceException = ExternalServiceError
 
 
 class BookNotFoundError(Exception):
-    """Raised when a book is not found.
-
-    :param book_id: ID of the book (optional)
-    """
+    """Raised when a book is not found."""
 
     def __init__(self, book_id: int | str | None = None) -> None:
-        """Initialize BookNotFoundError.
+        """Initialize the error for a missing book.
 
-        :param book_id: ID of the book (optional)
-        :return: None
+        Parameters
+        ----------
+        book_id : int | str | None, optional
+            Book identifier to include in the error message.
+
         """
         if book_id is not None:
             msg = f"No book found for id={book_id}"
@@ -156,7 +147,14 @@ class BookAlreadyInLibraryError(Exception):
     """Raised when a user tries to add a book they already have."""
 
     def __init__(self, book_id: int) -> None:
-        """Initialize the exception with the book ID."""
+        """Initialize the error for an existing library entry.
+
+        Parameters
+        ----------
+        book_id : int
+            ID of the book already in the library.
+
+        """
         self.book_id = book_id
         super().__init__(f"Book {book_id} is already in the library.")
 
@@ -165,7 +163,14 @@ class BookNotInLibraryError(Exception):
     """Raised when a user tries to remove a book they do not have."""
 
     def __init__(self, book_id: int) -> None:
-        """Initialize the exception with the book ID."""
+        """Initialize the error for a missing library entry.
+
+        Parameters
+        ----------
+        book_id : int
+            ID of the book absent from the library.
+
+        """
         self.book_id = book_id
         super().__init__(f"Book {book_id} is not in the library.")
 
@@ -203,61 +208,61 @@ class AlreadyFollowingError(Exception):
 
 
 class PlaylistAlreadyExistsError(Exception):
-    """Raised when a user already has a playlist with the same name.
-
-    :param name: Name of the playlist that already exists
-    """
+    """Raised when a user already has a playlist with the same name."""
 
     def __init__(self, name: str) -> None:
-        """Initialize PlaylistAlreadyExistsError.
+        """Initialize the error for a duplicate playlist name.
 
-        :param name: Name of the playlist that already exists
-        :return: None
+        Parameters
+        ----------
+        name : str
+            Playlist name that the user already has.
+
         """
         super().__init__(f"Playlist {name} already exists")
 
 
 class PlaylistNotFoundError(Exception):
-    """Raised when a playlist does not exist or belongs to another user.
-
-    :param id_playlist: ID of the playlist
-    """
+    """Raised when a playlist does not exist or belongs to another user."""
 
     def __init__(self, id_playlist: int) -> None:
-        """Initialize PlaylistNotFoundError.
+        """Initialize the error for an unavailable playlist.
 
-        :param id_playlist: ID of the playlist
-        :return: None
+        Parameters
+        ----------
+        id_playlist : int
+            ID of the requested playlist.
+
         """
         super().__init__(f"No playlist found for id={id_playlist}")
 
 
 class BookAlreadyInPlaylistError(Exception):
-    """Raised when a book is already in a playlist.
-
-    :param id_book: ID of the book
-    """
+    """Raised when a book is already in a playlist."""
 
     def __init__(self, id_book: int) -> None:
-        """Initialize BookAlreadyInPlaylistError.
+        """Initialize the error for an existing playlist entry.
 
-        :param id_book: ID of the book
-        :return: None
+        Parameters
+        ----------
+        id_book : int
+            ID of the book already in the playlist.
+
         """
         super().__init__(f"Book {id_book} is already in the playlist")
 
 
 class BookNotInPlaylistError(Exception):
-    """Raised when a book is not in a playlist.
-
-    :param id_book: ID of the book
-    """
+    """Raised when a book is not in a playlist."""
 
     def __init__(self, id_book: int) -> None:
-        """Initialize BookNotInPlaylistError.
+        """Initialize the error for a missing playlist entry.
 
-        :param id_book: ID of the book
-        :return: None
+        Parameters
+        ----------
+        id_book : int
+            ID of the book absent from the playlist.
+
         """
         super().__init__(f"Book {id_book} is not in the playlist")
 
@@ -266,7 +271,14 @@ class ReviewNotFoundError(Exception):
     """Raised when a review does not exist."""
 
     def __init__(self, review_id: int) -> None:
-        """Initialize the exception with the review ID."""
+        """Initialize the error for a missing review.
+
+        Parameters
+        ----------
+        review_id : int
+            ID of the requested review.
+
+        """
         self.review_id = review_id
         super().__init__(f"No review found for id={review_id}")
 
@@ -275,7 +287,14 @@ class NotReviewAuthorError(Exception):
     """Raised when a user edits or deletes a review they did not write."""
 
     def __init__(self, review_id: int) -> None:
-        """Initialize the exception with the review ID."""
+        """Initialize the error for an action restricted to the review author.
+
+        Parameters
+        ----------
+        review_id : int
+            ID of the review the user tried to edit or delete.
+
+        """
         self.review_id = review_id
         super().__init__(f"User is not the author of review {review_id}.")
 
@@ -284,7 +303,14 @@ class ReviewAlreadyExistsError(Exception):
     """Raised when a user reviews the same book twice."""
 
     def __init__(self, book_id: int) -> None:
-        """Initialize the exception with the book ID."""
+        """Initialize the error for a duplicate book review.
+
+        Parameters
+        ----------
+        book_id : int
+            ID of the book the user has already reviewed.
+
+        """
         self.book_id = book_id
         super().__init__(f"Book {book_id} has already been reviewed.")
 
@@ -297,6 +323,14 @@ class NotFollowingError(Exception):
         super().__init__("User is not following this user.")
 
 
+class PrivateProfileError(Exception):
+    """Raised when another user's private library or activity is read."""
+
+    def __init__(self) -> None:
+        """Initialize PrivateProfileError."""
+        super().__init__("This profile is private.")
+
+
 class AccountBannedError(Exception):
     """Raised when a banned user logs in or uses a token."""
 
@@ -306,13 +340,17 @@ class AccountBannedError(Exception):
 
 
 class AccountSuspendedError(Exception):
-    """Raised when a suspended user logs in or uses a token.
-
-    :param until: End of the suspension
-    """
+    """Raised when a suspended user logs in or uses a token."""
 
     def __init__(self, until: datetime) -> None:
-        """Initialize the exception with the end of the suspension."""
+        """Initialize the error with the suspension end time in UTC.
+
+        Parameters
+        ----------
+        until : datetime
+            Time at which the suspension ends.
+
+        """
         self.until = until
         when = until.astimezone(UTC).strftime("%Y-%m-%d %H:%M")
         super().__init__(f"This account is suspended until {when} UTC.")

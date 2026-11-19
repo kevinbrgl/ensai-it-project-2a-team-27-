@@ -1,10 +1,7 @@
-"""Data Access Object for user operations.
+"""Database access for user accounts and social activity.
 
-This module provides CRUD operations for users in the database,
-as well as user follow management, settings and moderation.
-All database errors are wrapped in DAOError, UserAlreadyExistsError,
-EmailAlreadyExistsError, SelfFollowError, AlreadyFollowingError,
-or NotFollowingError.
+Includes queries and writes for follow relationships, user preferences,
+and account moderation.
 """
 
 from datetime import datetime
@@ -36,26 +33,48 @@ from src.utils.exceptions import (
 
 
 class UserDAO:
-    """DAO class for user CRUD operations and social relationships.
+    """Manage user profiles, preferences, moderation, and follows.
 
-    :attr cur: Database cursor (RealDictCursor)
+    Attributes
+    ----------
+    cur : RealDictCursor
+        PostgreSQL cursor that fetches rows as dictionaries.
+
     """
 
     def __init__(self, cursor: RealDictCursor) -> None:
         """Initialize UserDAO with a database cursor.
 
-        :param cursor: Database cursor
+        Parameters
+        ----------
+        cursor : RealDictCursor
+            Database cursor that yields rows as dictionaries.
+
         """
         self.cur = cursor
 
     def create(self, user_create: UserCreate) -> User:
         """Create a new user in the database.
 
-        :param user_create: Data for user creation
-        :raises UserAlreadyExistsError: If the username already exists
-        :raises EmailAlreadyExistsError: If the email already exists
-        :raises DAOError: If the insertion fails or a DB error occurs
-        :return: The created User object
+        Parameters
+        ----------
+        user_create : UserCreate
+            Username, email address, and password hash for the new user.
+
+        Returns
+        -------
+        User
+            The created User object.
+
+        Raises
+        ------
+        UserAlreadyExistsError
+            If the username already exists.
+        EmailAlreadyExistsError
+            If the email already exists.
+        DAOError
+            If the insertion fails or a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -82,9 +101,21 @@ class UserDAO:
     def read(self, user_id: int) -> User | None:
         """Read a user by their ID.
 
-        :param user_id: ID of the user to read
-        :raises DAOError: If a DB error occurs
-        :return: The User object or None if not found
+        Parameters
+        ----------
+        user_id : int
+            ID of the user to read.
+
+        Returns
+        -------
+        User | None
+            The matching user, or None if absent.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -105,9 +136,21 @@ class UserDAO:
     def read_by_username(self, username: str) -> User | None:
         """Read a user by their username.
 
-        :param username: Username of the user to read
-        :raises DAOError: If a DB error occurs
-        :return: The User object or None if not found
+        Parameters
+        ----------
+        username : str
+            Username of the user to read.
+
+        Returns
+        -------
+        User | None
+            The matching user, or None if absent.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -126,11 +169,23 @@ class UserDAO:
         return User(**row) if row else None
 
     def read_by_email(self, email: str) -> User | None:
-        """Read a user by their email.
+        """Find a user by their email address.
 
-        :param email: Email of the user to read
-        :raises DAOError: If a DB error occurs
-        :return: The User object or None if not found
+        Parameters
+        ----------
+        email : str
+            Email of the user to read.
+
+        Returns
+        -------
+        User | None
+            The matching user, or None if absent.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -153,12 +208,25 @@ class UserDAO:
         username: str,
         limit: int = 10,
     ) -> list[User]:
-        """Search users by username (case-insensitive substring match).
+        """Find users by a case-insensitive username substring.
 
-        :param username: Substring to search in usernames
-        :param limit: Maximum number of users to return
-        :raises DAOError: If a database error occurs
-        :return: List of matching User objects ordered by username
+        Parameters
+        ----------
+        username : str
+            Substring to search in usernames.
+        limit : int, optional
+            Maximum number of users to return. Defaults to 10.
+
+        Returns
+        -------
+        list[User]
+            List of matching User objects ordered by username.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -180,12 +248,24 @@ class UserDAO:
     def add_follow(self, follower_id: int, following_id: int) -> None:
         """Add a follow relationship between two users.
 
-        :param follower_id: ID of the follower
-        :param following_id: ID of the user being followed
-        :raises SelfFollowError: If a user tries to follow themselves
-        :raises UserNotFoundError: If the user to follow does not exist
-        :raises AlreadyFollowingError: If already following the user
-        :raises DAOError: If a database error occurs
+        Parameters
+        ----------
+        follower_id : int
+            ID of the follower.
+        following_id : int
+            ID of the user being followed.
+
+        Raises
+        ------
+        SelfFollowError
+            If a user tries to follow themselves.
+        UserNotFoundError
+            If either user reference is missing.
+        AlreadyFollowingError
+            If the follow relationship already exists.
+        DAOError
+            If a database error occurs.
+
         """
         if follower_id == following_id:
             raise SelfFollowError
@@ -209,11 +289,22 @@ class UserDAO:
     def remove_follow(self, follower_id: int, following_id: int) -> None:
         """Remove a follow relationship between two users.
 
-        :param follower_id: ID of the follower
-        :param following_id: ID of the user being unfollowed
-        :raises SelfUnfollowError: If a user tries to unfollow themselves
-        :raises NotFollowingError: If not currently following the user
-        :raises DAOError: If a database error occurs
+        Parameters
+        ----------
+        follower_id : int
+            ID of the follower.
+        following_id : int
+            ID of the user being unfollowed.
+
+        Raises
+        ------
+        SelfUnfollowError
+            If a user tries to unfollow themselves.
+        NotFollowingError
+            If the follow relationship is missing.
+        DAOError
+            If a database error occurs.
+
         """
         if follower_id == following_id:
             raise SelfUnfollowError
@@ -236,10 +327,23 @@ class UserDAO:
     def is_following(self, follower_id: int, following_id: int) -> bool:
         """Check if a user follows another user.
 
-        :param follower_id: ID of the follower
-        :param following_id: ID of the user being followed
-        :raises DAOError: If a database error occurs
-        :return: True if the relationship exists, False otherwise
+        Parameters
+        ----------
+        follower_id : int
+            ID of the follower.
+        following_id : int
+            ID of the user being followed.
+
+        Returns
+        -------
+        bool
+            True if the relationship exists, False otherwise.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -257,9 +361,21 @@ class UserDAO:
     def get_followers(self, user_id: int) -> list[User]:
         """Retrieve all users following the specified user.
 
-        :param user_id: ID of the user whose followers to retrieve
-        :raises DAOError: If a database error occurs
-        :return: List of User objects who follow the user
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose followers to retrieve.
+
+        Returns
+        -------
+        list[User]
+            Followers ordered by most recent follow, then by user ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -281,9 +397,21 @@ class UserDAO:
     def get_following(self, user_id: int) -> list[User]:
         """Retrieve all users followed by the specified user.
 
-        :param user_id: ID of the user whose followed users to retrieve
-        :raises DAOError: If a database error occurs
-        :return: List of User objects followed by the user
+        Parameters
+        ----------
+        user_id : int
+            ID of the user whose followed users to retrieve.
+
+        Returns
+        -------
+        list[User]
+            Followed users ordered by most recent follow, then by user ID.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -305,13 +433,29 @@ class UserDAO:
     def update(self, user_id: int, user_in: UserUpdateFull) -> User | None:
         """Update a user by their ID.
 
-        :param user_id: ID of the user to update
-        :param user_in: Data for user update
-        :raises ValueError: If there is nothing to update
-        :raises UserAlreadyExistsError: If the new username is already used
-        :raises EmailAlreadyExistsError: If the new email is already used
-        :raises DAOError: If a DB error occurs
-        :return: The updated User object or None if not found
+        Parameters
+        ----------
+        user_id : int
+            ID of the user to update.
+        user_in : UserUpdateFull
+            Fields to update on the user record.
+
+        Returns
+        -------
+        User | None
+            The updated user, or None if the ID is unknown.
+
+        Raises
+        ------
+        ValueError
+            If all supplied fields are None or no fields were supplied.
+        UserAlreadyExistsError
+            If the new username is already used.
+        EmailAlreadyExistsError
+            If the new email is already used.
+        DAOError
+            If a database error occurs.
+
         """
         data = user_in.model_dump(exclude_unset=True)
 
@@ -346,14 +490,27 @@ class UserDAO:
         user_id: int,
         settings_in: UserSettingsUpdate,
     ) -> User | None:
-        """Update the theme and/or profile visibility of a user.
+        """Update a user's theme, profile visibility, or both.
 
-        Fields left to None keep their current value.
+        A setting supplied as None keeps its current value.
 
-        :param user_id: ID of the user
-        :param settings_in: New settings
-        :raises DAOError: If a DB error occurs
-        :return: The updated User object or None if not found
+        Parameters
+        ----------
+        user_id : int
+            ID of the user.
+        settings_in : UserSettingsUpdate
+            Theme and profile visibility values to apply.
+
+        Returns
+        -------
+        User | None
+            The user with updated settings, or None if the ID is unknown.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -380,12 +537,25 @@ class UserDAO:
         user_id: int,
         until: datetime | None,
     ) -> User | None:
-        """Suspend a user until a date (None lifts the suspension).
+        """Set or clear a user suspension.
 
-        :param user_id: ID of the user
-        :param until: End of the suspension, or None
-        :raises DAOError: If a DB error occurs
-        :return: The updated User object or None if not found
+        Parameters
+        ----------
+        user_id : int
+            ID of the user.
+        until : datetime | None
+            Date and time the suspension ends, or None to lift it.
+
+        Returns
+        -------
+        User | None
+            The user with an updated suspension, or None if the ID is unknown.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
@@ -405,10 +575,23 @@ class UserDAO:
     def set_banned(self, user_id: int, *, banned: bool) -> User | None:
         """Ban or unban a user.
 
-        :param user_id: ID of the user
-        :param banned: True to ban, False to unban
-        :raises DAOError: If a DB error occurs
-        :return: The updated User object or None if not found
+        Parameters
+        ----------
+        user_id : int
+            ID of the user.
+        banned : bool
+            True to ban the user or False to lift the ban.
+
+        Returns
+        -------
+        User | None
+            The user with an updated ban status, or None if the ID is unknown.
+
+        Raises
+        ------
+        DAOError
+            If a database error occurs.
+
         """
         try:
             self.cur.execute(
