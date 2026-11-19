@@ -3,6 +3,12 @@
 This module aggregates all model classes for easy access throughout the app.
 """
 
+from src.models.achievements import (
+    Achievement,
+    AchievementCategory,
+    AchievementTier,
+    AchievementUserStats,
+)
 from src.models.books import Book, BookCreate, BookRead
 from src.models.genre_wheel import GenreWheel, GenreWheelSegment
 from src.models.library import LibraryBookAdd, LibraryBookRead
@@ -26,6 +32,10 @@ from src.models.users import (
 )
 
 __all__ = [
+    "Achievement",
+    "AchievementCategory",
+    "AchievementTier",
+    "AchievementUserStats",
     "Book",
     "BookCreate",
     "BookRead",

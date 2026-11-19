@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from src.core import security
 from src.core.config import settings
+from src.dao.achievements_dao import AchievementDAO
 from src.dao.books_dao import BookDAO
 from src.dao.genre_wheel_dao import GenreWheelDAO
 from src.dao.library_dao import LibraryDAO
@@ -27,6 +28,7 @@ from src.dao.stats_dao import StatsDAO
 from src.dao.tokens_dao import TokenDAO
 from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
+from src.services.achievements_service import AchievementService
 from src.services.admin_service import AdminService
 from src.services.books_service import BookService
 from src.services.genre_wheel_service import GenreWheelService
@@ -239,6 +241,14 @@ def get_genre_wheel_service(cursor: CursorDep) -> GenreWheelService:
 GenreWheelServiceDep = Annotated[
     GenreWheelService,
     Depends(get_genre_wheel_service),
+def get_achievement_service(cursor: CursorDep) -> AchievementService:
+    """Build an AchievementService bound to the request cursor."""
+    return AchievementService(AchievementDAO(cursor))
+
+
+AchievementServiceDep = Annotated[
+    AchievementService,
+    Depends(get_achievement_service),
 ]
 
 
