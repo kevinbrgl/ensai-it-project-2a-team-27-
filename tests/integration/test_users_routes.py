@@ -751,6 +751,10 @@ class TestGetMyQuestsRoute:
         }
 
 
+class TestGetUserGenreWheelRoute:
+    """Integration tests for GET /api/users/{userId}/genre-wheel."""
+
+    def test_get_genre_wheel_success(
 class TestGetMyAchievementsRoute:
     """Integration tests for GET /api/users/me/achievements."""
 
@@ -759,6 +763,20 @@ class TestGetMyAchievementsRoute:
         client: TestClient,
         auth_headers: dict[str, str],
     ) -> None:
+        """Retrieving user genre wheel returns 200 with model structure."""
+        response = client.get(
+            f"{USERS_URL}/1/genre-wheel",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+        wheel = response.json()
+        assert "id_user" in wheel
+        assert "is_empty" in wheel
+        assert "empty_color" in wheel
+        assert "total_books" in wheel
+        assert "segments" in wheel
+
+    def test_get_genre_wheel_user_not_found(
         """Retrieving my achievements returns 200 with list of trophies."""
         response = client.get(
             f"{USERS_URL}/me/achievements",
@@ -784,6 +802,14 @@ class TestGetMyAchievementsRoute:
         client: TestClient,
         auth_headers: dict[str, str],
     ) -> None:
+        """Non-existing user returns 404."""
+        response = client.get(
+            f"{USERS_URL}/999999/genre-wheel",
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_get_genre_wheel_unauthenticated(
         """Filtering with status=locked returns only locked achievements."""
         response = client.get(
             f"{USERS_URL}/me/achievements?status=locked",
@@ -799,6 +825,7 @@ class TestGetMyAchievementsRoute:
         client: TestClient,
     ) -> None:
         """Unauthenticated request returns 401."""
+        response = client.get(f"{USERS_URL}/1/genre-wheel")
         response = client.get(f"{USERS_URL}/me/achievements")
         assert response.status_code in {
             status.HTTP_401_UNAUTHORIZED,
