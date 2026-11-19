@@ -1,7 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
 Provides endpoints for profile reading, search, follow, unfollow,
-followers, following, quests, settings, and updates.
+followers, following, quests, genre wheel, settings, and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from src.api.deps import (
     CurrentUser,
     CursorDep,
+    GenreWheelServiceDep,
     LibraryServiceDep,
     PlaylistServiceDep,
     QuestServiceDep,
@@ -21,6 +22,7 @@ from src.api.deps import (
 )
 from src.dao.users_dao import UserDAO
 from src.models import (
+    GenreWheel,
     Quest,
     User,
     UserRead,
@@ -931,3 +933,59 @@ def get_user_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve statistics.",
         ) from exc
+
+
+@router.get(
+    "/{user_id}/genre-wheel",
+    status_code=status.HTTP_200_OK,
+    summary="🎨 Get the avatar genre color wheel of a user",
+    responses={
+        404: {"description": "User not found"},
+        500: {"description": "Database error"},
+    },
+)
+def get_user_genre_wheel(
+    user_id: int,
+    _current_user: CurrentUser,
+    user_service: UserServiceDep,
+    wheel_service: GenreWheelServiceDep,
+) -> GenreWheel:
+    """Return the **genre color wheel** data for a user's avatar ring.
+
+    🔒 Authentication required
+
+    Computes weighted proportions for each genre based on completed reads,
+    review ratings, and favorite markers. Returns an empty grey state
+    when the user has not completed any book yet.
+
+    **Returns:**
+
+    - 🎨 `segments`: Ordered list of genres with hex colors and percentages
+    - ⚪ `is_empty`: True if no significant reading history is available
+    - 🔲 `empty_color`: Neutral fallback color code (#9CA3AF)
+    - 📚 `total_books`: Total completed books considered
+    \f
+    :param user_id: ID of the user whose wheel is requested
+    :param _current_user: Authenticated user making the request
+    :param user_service: User service to verify user existence
+    :param wheel_service: Genre wheel service computing proportions
+    :raises HTTPException: 404 if user not found, 500 on database error
+    :return: GenreWheel model instance
+    """
+    try:
+        user_service.read(user_id=user_id)
+        return wheel_service.get_genre_wheel(user_id=user_id)
+    except UserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        ) from exc
+    except DAOError:
+        logger.exception(
+            "Failed to compute genre wheel for user %s",
+            user_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve genre wheel.",
+        ) from None

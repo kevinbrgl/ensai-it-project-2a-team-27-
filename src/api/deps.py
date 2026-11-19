@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from src.core import security
 from src.core.config import settings
 from src.dao.books_dao import BookDAO
+from src.dao.genre_wheel_dao import GenreWheelDAO
 from src.dao.library_dao import LibraryDAO
 from src.dao.playlists_dao import PlaylistDAO
 from src.dao.quests_dao import QuestDAO
@@ -28,6 +29,7 @@ from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
 from src.services.admin_service import AdminService
 from src.services.books_service import BookService
+from src.services.genre_wheel_service import GenreWheelService
 from src.services.library_service import LibraryService
 from src.services.playlists_service import PlaylistService
 from src.services.quests_service import QuestService
@@ -227,6 +229,17 @@ def get_quest_service(cursor: CursorDep) -> QuestService:
 
 
 QuestServiceDep = Annotated[QuestService, Depends(get_quest_service)]
+
+
+def get_genre_wheel_service(cursor: CursorDep) -> GenreWheelService:
+    """Build a GenreWheelService bound to the request cursor."""
+    return GenreWheelService(GenreWheelDAO(cursor))
+
+
+GenreWheelServiceDep = Annotated[
+    GenreWheelService,
+    Depends(get_genre_wheel_service),
+]
 
 
 def get_stats_service(cursor: CursorDep) -> StatsService:
