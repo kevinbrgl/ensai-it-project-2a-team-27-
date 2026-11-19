@@ -1,7 +1,7 @@
 """Routes for user operations in the FastAPI application.
 
 Provides endpoints for profile reading, search, follow, unfollow,
-followers, following, quests, settings, and updates.
+followers, following, quests, achievements, settings, and updates.
 Registration is handled in auth_routes.py.
 """
 
@@ -11,6 +11,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, HTTPException, Query, status
 
 from src.api.deps import (
+    AchievementServiceDep,
     CurrentUser,
     CursorDep,
     LibraryServiceDep,
@@ -21,6 +22,7 @@ from src.api.deps import (
 )
 from src.dao.users_dao import UserDAO
 from src.models import (
+    Achievement,
     Quest,
     User,
     UserRead,
@@ -228,6 +230,58 @@ def get_my_quests(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not retrieve quests.",
+        ) from None
+
+
+@router.get(
+    "/me/achievements",
+    status_code=status.HTTP_200_OK,
+    summary="🏅 Get my achievements",
+    responses={500: {"description": "Database error"}},
+)
+def get_my_achievements(
+    service: AchievementServiceDep,
+    current_user: CurrentUser,
+    status_filter: Annotated[
+        Literal["all", "unlocked", "locked"],
+        Query(
+            alias="status",
+            description=("Filter achievements ('all', 'unlocked', 'locked')"),
+        ),
+    ] = "all",
+) -> list[Achievement]:
+    """List **your achievements** and trophies (unlocked and locked).
+
+    🔒 Authentication required
+
+    **Filter:** `status` selects which achievements to return.
+
+    - 📋 `all` (default): every milestone (unlocked and locked)
+    - 🏆 `unlocked`: achievements you have **unlocked**
+    - 🔒 `locked`: achievements **not yet reached**
+
+    **Returns, for each achievement:** category, tier (Bronze, Silver, Gold,
+    Platinum), visual icon, current progress, target, and unlock status.
+    \f
+    :param service: Achievement service dependency
+    :param current_user: Authenticated user making the request
+    :param status_filter: Filter for 'all', 'unlocked', or 'locked'
+    :raises HTTPException: 500 on database error
+    :return: List of Achievement objects with unlock status
+    """
+    try:
+        return service.get_achievements(
+            user_id=current_user.id_user,
+            status_filter=status_filter,
+        )
+    except DAOError:
+        logger.exception(
+            "Failed to retrieve achievements for user %s",
+            current_user.id_user,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not retrieve achievements.",
         ) from None
 
 

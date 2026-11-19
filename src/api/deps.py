@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from src.core import security
 from src.core.config import settings
+from src.dao.achievements_dao import AchievementDAO
 from src.dao.books_dao import BookDAO
 from src.dao.library_dao import LibraryDAO
 from src.dao.playlists_dao import PlaylistDAO
@@ -26,6 +27,7 @@ from src.dao.stats_dao import StatsDAO
 from src.dao.tokens_dao import TokenDAO
 from src.dao.users_dao import UserDAO
 from src.models import TokenPayload, User
+from src.services.achievements_service import AchievementService
 from src.services.admin_service import AdminService
 from src.services.books_service import BookService
 from src.services.library_service import LibraryService
@@ -227,6 +229,17 @@ def get_quest_service(cursor: CursorDep) -> QuestService:
 
 
 QuestServiceDep = Annotated[QuestService, Depends(get_quest_service)]
+
+
+def get_achievement_service(cursor: CursorDep) -> AchievementService:
+    """Build an AchievementService bound to the request cursor."""
+    return AchievementService(AchievementDAO(cursor))
+
+
+AchievementServiceDep = Annotated[
+    AchievementService,
+    Depends(get_achievement_service),
+]
 
 
 def get_stats_service(cursor: CursorDep) -> StatsService:
