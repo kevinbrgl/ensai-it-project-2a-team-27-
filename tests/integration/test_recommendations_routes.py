@@ -19,7 +19,7 @@ from src.dao.books_dao import BookDAO
 from src.dao.users_dao import UserDAO
 from src.models.books import Book, BookCreate
 from src.models.users import UserCreate
-from src.services.books_service import BookService
+from src.services.open_library_client import OpenLibraryClient
 from src.utils.exceptions import ExternalServiceError
 
 RECOMMENDATIONS_URL = f"{settings.API_STR}/recommendations"
@@ -139,16 +139,16 @@ def mock_open_library(
     docs: list[dict[str, Any]] | None = None,
     error: Exception | None = None,
 ) -> Any:  # ruff: ignore[any-type]
-    """Patch BookService._fetch_open_library."""
+    """Stub the remote search response."""
     if error is not None:
         return mocker.patch.object(
-            BookService,
-            "_fetch_open_library",
+            OpenLibraryClient,
+            "search",
             side_effect=error,
         )
     return mocker.patch.object(
-        BookService,
-        "_fetch_open_library",
+        OpenLibraryClient,
+        "search",
         return_value={"docs": docs or []},
     )
 

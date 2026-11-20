@@ -18,9 +18,7 @@ if __name__ == "__main__":
 
 from src.api.main import api_router
 from src.core.config import settings
-from src.core.db import close_pool, init_pool
-
-INIT_SQL = Path(__file__).resolve().parent.parent / "data" / "init.sql"
+from src.core.db import INIT_SQL, close_pool, init_pool
 
 
 @asynccontextmanager

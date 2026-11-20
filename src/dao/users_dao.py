@@ -1,19 +1,12 @@
-"""Database access for user accounts and social activity.
-
-Includes queries and writes for follow relationships, user preferences,
-and account moderation.
-"""
+"""Database access for accounts, preferences and moderation."""
 
 from datetime import datetime
 
 from psycopg2 import Error as DBError
-from psycopg2.errors import (
-    CheckViolation,
-    ForeignKeyViolation,
-    UniqueViolation,
-)
+from psycopg2.errors import UniqueViolation
 from psycopg2.extras import RealDictCursor
 
+from src.dao.follows_dao import FollowDAO
 from src.models.users import (
     User,
     UserCreate,
@@ -21,14 +14,9 @@ from src.models.users import (
     UserUpdateFull,
 )
 from src.utils.exceptions import (
-    AlreadyFollowingError,
     DAOError,
     EmailAlreadyExistsError,
-    NotFollowingError,
-    SelfFollowError,
-    SelfUnfollowError,
     UserAlreadyExistsError,
-    UserNotFoundError,
 )
 
 
@@ -52,6 +40,7 @@ class UserDAO:
 
         """
         self.cur = cursor
+        self.follows = FollowDAO(cursor)
 
     def create(self, user_create: UserCreate) -> User:
         """Create a new user in the database.
@@ -246,189 +235,24 @@ class UserDAO:
         return [User(**row) for row in rows]
 
     def add_follow(self, follower_id: int, following_id: int) -> None:
-        """Add a follow relationship between two users.
-
-        Parameters
-        ----------
-        follower_id : int
-            ID of the follower.
-        following_id : int
-            ID of the user being followed.
-
-        Raises
-        ------
-        SelfFollowError
-            If a user tries to follow themselves.
-        UserNotFoundError
-            If either user reference is missing.
-        AlreadyFollowingError
-            If the follow relationship already exists.
-        DAOError
-            If a database error occurs.
-
-        """
-        if follower_id == following_id:
-            raise SelfFollowError
-        try:
-            self.cur.execute(
-                """
-                INSERT INTO user_follows (follower_id, following_id)
-                VALUES (%s, %s)
-                """,
-                (follower_id, following_id),
-            )
-        except UniqueViolation as exc:
-            raise AlreadyFollowingError from exc
-        except ForeignKeyViolation as exc:
-            raise UserNotFoundError(user_id=following_id) from exc
-        except CheckViolation as exc:
-            raise SelfFollowError from exc
-        except DBError as exc:
-            raise DAOError from exc
+        """Follow a reader using the current user transaction."""
+        self.follows.add_follow(follower_id, following_id)
 
     def remove_follow(self, follower_id: int, following_id: int) -> None:
-        """Remove a follow relationship between two users.
-
-        Parameters
-        ----------
-        follower_id : int
-            ID of the follower.
-        following_id : int
-            ID of the user being unfollowed.
-
-        Raises
-        ------
-        SelfUnfollowError
-            If a user tries to unfollow themselves.
-        NotFollowingError
-            If the follow relationship is missing.
-        DAOError
-            If a database error occurs.
-
-        """
-        if follower_id == following_id:
-            raise SelfUnfollowError
-        try:
-            self.cur.execute(
-                """
-                DELETE FROM user_follows
-                WHERE follower_id = %s AND following_id = %s
-                RETURNING follower_id
-                """,
-                (follower_id, following_id),
-            )
-            row = self.cur.fetchone()
-        except DBError as exc:
-            raise DAOError from exc
-
-        if row is None:
-            raise NotFollowingError
+        """Remove an existing follow relationship."""
+        self.follows.remove_follow(follower_id, following_id)
 
     def is_following(self, follower_id: int, following_id: int) -> bool:
-        """Check if a user follows another user.
-
-        Parameters
-        ----------
-        follower_id : int
-            ID of the follower.
-        following_id : int
-            ID of the user being followed.
-
-        Returns
-        -------
-        bool
-            True if the relationship exists, False otherwise.
-
-        Raises
-        ------
-        DAOError
-            If a database error occurs.
-
-        """
-        try:
-            self.cur.execute(
-                """
-                SELECT 1
-                FROM user_follows
-                WHERE follower_id = %s AND following_id = %s
-                """,
-                (follower_id, following_id),
-            )
-            return self.cur.fetchone() is not None
-        except DBError as exc:
-            raise DAOError from exc
+        """Check whether the first reader follows the second."""
+        return self.follows.is_following(follower_id, following_id)
 
     def get_followers(self, user_id: int) -> list[User]:
-        """Retrieve all users following the specified user.
-
-        Parameters
-        ----------
-        user_id : int
-            ID of the user whose followers to retrieve.
-
-        Returns
-        -------
-        list[User]
-            Followers ordered by most recent follow, then by user ID.
-
-        Raises
-        ------
-        DAOError
-            If a database error occurs.
-
-        """
-        try:
-            self.cur.execute(
-                """
-                SELECT u.id_user, u.username, u.email, u.password_hash,
-                       u.bio, u.profile_picture
-                FROM users u
-                INNER JOIN user_follows uf ON u.id_user = uf.follower_id
-                WHERE uf.following_id = %s
-                ORDER BY uf.created_at DESC, u.id_user ASC;
-                """,
-                (user_id,),
-            )
-            rows = self.cur.fetchall()
-        except DBError as exc:
-            raise DAOError from exc
-        return [User(**row) for row in rows]
+        """List the reader's followers, most recent first."""
+        return self.follows.get_followers(user_id)
 
     def get_following(self, user_id: int) -> list[User]:
-        """Retrieve all users followed by the specified user.
-
-        Parameters
-        ----------
-        user_id : int
-            ID of the user whose followed users to retrieve.
-
-        Returns
-        -------
-        list[User]
-            Followed users ordered by most recent follow, then by user ID.
-
-        Raises
-        ------
-        DAOError
-            If a database error occurs.
-
-        """
-        try:
-            self.cur.execute(
-                """
-                SELECT u.id_user, u.username, u.email, u.password_hash,
-                       u.bio, u.profile_picture
-                FROM users u
-                INNER JOIN user_follows uf ON u.id_user = uf.following_id
-                WHERE uf.follower_id = %s
-                ORDER BY uf.created_at DESC, u.id_user ASC;
-                """,
-                (user_id,),
-            )
-            rows = self.cur.fetchall()
-        except DBError as exc:
-            raise DAOError from exc
-        return [User(**row) for row in rows]
+        """List the readers this user follows, most recent first."""
+        return self.follows.get_following(user_id)
 
     def update(self, user_id: int, user_in: UserUpdateFull) -> User | None:
         """Update a user by their ID.

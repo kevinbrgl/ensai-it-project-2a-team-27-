@@ -368,12 +368,15 @@ classDiagram
         +delete_review(review_id: int) None
     }
 
-    class BookService {
-        -BookDAO dao
+    class OpenLibraryClient {
         -float timeout
         -_get_json(url: str, params: dict) dict
-        -_fetch_open_library(query, limit, subject, sort) dict
-        -_fetch_editions(work_key: str, limit: int) dict
+        +search(query, limit, subject, sort) dict
+        +fetch_editions(work_key: str, limit: int) dict
+    }
+    class BookService {
+        -BookDAO dao
+        -OpenLibraryClient open_library
         -_doc_to_book_create(doc: dict) BookCreate$
         -_entry_to_edition(entry: dict) Edition$
         +search_books(query: str, limit: int) list~Book~
@@ -456,6 +459,7 @@ classDiagram
     UserService ..> User
     UserService ..> Token
     AdminService ..> ModerationStatus
+    BookService --> OpenLibraryClient
     BookService ..> Book
     BookService ..> Edition
     LibraryService ..> LibraryBookRead
@@ -471,5 +475,5 @@ classDiagram
 Notes:
 
 - Each service is built per request by a FastAPI dependency in `src/api/deps.py`, with DAOs that share the request's database cursor (one transaction per request).
-- `BookService` is the only class that calls Open Library (`/search.json` for searches and recommendations, `/works/{key}/editions.json` for editions).
+- `BookService` uses `OpenLibraryClient` to call Open Library (`/search.json` for searches and recommendations, `/works/{key}/editions.json` for editions).
 - Static methods are marked with `$`. Private helpers start with `-`.

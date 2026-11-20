@@ -1,6 +1,6 @@
 # Sequence Diagram - F2: Search a book
 
-`GET /api/books/search` → `books_routes.search_books` → `BookService.search_books` → Open Library + `BookDAO.upsert`.
+`GET /api/books/search` → `books_routes.search_books` → `BookService.search_books` → `OpenLibraryClient.search` + `BookDAO.upsert`.
 
 Each book found is saved (or refreshed) in the local `books` table. That gives it an `id_book` that the library, playlist and review routes can use.
 
@@ -14,7 +14,7 @@ sequenceDiagram
     participant BS as BookService
     participant DAO as BookDAO
     participant DB as PostgreSQL
-    participant OL as Open Library API
+    participant OL as Open Library via OpenLibraryClient
 
     User->>UI: types a title or an author
     UI->>UI: isTooGeneric(query)

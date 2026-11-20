@@ -22,7 +22,7 @@ sequenceDiagram
     participant BS as BookService
     participant BD as BookDAO
     participant DB as PostgreSQL
-    participant OL as Open Library API
+    participant OL as Open Library via OpenLibraryClient
 
     User->>UI: opens the home page or the Discover page
     UI->>API: GET /api/recommendations?genre=...&sort=rating&limit=24<br/>Authorization: Bearer JWT

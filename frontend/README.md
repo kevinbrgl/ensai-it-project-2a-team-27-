@@ -97,6 +97,8 @@ Changes in `src/` appear instantly.
 | `npm run preview` | Serves `dist/` with Node instead of Python |
 | `npm run lint` | Checks the code with ESLint |
 
+After editing `frontend/src/`, run `npm run build` from `frontend/`. Include the generated `dist/` assets in the same commit as the source changes so the Python server serves the new version.
+
 ### Why a proxy?
 
 The backend has no CORS middleware, so a browser page on `localhost:5000`

@@ -19,7 +19,7 @@ from src.core.config import settings
 from src.dao.books_dao import BookDAO
 from src.main import app
 from src.models.books import BookCreate
-from src.services.books_service import BookService
+from src.services.open_library_client import OpenLibraryClient
 from src.utils.exceptions import ExternalServiceError
 
 BOOKS_URL = f"{settings.API_STR}/books"
@@ -118,8 +118,8 @@ class TestSearchBooksRoute:
             ],
         }
         mocker.patch.object(
-            BookService,
-            "_fetch_open_library",
+            OpenLibraryClient,
+            "search",
             return_value=fake_payload,
         )
 
@@ -148,8 +148,8 @@ class TestSearchBooksRoute:
         """The page count sent by Open Library is saved in the catalog."""
         key = f"/works/OL{uuid4().hex[:8]}W"
         mocker.patch.object(
-            BookService,
-            "_fetch_open_library",
+            OpenLibraryClient,
+            "search",
             return_value={
                 "docs": [
                     {
@@ -175,8 +175,8 @@ class TestSearchBooksRoute:
     ) -> None:
         """ExternalServiceError results in 502 Bad Gateway."""
         mocker.patch.object(
-            BookService,
-            "_fetch_open_library",
+            OpenLibraryClient,
+            "search",
             side_effect=ExternalServiceError("Open Library down"),
         )
 
@@ -352,8 +352,8 @@ class TestGetBookDetailsRoute:
     ) -> None:
         """Existing book returns 200 with full book details."""
         mock_fetch = mocker.patch.object(
-            BookService,
-            "_fetch_editions",
+            OpenLibraryClient,
+            "fetch_editions",
             return_value=EDITIONS_PAYLOAD,
         )
         created = book_dao.create(
@@ -414,8 +414,8 @@ class TestGetBookDetailsRoute:
     ) -> None:
         """Open Library down: 200 with the book and no editions."""
         mocker.patch.object(
-            BookService,
-            "_fetch_editions",
+            OpenLibraryClient,
+            "fetch_editions",
             side_effect=ExternalServiceError("Open Library down"),
         )
         created = book_dao.create(
@@ -443,7 +443,7 @@ class TestGetBookDetailsRoute:
         mocker: MockerFixture,
     ) -> None:
         """Book without a work key: no editions, Open Library not called."""
-        mock_fetch = mocker.patch.object(BookService, "_fetch_editions")
+        mock_fetch = mocker.patch.object(OpenLibraryClient, "fetch_editions")
         created = book_dao.create(BookCreate(title="Local book"))
 
         response = client.get(

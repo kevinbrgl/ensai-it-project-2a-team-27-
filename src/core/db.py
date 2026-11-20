@@ -1,9 +1,13 @@
 """Database connection pool initialization for FastAPI."""
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from psycopg2.pool import ThreadedConnectionPool
 
 from src.core.config import settings
+
+INIT_SQL = Path(__file__).resolve().parents[2] / "data" / "init.sql"
 
 
 def init_pool(app: FastAPI) -> None:

@@ -13,10 +13,10 @@ from pytest_mock import MockerFixture
 
 from src.dao.books_dao import BookDAO
 from src.models.books import Book, BookCreate, BookDetails, Edition
-from src.services.books_service import (
+from src.services.books_service import BookService
+from src.services.open_library_client import (
     EDITIONS_LIMIT,
     OPEN_LIBRARY_FIELDS,
-    BookService,
 )
 from src.utils.exceptions import (
     BookNotFoundError,
@@ -77,7 +77,7 @@ def fake_book() -> Book:
 @pytest.fixture
 def http_get(mocker: MockerFixture) -> Mock:
     """Mock httpx2.Client and return its get method."""
-    client_cls = mocker.patch("src.services.books_service.httpx2.Client")
+    client_cls = mocker.patch("src.services.open_library_client.httpx2.Client")
     http = client_cls.return_value.__enter__.return_value
     http.get.return_value = mocker.Mock(
         status_code=200,
@@ -111,8 +111,8 @@ class TestSearchBooks:
             ],
         }
         mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             return_value=fake_payload,
         )
         mock_dao.upsert.return_value = fake_book
@@ -144,8 +144,8 @@ class TestSearchBooks:
         if pages is not None:
             doc["number_of_pages_median"] = pages
         mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             return_value={"docs": [doc]},
         )
         mock_dao.upsert.return_value = fake_book
@@ -162,7 +162,7 @@ class TestSearchBooks:
         mocker: MockerFixture,
     ) -> None:
         """Empty or whitespace query immediately returns empty list."""
-        mock_fetch = mocker.patch.object(service, "_fetch_open_library")
+        mock_fetch = mocker.patch.object(service.open_library, "search")
 
         results = service.search_books("   ")
 
@@ -177,8 +177,8 @@ class TestSearchBooks:
     ) -> None:
         """External service error from Open Library propagates properly."""
         mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             side_effect=ExternalServiceError("Open Library unavailable"),
         )
 
@@ -228,8 +228,8 @@ class TestGetBookDetails:
         """The book is returned with its editions, mapped correctly."""
         mock_dao.read.return_value = fake_book
         mock_fetch = mocker.patch.object(
-            service,
-            "_fetch_editions",
+            service.open_library,
+            "fetch_editions",
             return_value=EDITIONS_PAYLOAD,
         )
 
@@ -262,7 +262,9 @@ class TestGetBookDetails:
     ) -> None:
         """Unknown book: BookNotFoundError, Open Library is not called."""
         mock_dao.read.return_value = None
-        mock_fetch = mocker.patch.object(service, "_fetch_editions")
+        mock_fetch = mocker.patch.object(
+            service.open_library, "fetch_editions",
+        )
 
         with pytest.raises(BookNotFoundError):
             service.get_book_details(999)
@@ -279,8 +281,8 @@ class TestGetBookDetails:
         """Open Library unavailable: the book comes with an empty list."""
         mock_dao.read.return_value = fake_book
         mocker.patch.object(
-            service,
-            "_fetch_editions",
+            service.open_library,
+            "fetch_editions",
             side_effect=ExternalServiceError(),
         )
 
@@ -302,7 +304,9 @@ class TestGetBookDetails:
         mock_dao.read.return_value = fake_book.model_copy(
             update={"id_book_api": id_book_api},
         )
-        mock_fetch = mocker.patch.object(service, "_fetch_editions")
+        mock_fetch = mocker.patch.object(
+            service.open_library, "fetch_editions",
+        )
 
         details = service.get_book_details(1)
 
@@ -320,7 +324,9 @@ class TestGetBookDetails:
     ) -> None:
         """A payload without entries gives an empty list."""
         mock_dao.read.return_value = fake_book
-        mocker.patch.object(service, "_fetch_editions", return_value=payload)
+        mocker.patch.object(
+            service.open_library, "fetch_editions", return_value=payload,
+        )
 
         assert service.get_book_details(1).editions == []
 
@@ -566,8 +572,8 @@ class TestSearchBySubject:
     ) -> None:
         """Docs become BookCreate objects with their Open Library rating."""
         mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             return_value={
                 "docs": [
                     {
@@ -624,8 +630,8 @@ class TestSearchBySubject:
     ) -> None:
         """Docs without key or without title are skipped."""
         mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             return_value={
                 "docs": [
                     {"title": "No key"},
@@ -645,7 +651,7 @@ class TestSearchBySubject:
         mocker: MockerFixture,
     ) -> None:
         """A blank subject does not call Open Library."""
-        mock_fetch = mocker.patch.object(service, "_fetch_open_library")
+        mock_fetch = mocker.patch.object(service.open_library, "search")
 
         assert service.search_by_subject("   ") == []
         mock_fetch.assert_not_called()
@@ -657,8 +663,8 @@ class TestSearchBySubject:
     ) -> None:
         """Spaces around the subject are removed."""
         mock_fetch = mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             return_value={"docs": []},
         )
 
@@ -676,7 +682,7 @@ class TestSearchBySubject:
         mocker: MockerFixture,
     ) -> None:
         """A payload without docs gives an empty list."""
-        mocker.patch.object(service, "_fetch_open_library", return_value={})
+        mocker.patch.object(service.open_library, "search", return_value={})
 
         assert service.search_by_subject("Fantasy") == []
 
@@ -687,8 +693,8 @@ class TestSearchBySubject:
     ) -> None:
         """ExternalServiceError propagates."""
         mocker.patch.object(
-            service,
-            "_fetch_open_library",
+            service.open_library,
+            "search",
             side_effect=ExternalServiceError(),
         )
 

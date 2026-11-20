@@ -34,6 +34,14 @@ classDiagram
         +set_suspended_until(user_id: int, until: datetime) Optional~User~
         +set_banned(user_id: int, banned: bool) Optional~User~
     }
+    class FollowDAO {
+        -RealDictCursor cur
+        +add_follow(follower_id: int, following_id: int) None
+        +remove_follow(follower_id: int, following_id: int) None
+        +is_following(follower_id: int, following_id: int) bool
+        +get_followers(user_id: int) list~User~
+        +get_following(user_id: int) list~User~
+    }
     class TokenDAO {
         -RealDictCursor cur
         +revoke(token_hash: str, expires_at: datetime) None
@@ -111,6 +119,8 @@ classDiagram
     }
 
     UserDAO --> RealDictCursor
+    UserDAO --> FollowDAO
+    FollowDAO --> RealDictCursor
     TokenDAO --> RealDictCursor
     BookDAO --> RealDictCursor
     LibraryDAO --> RealDictCursor
@@ -127,7 +137,8 @@ classDiagram
 
 | DAO | Tables |
 |---|---|
-| `UserDAO` | `users`, `user_follows` |
+| `UserDAO` | `users` |
+| `FollowDAO` | `user_follows`, `users` |
 | `TokenDAO` | `revoked_tokens` |
 | `BookDAO` | `books` |
 | `LibraryDAO` | `user_book_activities`, `books` |
