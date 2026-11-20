@@ -1,16 +1,10 @@
 import { useState } from 'react';
-import { getUserGenreWheel } from '../../api/users';
-import { useAsync } from '../../hooks/useAsync';
 import { formatRating, plural } from '../../utils/format';
+import { genreInk } from '../../utils/genreWheel';
 import { Avatar } from '../ui/Avatar';
 import { Skeleton } from '../ui/Skeleton';
 import { EmptyState, ErrorState } from '../ui/States';
 import styles from './GenreWheel.module.css';
-
-// The API sends bright screen colours. Mixing them toward the page ink (in
-// oklab, so the hue does not drift) keeps each genre recognisable while the
-// wheel reads like printed ink. Both values come from tokens.css.
-const ink = (color) => `color-mix(in oklab, ${color} var(--wheel-mix), var(--wheel-ink))`;
 
 // Two arcs per edge also draw a complete ring when one genre has a 100% share.
 function ringSegment(start, end) {
@@ -51,9 +45,9 @@ function WheelChart({ wheel, user }) {
             <circle cx="100" cy="100" r="46" />
           </g>
           {empty ? (
-            <circle cx="100" cy="100" r="64.5" fill="none" style={{ stroke: ink(wheel.empty_color) }} strokeWidth="27" />
+            <circle cx="100" cy="100" r="64.5" fill="none" style={{ stroke: genreInk(wheel.empty_color) }} strokeWidth="27" />
           ) : arcs.map(({ segment, path }) => (
-            <path key={segment.genre} d={path} style={{ fill: ink(segment.color) }}
+            <path key={segment.genre} d={path} style={{ fill: genreInk(segment.color) }}
               className={segment === selected ? styles.selectedArc : styles.arc}
               onPointerEnter={() => setSelectedGenre(segment.genre)}
               onClick={() => setSelectedGenre(segment.genre)}>
@@ -75,7 +69,7 @@ function WheelChart({ wheel, user }) {
                 <li key={segment.genre}>
                   <button type="button" className={styles.choice} aria-pressed={segment === selected}
                     onClick={() => setSelectedGenre(segment.genre)}>
-                    <span className={styles.swatch} style={{ backgroundColor: ink(segment.color) }} />
+                    <span className={styles.swatch} style={{ backgroundColor: genreInk(segment.color) }} />
                     <span className={styles.genre}>{segment.genre}</span>
                     <span className="tabular">{segment.percentage}%</span>
                   </button>
@@ -94,13 +88,10 @@ function WheelChart({ wheel, user }) {
 }
 
 /** A public reader's wheel is available independently of follower-only statistics. */
-export function GenreWheel({ user, activityKey = '' }) {
-  const { data, error, loading, reload } = useAsync(
-    () => getUserGenreWheel(user.id_user),
-    [user.id_user, activityKey],
-  );
-  if (loading) return <div aria-label="Loading genre wheel" aria-busy="true"><Skeleton height={224} /></div>;
+export function GenreWheel({ user, state }) {
+  const { data, error, loading, reload } = state;
   if (error?.status === 403) return <EmptyState icon="lock" title="This genre wheel is private" />;
   if (error) return <ErrorState title="Genre wheel didn’t load" error={error} onRetry={reload} />;
+  if (loading || !data) return <div aria-label="Loading genre wheel" aria-busy="true"><Skeleton height={224} /></div>;
   return <WheelChart key={user.id_user} user={user} wheel={data} />;
 }

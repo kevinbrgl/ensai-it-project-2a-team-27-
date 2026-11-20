@@ -438,6 +438,20 @@ class UserService:
             raise AccountSuspendedError(user.suspended_until)
 
     @staticmethod
+    def is_profile_visible(user: User, viewer_id: int) -> bool:
+        """Return whether the viewer can see this reader's activity.
+
+        Parameters
+        ----------
+        user : User
+            Reader whose activity is requested.
+        viewer_id : int
+            Authenticated reader making the request.
+
+        """
+        return user.profile_visibility == "public" or user.id_user == viewer_id
+
+    @staticmethod
     def ensure_profile_visible(user: User, viewer_id: int) -> None:
         """Check whether a viewer may see a user's library and activity.
 
@@ -458,7 +472,7 @@ class UserService:
             If the profile is private and the viewer is not its owner.
 
         """
-        if user.profile_visibility == "private" and user.id_user != viewer_id:
+        if not UserService.is_profile_visible(user, viewer_id):
             raise PrivateProfileError
 
     def update_settings(

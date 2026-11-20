@@ -118,7 +118,7 @@ origin.
 | **Book** | Browse editions and more titles by the author. Add the book to your library or playlists, change reading status, mark favorites, and publish or edit a review. |
 | **My library** | Tabs by status and favorites, genre filter, sorting, pagination, inline status change, like, favorite, remove (with confirmation). |
 | **Playlists** | Create, rename, delete (with confirmation) playlists, see their covers, remove books. |
-| **Readers** | Search users, follow / unfollow, see who you follow and who follows you. |
+| **Readers** | Search by username and see each public reader’s genre wheel around their photo. Follow readers and see who follows you. Your own wheel appears around the account photo in the header. |
 | **Reader profile** | Explore a public reader’s library, playlists and interactive genre wheel. Followers can also see their reading statistics. Reviews and social connections remain visible on private profiles. Admins can suspend or ban a reader. |
 | **Progress** | Overview shows reading totals and a selectable genre wheel. Achievements shows locked and unlocked trophies by tier, with their requirements and progress. Quests tracks active challenges, completions and XP. |
 | **Settings** | Edit username, email, bio and picture link; change password; day or night theme; public or private profile. |
@@ -145,8 +145,8 @@ the `Authorization: Bearer <token>` header, which the client adds automatically.
 | GET | `/users/me/stats` | Progress, own profile |
 | GET | `/users/me/quests?status=` | Home, Progress |
 | GET | `/users/me/achievements?status=` | Progress, achievements showcase |
-| GET | `/users/{id}/genre-wheel` | Progress, reader profile |
-| GET | `/users/search?username=&limit=` | Readers |
+| GET | `/users/{id}/genre-wheel` | Account menu, Progress, reader profile |
+| GET | `/users/search?username=&limit=&include_genre_wheel=true` | Readers |
 | GET | `/users/{id}` | Profile (name, bio, picture, visibility) |
 | POST / DELETE | `/users/{id}/follow` | Follow buttons |
 | GET | `/users/{id}/followers` | Readers, profile |

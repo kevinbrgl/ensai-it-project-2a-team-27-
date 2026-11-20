@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { getMyQuests, getMyStats } from '../api/users';
 import { AchievementShowcase } from '../components/stats/AchievementShowcase';
 import { GenreWheel } from '../components/stats/GenreWheel';
@@ -37,6 +37,7 @@ const categoryLabel = (value) => QUEST_CATEGORIES.find((item) => item.value === 
 export function ProgressPage() {
   useDocumentTitle('Progress');
   const { user } = useAuth();
+  const accountWheel = useOutletContext();
   const library = useLibrary();
   const [params] = useSearchParams();
   const defaultView = params.has('quests') ? 'quests' : 'overview';
@@ -56,7 +57,7 @@ export function ProgressPage() {
       </nav>
       {selected === 'overview' && (
         <div className={styles.overview}>
-          <GenreWheel user={user} activityKey={activityKey} />
+          <GenreWheel user={user} state={accountWheel} />
           <ReadingStats activityKey={activityKey} count={library.loading || library.error ? undefined : library.books.length} />
         </div>
       )}

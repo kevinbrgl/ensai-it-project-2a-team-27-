@@ -67,6 +67,31 @@ Open **http://localhost:5000**. On Onyxia, append `/proxy/5000/` to your VS Code
 | “Open Library service is unavailable” | Book search needs a connection to Open Library. Your existing library, reviews and reading statistics are stored in PostgreSQL. |
 | Installing psycopg2 fails because headers are missing | Install the PostgreSQL development headers (`libpq-dev` on Debian/Ubuntu or `libpq` on macOS), then run `uv sync --locked` again. |
 
+## Repository layout
+
+```text
+./                      # Ex-Libris repository root
+├── src/                # Python backend
+│   ├── api/            # FastAPI configuration and dependencies
+│   │   └── routes/     # HTTP endpoints
+│   ├── services/       # Business logic and Open Library integration
+│   ├── dao/            # PostgreSQL queries
+│   ├── models/         # Pydantic data models
+│   ├── core/           # Settings, database connections and authentication
+│   └── utils/          # Shared exceptions
+├── tests/
+│   ├── unit/           # Tests with mocked dependencies
+│   │   ├── routes/     # HTTP route tests
+│   │   └── services/   # Business logic tests
+│   └── integration/    # API tests against PostgreSQL
+│       └── dao/        # Database query tests
+├── frontend/           # React web app and its Python server
+├── data/               # Database schema and demo data
+├── doc/                # Project report and UML diagrams
+├── .github/            # Continuous integration workflows
+└── .vscode/            # Shared editor settings
+```
+
 ## Development
 
 The [backend developer guide](src/README.md) covers database setup, the route-to-query workflow, tests and quality checks. The [frontend developer guide](frontend/README.md) covers React development, the Onyxia proxy and rebuilding the bundled app.

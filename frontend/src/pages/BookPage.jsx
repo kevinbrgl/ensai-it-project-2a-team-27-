@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { moderateReview } from '../api/admin';
 import { getBookDetails, listBooks } from '../api/books';
 import * as reviewsApi from '../api/reviews';
@@ -214,6 +214,7 @@ function MoreByAuthor({ book }) {
 }
 
 function Reviews({ book }) {
+  const { reload: reloadAccountWheel } = useOutletContext();
   const { user } = useAuth();
   const toast = useToast();
   const library = useLibrary();
@@ -235,7 +236,10 @@ function Reviews({ book }) {
   // The backend only accepts a new review on a book of the user's library.
   const inLibrary = Boolean(library.get(book.id_book));
 
-  const refreshSummary = async () => setData(await reviewsApi.getBookReviews(book.id_book));
+  const refreshSummary = async () => {
+    if (library.get(book.id_book)?.state === 'COMPLETED') reloadAccountWheel();
+    setData(await reviewsApi.getBookReviews(book.id_book));
+  };
 
   const create = async (values) => {
     try {

@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useOutletContext, useParams } from 'react-router-dom';
 import { getBook } from '../api/books';
 import { listUserReviews } from '../api/reviews';
 import * as usersApi from '../api/users';
@@ -6,10 +6,10 @@ import { ModerationMenu } from '../components/admin/ModerationMenu';
 import { BookGrid, BookGridSkeleton } from '../components/books/BookGrid';
 import { ReviewItem } from '../components/reviews/ReviewItem';
 import { GenreWheel } from '../components/stats/GenreWheel';
+import { GenreWheelAvatar } from '../components/stats/GenreWheelAvatar';
 import { StatsPanels } from '../components/stats/StatsPanels';
 import { FollowButton } from '../components/users/FollowButton';
 import { UserRow } from '../components/users/UserRow';
-import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -53,6 +53,11 @@ function ReaderProfile({ id }) {
   const name = profile?.username || `Reader #${id}`;
   // Your own library stays visible to you when your profile is private.
   const isPrivate = !isMe && profile?.profile_visibility === 'private';
+  const accountWheel = useOutletContext();
+  const readerWheel = useAsync(() => usersApi.getUserGenreWheel(id), [id], {
+    skip: isMe || !validId || fetched.data?.profile_visibility !== 'public',
+  });
+  const wheel = isMe ? accountWheel : readerWheel;
   useDocumentTitle(name);
 
   if (!validId || followers.error?.status === 404 || fetched.error?.status === 404) {
@@ -80,7 +85,7 @@ function ReaderProfile({ id }) {
   return (
     <>
       <header className={styles.header}>
-        <Avatar user={profile} size={72} />
+        <GenreWheelAvatar user={profile} wheel={wheel.error ? null : wheel.data} size={88} />
         <div className={styles.identity}>
           <h1>{name}</h1>
           {profile?.bio && <p className={styles.bio}>{profile.bio}</p>}
@@ -107,7 +112,7 @@ function ReaderProfile({ id }) {
       {!isPrivate && tab === 'library' && <UserLibrary id={id} name={name} />}
       {tab === 'reviews' && <UserReviews id={id} isMe={isMe} />}
       {!isPrivate && tab === 'playlists' && <UserPlaylists id={id} isMe={isMe} name={name} />}
-      {!isPrivate && tab === 'genre-wheel' && <GenreWheel user={profile} />}
+      {!isPrivate && tab === 'genre-wheel' && <GenreWheel user={profile} state={wheel} />}
       {!isPrivate && tab === 'stats' && <UserStats id={id} isMe={isMe} name={name} social={social} profile={profile} />}
       {tab === 'followers' && <PeopleList state={followers} social={social} meId={me.id_user} empty={`Nobody follows ${isMe ? 'you' : name} yet.`} />}
       {tab === 'following' && <PeopleList state={following} social={social} meId={me.id_user} empty={`${isMe ? 'You don’t' : `${name} doesn’t`} follow anyone yet.`} />}

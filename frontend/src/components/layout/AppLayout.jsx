@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { getUserGenreWheel } from '../../api/users';
 import { useAuth } from '../../context/AuthContext';
+import { useLibrary } from '../../context/LibraryContext';
 import { useToast } from '../../context/ToastContext';
-import { Avatar } from '../ui/Avatar';
+import { useAsync } from '../../hooks/useAsync';
+import { GenreWheelAvatar } from '../stats/GenreWheelAvatar';
 import { Icon } from '../ui/Icon';
 import { Menu } from '../ui/Menu';
 import { Wordmark } from './Wordmark';
@@ -17,7 +20,7 @@ const NAV = [
   { to: '/progress', label: 'Progress' },
 ];
 
-function Masthead() {
+function Masthead({ wheel }) {
   const { user, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -70,8 +73,10 @@ function Masthead() {
         <Menu align="end"
           trigger={({ open, toggle }) => (
             <button type="button" className={styles.account} onClick={toggle}
-              aria-label={`Account menu for ${user.username}`} aria-haspopup="menu" aria-expanded={open}>
-              <Avatar user={user} size={31} /><Icon name="chevronDown" size={14} />
+              aria-label={`Account menu for ${user.username}`} aria-describedby={wheel ? 'account-genres' : undefined}
+              aria-haspopup="menu" aria-expanded={open}>
+              <GenreWheelAvatar user={user} wheel={wheel} size={44} descriptionId="account-genres" />
+              <Icon name="chevronDown" size={14} />
             </button>
           )}
           items={[
@@ -87,6 +92,11 @@ function Masthead() {
 }
 
 export function AppLayout() {
+  const { user } = useAuth();
+  const { books, loading } = useLibrary();
+  const finishedBooks = useMemo(() => books.filter((book) => book.state === 'COMPLETED')
+    .map((book) => `${book.id_book}:${book.is_favorite}`).join(','), [books]);
+  const accountWheel = useAsync(() => getUserGenreWheel(user.id_user), [user.id_user, finishedBooks], { skip: loading });
   const { pathname } = useLocation();
   const navigationType = useNavigationType();
   useEffect(() => {
@@ -97,9 +107,9 @@ export function AppLayout() {
     <>
       <a className={styles.skip} href="#main-content">Skip to content</a>
       {/* Keyed by route so the mobile menu and quick search reset on navigation. */}
-      <Masthead key={`masthead:${pathname}`} />
+      <Masthead key={`masthead:${pathname}`} wheel={accountWheel.error ? null : accountWheel.data} />
       <main id="main-content" className={styles.content} key={pathname} tabIndex={-1}>
-        <Outlet />
+        <Outlet context={accountWheel} />
       </main>
     </>
   );

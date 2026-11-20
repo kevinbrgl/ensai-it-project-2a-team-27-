@@ -9,6 +9,8 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from src.models.genre_wheel import GenreWheel
+
 Theme = Literal["day", "night"]
 ProfileVisibility = Literal["public", "private"]
 
@@ -80,6 +82,20 @@ class UserPublic(BaseModel):
     bio: str | None = None
     profile_picture: str | None = None
     profile_visibility: ProfileVisibility = "public"
+
+
+class UserSearchParams(BaseModel):
+    """Username search filters and optional wheel previews."""
+
+    username: str = Field(min_length=1, max_length=30)
+    limit: int = Field(default=10, ge=1, le=50)
+    include_genre_wheel: bool = False
+
+
+class UserSearchResult(UserPublic):
+    """Public profile with an optional preview of the reader's genre wheel."""
+
+    genre_wheel: GenreWheel | None = None
 
 
 class UserMe(UserRead):

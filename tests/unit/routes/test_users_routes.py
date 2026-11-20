@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from src.api.deps import (
     get_cursor,
+    get_genre_wheel_service,
     get_stats_service,
     get_user,
     get_user_service,
@@ -21,6 +22,7 @@ from src.core.config import settings
 from src.main import app
 from src.models.stats import GenreCount, RatingCount, UserStats
 from src.models.users import User
+from src.services.genre_wheel_service import GenreWheelService
 from src.services.stats_service import StatsService
 from src.services.users_service import UserService
 from src.utils.exceptions import (
@@ -91,6 +93,9 @@ def client(
     """Yield a TestClient with service and auth dependencies overridden."""
     app.dependency_overrides[get_user_service] = lambda: mock_service
     app.dependency_overrides[get_stats_service] = lambda: mock_stats_service
+    app.dependency_overrides[get_genre_wheel_service] = lambda: Mock(
+        spec=GenreWheelService,
+    )
     app.dependency_overrides[get_user] = lambda: fake_user
     yield TestClient(app)
     app.dependency_overrides.clear()

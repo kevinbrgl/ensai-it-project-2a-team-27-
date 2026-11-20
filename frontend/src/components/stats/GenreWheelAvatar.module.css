@@ -1,0 +1,16 @@
+.frame {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+}
+.frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--genre-ring, transparent);
+  mask: radial-gradient(closest-side, transparent 77%, black 79%);
+  pointer-events: none;
+}

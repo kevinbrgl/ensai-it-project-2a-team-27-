@@ -7,8 +7,8 @@
 }
 .row:last-child { border-bottom: 0; }
 .identity { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; border-radius: var(--radius-sm); }
-.identity > :first-child { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--border-strong); transition: box-shadow var(--duration); }
-.identity:hover > :first-child { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--accent-600); }
+.identity > :is(img, [aria-hidden='true']) { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--border-strong); transition: box-shadow var(--duration); }
+.identity:hover > :is(img, [aria-hidden='true']) { box-shadow: 0 0 0 1px var(--surface), 0 0 0 2px var(--accent-600); }
 .identity:hover .name { color: var(--accent-600); }
 .text { display: flex; flex-direction: column; min-width: 0; }
 .name { font: 400 1.4rem/1.1 var(--font-serif); overflow-wrap: anywhere; transition: color var(--duration); }

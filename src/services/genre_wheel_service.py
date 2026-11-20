@@ -300,18 +300,26 @@ class GenreWheelService:
             GenreWheel model containing segments or empty state.
 
         """
-        books: list[dict[str, Any]] = self.dao.get_user_completed_books(
-            user_id,
-        )
-        if not books:
-            return GenreWheel(
-                id_user=user_id,
-                is_empty=True,
-                empty_color=DEFAULT_EMPTY_COLOR,
-                total_books=0,
-                segments=[],
-            )
+        books = self.dao.get_user_completed_books(user_id)
+        return self._build_wheel(user_id, books)
 
+    def get_genre_wheels(self, user_ids: list[int]) -> dict[int, GenreWheel]:
+        """Build wheels for the visible readers in a search result.
+
+        Parameters
+        ----------
+        user_ids : list[int]
+            IDs of the readers whose reading activity is visible.
+
+        """
+        books = self.dao.get_completed_books_by_user(user_ids)
+        return {
+            uid: self._build_wheel(uid, books.get(uid, [])) for uid in user_ids
+        }
+
+    def _build_wheel(
+        self, user_id: int, books: list[dict[str, Any]],
+    ) -> GenreWheel:
         scores, counts, ratings = self._aggregate_books(books)
         segments = self._build_segments(scores, counts, ratings)
 

@@ -18,13 +18,13 @@ import styles from './ReadersPage.module.css';
 export function ReadersPage() {
   useDocumentTitle('Readers');
   const { user } = useAuth();
-  const social = useFollowing();
+  const social = useFollowing(true);
   const [query, setQuery] = useState('');
   const term = useDebouncedValue(query.trim(), 300);
   const [tab, setTab] = useSearchParamState('list', 'following');
 
   const results = useAsync(() => searchUsers(term, 20), [term], { skip: !term });
-  const followers = useAsync(() => getFollowers(user.id_user), [user.id_user]);
+  const followers = useAsync(() => getFollowers(user.id_user, true), [user.id_user]);
 
   const found = useMemo(() => (results.data || []).filter((u) => u.id_user !== user.id_user), [results.data, user.id_user]);
   const list = tab === 'followers' ? followers : { data: social.following, loading: social.loading, error: social.error, reload: social.reload };
@@ -63,7 +63,7 @@ export function ReadersPage() {
           {!results.loading && found.length > 0 && (
             <ul className={styles.list}>
               {found.map((u) => (
-                <UserRow key={u.id_user} user={u} action={<FollowButton user={u} social={social} />} />
+                <UserRow key={u.id_user} user={u} showWheel action={<FollowButton user={u} social={social} />} />
               ))}
             </ul>
           )}
@@ -91,7 +91,7 @@ export function ReadersPage() {
           {list.data?.length > 0 && (
             <ul className={styles.list}>
               {list.data.map((u) => (
-                <UserRow key={u.id_user} user={u} action={<FollowButton user={u} social={social} />} />
+                <UserRow key={u.id_user} user={u} showWheel action={<FollowButton user={u} social={social} />} />
               ))}
             </ul>
           )}

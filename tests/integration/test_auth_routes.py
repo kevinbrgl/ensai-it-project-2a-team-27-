@@ -89,6 +89,69 @@ def login(client: TestClient, name: str, password: str) -> Response:
     )
 
 
+class TestRegisterDuplicate:
+    """Integration tests for duplicates on POST /api/auth/register."""
+
+    def test_username_taken_409(
+        self,
+        client: TestClient,
+        username: str,
+    ) -> None:
+        """A username already taken returns 409 with its own message."""
+        response = client.post(
+            REGISTER_URL,
+            json={
+                "username": username,
+                "email": f"other_{uuid4().hex[:8]}@ensai.fr",
+                "password": PASSWORD,
+            },
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["detail"] == "Username already used."
+
+    def test_email_taken_409(
+        self,
+        client: TestClient,
+        username: str,
+    ) -> None:
+        """An email already used returns 409 with its own message."""
+        response = client.post(
+            REGISTER_URL,
+            json={
+                "username": f"other_{uuid4().hex[:8]}",
+                "email": f"{username}@ensai.fr",
+                "password": PASSWORD,
+            },
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert response.json()["detail"] == "Email already used."
+
+    def test_duplicate_creates_no_account(
+        self,
+        client: TestClient,
+        cursor: RealDictCursor,
+        username: str,
+    ) -> None:
+        """A refused registration does not add a row to the database."""
+        new_name = f"other_{uuid4().hex[:8]}"
+        client.post(
+            REGISTER_URL,
+            json={
+                "username": new_name,
+                "email": f"{username}@ensai.fr",
+                "password": PASSWORD,
+            },
+        )
+
+        cursor.execute(
+            "SELECT 1 FROM users WHERE username = %s",
+            (new_name,),
+        )
+        assert cursor.fetchone() is None
+
+
 class TestLogin:
     """Integration tests for POST /api/auth/login."""
 

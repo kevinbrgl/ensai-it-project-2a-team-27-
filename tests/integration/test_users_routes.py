@@ -324,6 +324,48 @@ class TestSearchUsersRoute:
         assert "password" not in found
         assert "password_hash" not in found
 
+    def test_search_wheel_respects_profile_visibility(
+        self,
+        client: TestClient,
+        auth_headers: dict[str, str],
+        other_username: str,
+        cursor: RealDictCursor,
+    ) -> None:
+        """Search shows the same wheel as the profile until it goes private."""
+        params = {"username": other_username, "include_genre_wheel": True}
+        result = client.get(SEARCH_URL, params=params, headers=auth_headers)
+        reader = result.json()[0]
+        assert reader["genre_wheel"]["is_empty"]
+        reader_id = reader["id_user"]
+        cursor.execute(
+            """
+            WITH book AS (
+                INSERT INTO books (id_book_api, title, category)
+                VALUES (%s, 'Wheel test', 'Fantasy') RETURNING id_book
+            )
+            INSERT INTO user_book_activities (id_user, id_book, state)
+            SELECT %s, id_book, 'COMPLETED' FROM book
+            """,
+            (uuid4().hex, reader_id),
+        )
+        result = client.get(SEARCH_URL, params=params, headers=auth_headers)
+        preview = result.json()[0]["genre_wheel"]
+        detail = client.get(
+            f"{USERS_URL}/{reader_id}/genre-wheel", headers=auth_headers,
+        )
+        assert preview == detail.json()
+        assert [seg["genre"] for seg in preview["segments"]] == ["Fantasy"]
+
+        cursor.execute(
+            "UPDATE users SET profile_visibility = 'private' "
+            "WHERE id_user = %s",
+            (reader_id,),
+        )
+        result = client.get(SEARCH_URL, params=params, headers=auth_headers)
+        reader = result.json()[0]
+        assert reader["profile_visibility"] == "private"
+        assert set(reader) == PUBLIC_FIELDS
+
     def test_search_no_results(
         self,
         client: TestClient,

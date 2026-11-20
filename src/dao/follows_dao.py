@@ -162,7 +162,7 @@ class FollowDAO:
             self.cur.execute(
                 """
                 SELECT u.id_user, u.username, u.email, u.password_hash,
-                       u.bio, u.profile_picture
+                       u.bio, u.profile_picture, u.profile_visibility
                 FROM users u
                 INNER JOIN user_follows uf ON u.id_user = uf.follower_id
                 WHERE uf.following_id = %s
@@ -198,7 +198,7 @@ class FollowDAO:
             self.cur.execute(
                 """
                 SELECT u.id_user, u.username, u.email, u.password_hash,
-                       u.bio, u.profile_picture
+                       u.bio, u.profile_picture, u.profile_visibility
                 FROM users u
                 INNER JOIN user_follows uf ON u.id_user = uf.following_id
                 WHERE uf.follower_id = %s

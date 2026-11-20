@@ -5,10 +5,10 @@ import { useToast } from '../context/ToastContext';
 import { useAsync } from './useAsync';
 
 /** The users the current user follows, plus follow / unfollow actions. */
-export function useFollowing() {
+export function useFollowing(includeWheel = false) {
   const { user } = useAuth();
   const toast = useToast();
-  const { data, error, loading, reload, setData } = useAsync(() => usersApi.getFollowing(user.id_user), [user.id_user]);
+  const { data, error, loading, reload, setData } = useAsync(() => usersApi.getFollowing(user.id_user, includeWheel), [user.id_user, includeWheel]);
   const [pendingId, setPendingId] = useState(null);
   const following = useMemo(() => data || [], [data]);
 

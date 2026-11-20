@@ -221,7 +221,7 @@ class UserDAO:
             self.cur.execute(
                 """
                 SELECT id_user, username, email, password_hash,
-                       bio, profile_picture
+                       bio, profile_picture, profile_visibility
                 FROM users
                 WHERE username ILIKE %s
                 ORDER BY username ASC

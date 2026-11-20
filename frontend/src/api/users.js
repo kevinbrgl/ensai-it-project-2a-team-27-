@@ -62,9 +62,11 @@ export function changePassword(currentPassword, newPassword) {
   });
 }
 
-/** GET /users/search?username=&limit= → UserPublic[] */
+/** Search readers along with the genre wheels visible to the signed-in user. */
 export async function searchUsers(username, limit = 20) {
-  return remember(await request('/users/search', { query: { username, limit } }));
+  const results = await request('/users/search', { query: { username, limit, include_genre_wheel: true } });
+  remember(results.map(({ genre_wheel: _wheel, ...profile }) => profile));
+  return results;
 }
 
 /** POST /users/{id}/follow → 204 */
@@ -78,13 +80,17 @@ export function unfollowUser(idUser) {
 }
 
 /** GET /users/{id}/followers → UserPublic[] */
-export async function getFollowers(idUser) {
-  return remember(await request(`/users/${idUser}/followers`));
+export async function getFollowers(idUser, includeWheel = false) {
+  return remember(await request(`/users/${idUser}/followers`, {
+    query: { include_genre_wheel: includeWheel || undefined },
+  }));
 }
 
 /** GET /users/{id}/following → UserPublic[] */
-export async function getFollowing(idUser) {
-  return remember(await request(`/users/${idUser}/following`));
+export async function getFollowing(idUser, includeWheel = false) {
+  return remember(await request(`/users/${idUser}/following`, {
+    query: { include_genre_wheel: includeWheel || undefined },
+  }));
 }
 
 /** GET /users/{id}/library?status= → LibraryBookDetails[] */

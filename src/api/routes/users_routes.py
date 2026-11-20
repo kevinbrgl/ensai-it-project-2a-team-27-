@@ -32,7 +32,13 @@ from src.models import (
 from src.models.library import LibraryBookDetails
 from src.models.playlists import PlaylistRead
 from src.models.stats import UserStats
-from src.models.users import UserMe, UserPublic, UserSettingsUpdate
+from src.models.users import (
+    UserMe,
+    UserPublic,
+    UserSearchParams,
+    UserSearchResult,
+    UserSettingsUpdate,
+)
 from src.services.users_service import UserService
 from src.utils.exceptions import (
     AlreadyFollowingError,
@@ -351,33 +357,41 @@ def get_my_achievements(
         ) from None
 
 
+def _reader_previews(
+    matches: list[User], viewer_id: int, wheel_service: GenreWheelServiceDep,
+    *, include: bool,
+) -> list[UserSearchResult]:
+    """Attach genre wheels visible to the viewer when requested."""
+    wheels = {}
+    if include:
+        visible_ids = [
+            user.id_user for user in matches
+            if UserService.is_profile_visible(user, viewer_id)
+        ]
+        wheels = wheel_service.get_genre_wheels(visible_ids)
+    results = [
+        UserSearchResult.model_validate(user, from_attributes=True)
+        for user in matches
+    ]
+    for profile in results:
+        if profile.id_user in wheels:
+            profile.genre_wheel = wheels[profile.id_user]
+    return results
+
+
 @router.get(
     "/search",
-    response_model=list[UserPublic],
+    response_model_exclude_unset=True,
     status_code=status.HTTP_200_OK,
     summary="🔍 Search users",
     responses={500: {"description": "Database error"}},
 )
 def search_users(
     service: UserServiceDep,
-    _current_user: CurrentUser,
-    username: Annotated[
-        str,
-        Query(
-            min_length=1,
-            max_length=30,
-            description="Username search query",
-        ),
-    ],
-    limit: Annotated[
-        int,
-        Query(
-            ge=1,
-            le=50,
-            description="Maximum number of users to return",
-        ),
-    ] = 10,
-) -> list[User]:
+    current_user: CurrentUser,
+    wheel_service: GenreWheelServiceDep,
+    query: Annotated[UserSearchParams, Query()],
+) -> list[UserSearchResult]:
     """Find users whose **username contains** the text you type.
 
     🔒 Authentication required
@@ -386,6 +400,7 @@ def search_users(
 
     - 🔤 `username`: text to look for, 1 to 30 characters
     - 🔢 `limit`: number of users to return, from 1 to 50 (default 10)
+    - 🎨 `include_genre_wheel`: include the wheels visible to you
 
     **Behaviour:** the search **ignores upper and lower case**, and
     the results are sorted by username.
@@ -397,17 +412,17 @@ def search_users(
     ----------
     service : UserService
         User service dependency.
-    _current_user : User
+    current_user : User
         The authenticated user making the request.
-    username : str
-        Case-insensitive username substring.
-    limit : int, optional
-        Maximum number of users to return. Defaults to 10.
+    wheel_service : GenreWheelService
+        Loads visible readers' wheels in one batch.
+    query : UserSearchParams
+        Username substring, result limit and wheel preview selection.
 
     Returns
     -------
-    list[User]
-        List of matching users.
+    list[UserSearchResult]
+        Public profiles with any requested, visible wheels.
 
     Raises
     ------
@@ -416,9 +431,17 @@ def search_users(
 
     """
     try:
-        return service.search_users(username=username, limit=limit)
+        matches = service.search_users(
+            username=query.username, limit=query.limit,
+        )
+        return _reader_previews(
+            matches, current_user.id_user, wheel_service,
+            include=query.include_genre_wheel,
+        )
     except DAOError:
-        logger.exception("Failed to search users with query: %s", username)
+        logger.exception(
+            "Failed to search users with query: %s", query.username,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not search users.",
@@ -644,7 +667,7 @@ def unfollow_user(
 
 @router.get(
     "/{user_id}/followers",
-    response_model=list[UserPublic],
+    response_model_exclude_unset=True,
     status_code=status.HTTP_200_OK,
     summary="👥 List the followers of a user",
     responses={
@@ -654,9 +677,12 @@ def unfollow_user(
 )
 def get_followers(
     service: UserServiceDep,
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     user_id: int,
-) -> list[User]:
+    wheel_service: GenreWheelServiceDep,
+    *,
+    include_genre_wheel: bool = False,
+) -> list[UserSearchResult]:
     """List the users who **follow** a given user.
 
     🔒 Authentication required
@@ -671,14 +697,18 @@ def get_followers(
     ----------
     service : UserService
         User service dependency.
-    _current_user : User
+    wheel_service : GenreWheelService
+        Loads visible genre wheels.
+    include_genre_wheel : bool
+        Include genre wheels in the list.
+    current_user : User
         Authenticated user making the request.
     user_id : int
         ID of the user whose followers to retrieve.
 
     Returns
     -------
-    list[User]
+    list[UserSearchResult]
         List of followers.
 
     Raises
@@ -688,7 +718,10 @@ def get_followers(
 
     """
     try:
-        return service.get_followers(user_id)
+        return _reader_previews(
+            service.get_followers(user_id), current_user.id_user, wheel_service,
+            include=include_genre_wheel,
+        )
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -704,7 +737,7 @@ def get_followers(
 
 @router.get(
     "/{user_id}/following",
-    response_model=list[UserPublic],
+    response_model_exclude_unset=True,
     status_code=status.HTTP_200_OK,
     summary="👥 List the users followed by a user",
     responses={
@@ -714,9 +747,12 @@ def get_followers(
 )
 def get_following(
     service: UserServiceDep,
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     user_id: int,
-) -> list[User]:
+    wheel_service: GenreWheelServiceDep,
+    *,
+    include_genre_wheel: bool = False,
+) -> list[UserSearchResult]:
     """List the users that a given user **is following**.
 
     🔒 Authentication required
@@ -731,14 +767,18 @@ def get_following(
     ----------
     service : UserService
         User service dependency.
-    _current_user : User
+    wheel_service : GenreWheelService
+        Loads visible genre wheels.
+    include_genre_wheel : bool
+        Include genre wheels in the list.
+    current_user : User
         Authenticated user making the request.
     user_id : int
         ID of the user whose followed users to retrieve.
 
     Returns
     -------
-    list[User]
+    list[UserSearchResult]
         List of followed users.
 
     Raises
@@ -748,7 +788,10 @@ def get_following(
 
     """
     try:
-        return service.get_following(user_id)
+        return _reader_previews(
+            service.get_following(user_id), current_user.id_user, wheel_service,
+            include=include_genre_wheel,
+        )
     except UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
