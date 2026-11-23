@@ -17,6 +17,8 @@ from src.services.books_service import BookService
 from src.services.open_library_client import (
     EDITIONS_LIMIT,
     OPEN_LIBRARY_FIELDS,
+    SEARCH_CACHE_TTL,
+    OpenLibraryClient,
 )
 from src.utils.exceptions import (
     BookNotFoundError,
@@ -500,6 +502,30 @@ class TestFetchOpenLibrary:
             "limit": 5,
             "fields": OPEN_LIBRARY_FIELDS,
         }
+
+    def test_search_cache_expires_and_respects_limit(
+        self,
+        http_get: Mock,
+        mocker: MockerFixture,
+    ) -> None:
+        """Fresh responses are shared across clients for the same limit."""
+        clock = mocker.patch(
+            "src.services.open_library_client.monotonic", return_value=0.0,
+        )
+        first = {"docs": [{"title": "The Left Hand of Darkness"}]}
+        second = {"docs": [{"title": "The Dispossessed"}]}
+        http_get.return_value.json.side_effect = [first, second, second]
+        query = "Ursula Le Guin"
+
+        assert OpenLibraryClient().search(query, limit=1) == first
+        assert OpenLibraryClient().search(query, limit=1) == first
+        http_get.assert_called_once()
+
+        assert OpenLibraryClient().search(query, limit=2) == second
+        http_get.reset_mock()
+        clock.return_value = SEARCH_CACHE_TTL
+        assert OpenLibraryClient().search(query, limit=1) == second
+        http_get.assert_called_once()
 
     def test_search_by_subject_sends_subject_and_sort(
         self,

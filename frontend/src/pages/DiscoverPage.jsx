@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { preconnect } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { searchBooks } from '../api/books';
 import { getRecommendations } from '../api/recommendations';
@@ -44,6 +45,7 @@ const SORTS = [
 ];
 
 export function DiscoverPage() {
+  preconnect('https://covers.openlibrary.org');
   const [q, setQ] = useSearchParamState('q');
   useDocumentTitle(q ? `“${q}”` : 'Discover');
   return (

@@ -1,6 +1,9 @@
 """HTTP client for Open Library searches and edition lookups."""
 
 import logging
+from collections import OrderedDict
+from threading import Lock
+from time import monotonic
 from typing import Any
 
 import httpx2
@@ -18,6 +21,14 @@ OPEN_LIBRARY_FIELDS = (
 EDITIONS_LIMIT = 20
 HTTP_ERROR_STATUS = 400
 HTTP_UNPROCESSABLE_STATUS = 422
+SEARCH_CACHE_TTL = 300.0
+SEARCH_CACHE_SIZE = 128
+
+# Share successful title/author searches across request-scoped clients.
+_search_cache: OrderedDict[tuple[str, int], tuple[float, dict[str, Any]]] = (
+    OrderedDict()
+)
+_search_cache_lock = Lock()
 
 
 class OpenLibraryClient:
@@ -134,7 +145,25 @@ class OpenLibraryClient:
         if sort:
             params["sort"] = sort
 
-        return self._get_json(OPEN_LIBRARY_SEARCH_URL, params)
+        if not query or subject or sort:
+            return self._get_json(OPEN_LIBRARY_SEARCH_URL, params)
+
+        key = (query, limit)
+        with _search_cache_lock:
+            cached = _search_cache.get(key)
+            if cached is not None and cached[0] > monotonic():
+                _search_cache.move_to_end(key)
+                return cached[1]
+
+        payload = self._get_json(OPEN_LIBRARY_SEARCH_URL, params)
+        # Cached metadata can be reused across independent transactions.
+        if isinstance(payload.get("docs"), list):
+            with _search_cache_lock:
+                _search_cache[key] = (monotonic() + SEARCH_CACHE_TTL, payload)
+                _search_cache.move_to_end(key)
+                if len(_search_cache) > SEARCH_CACHE_SIZE:
+                    _search_cache.popitem(last=False)
+        return payload
 
     def fetch_editions(
         self,
