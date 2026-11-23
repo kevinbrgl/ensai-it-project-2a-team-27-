@@ -719,7 +719,9 @@ def get_followers(
     """
     try:
         return _reader_previews(
-            service.get_followers(user_id), current_user.id_user, wheel_service,
+            service.get_followers(user_id),
+            current_user.id_user,
+            wheel_service,
             include=include_genre_wheel,
         )
     except UserNotFoundError:
@@ -789,7 +791,9 @@ def get_following(
     """
     try:
         return _reader_previews(
-            service.get_following(user_id), current_user.id_user, wheel_service,
+            service.get_following(user_id),
+            current_user.id_user,
+            wheel_service,
             include=include_genre_wheel,
         )
     except UserNotFoundError:

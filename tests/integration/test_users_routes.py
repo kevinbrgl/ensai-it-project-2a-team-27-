@@ -332,7 +332,10 @@ class TestSearchUsersRoute:
         cursor: RealDictCursor,
     ) -> None:
         """Search shows the same wheel as the profile until it goes private."""
-        params = {"username": other_username, "include_genre_wheel": True}
+        params: dict[str, str | bool] = {
+            "username": other_username,
+            "include_genre_wheel": True,
+        }
         result = client.get(SEARCH_URL, params=params, headers=auth_headers)
         reader = result.json()[0]
         assert reader["genre_wheel"]["is_empty"]
