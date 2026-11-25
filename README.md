@@ -107,13 +107,6 @@ uv run python -m src.make_admin <username>
 
 Replace `<username>` with the account's username, then reload the web app. A moderation menu then appears on other readers' profiles and next to their reviews on book pages. In the sample data, `demo_jo` is already an administrator.
 
-## API documentation
-
-Once the API is running, open the interactive documentation:
-
-- Swagger UI on Onyxia: your VS Code URL followed by `/proxy/8000/`
-- Swagger UI locally (with `ROOT_PATH=/`): http://127.0.0.1:8000
-
 ## Running the tests
 
 ```bash
