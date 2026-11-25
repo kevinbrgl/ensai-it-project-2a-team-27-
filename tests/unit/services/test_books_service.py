@@ -265,7 +265,8 @@ class TestGetBookDetails:
         """Unknown book: BookNotFoundError, Open Library is not called."""
         mock_dao.read.return_value = None
         mock_fetch = mocker.patch.object(
-            service.open_library, "fetch_editions",
+            service.open_library,
+            "fetch_editions",
         )
 
         with pytest.raises(BookNotFoundError):
@@ -307,7 +308,8 @@ class TestGetBookDetails:
             update={"id_book_api": id_book_api},
         )
         mock_fetch = mocker.patch.object(
-            service.open_library, "fetch_editions",
+            service.open_library,
+            "fetch_editions",
         )
 
         details = service.get_book_details(1)
@@ -327,7 +329,9 @@ class TestGetBookDetails:
         """A payload without entries gives an empty list."""
         mock_dao.read.return_value = fake_book
         mocker.patch.object(
-            service.open_library, "fetch_editions", return_value=payload,
+            service.open_library,
+            "fetch_editions",
+            return_value=payload,
         )
 
         assert service.get_book_details(1).editions == []
@@ -377,7 +381,7 @@ class TestGetBookDetails:
 
 
 class TestGetBooks:
-    """Tests for BookService.get_books and get_catalogue."""
+    """Tests for BookService.get_books."""
 
     def test_get_books_no_filter_calls_find_all(
         self,
@@ -463,20 +467,6 @@ class TestGetBooks:
         mock_dao.find_all.assert_called_once()
         mock_dao.find_books.assert_not_called()
 
-    def test_get_catalogue_alias(
-        self,
-        service: BookService,
-        mock_dao: Mock,
-        fake_book: Book,
-    ) -> None:
-        """get_catalogue behaves identically to get_books."""
-        mock_dao.find_by_category.return_value = [fake_book]
-
-        results = service.get_catalogue(category="Fantasy")
-
-        assert results == [fake_book]
-        mock_dao.find_by_category.assert_called_once_with("Fantasy")
-
 
 class TestFetchOpenLibrary:
     """Tests for the parameters sent to Open Library."""
@@ -510,7 +500,8 @@ class TestFetchOpenLibrary:
     ) -> None:
         """Fresh responses are shared across clients for the same limit."""
         clock = mocker.patch(
-            "src.services.open_library_client.monotonic", return_value=0.0,
+            "src.services.open_library_client.monotonic",
+            return_value=0.0,
         )
         first = {"docs": [{"title": "The Left Hand of Darkness"}]}
         second = {"docs": [{"title": "The Dispossessed"}]}

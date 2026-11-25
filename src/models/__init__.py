@@ -1,6 +1,7 @@
-"""Import all Pydantic models for books, library, quests, users, and tokens.
+"""Re-export the most used Pydantic models from one place.
 
-This module aggregates all model classes for easy access throughout the app.
+Other models, such as those for playlists, statistics or moderation, are
+imported from their own module.
 """
 
 from src.models.achievements import (
@@ -23,7 +24,6 @@ from src.models.reviews import (
 from src.models.users import (
     User,
     UserCreate,
-    UserFollow,
     UserRead,
     UserRegister,
     UserUpdate,
@@ -50,7 +50,6 @@ __all__ = [
     "TokenPayload",
     "User",
     "UserCreate",
-    "UserFollow",
     "UserRead",
     "UserRegister",
     "UserUpdate",

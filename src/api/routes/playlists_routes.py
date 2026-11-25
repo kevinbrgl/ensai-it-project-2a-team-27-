@@ -49,7 +49,7 @@ def create_playlist(
     - 🏷️ `name`: 1 to 100 characters
     - You cannot have **two playlists with the same name**
 
-    **Behaviour:** the playlist is created **empty**.
+    **Behavior:** the playlist is created **empty**.
 
     **Example request:**
 
@@ -261,7 +261,7 @@ def delete_playlist(
 
     🔒 Authentication required
 
-    **Behaviour:** only the playlist is deleted. Its books stay in
+    **Behavior:** only the playlist is deleted. Its books stay in
     the catalog and in your library.
 
     **Good to know:** you can only delete **your own** playlists.
@@ -488,7 +488,7 @@ def remove_book_from_playlist(
 
     🔒 Authentication required
 
-    **Behaviour:** the book only leaves the playlist. It stays in the
+    **Behavior:** the book only leaves the playlist. It stays in the
     catalog and in your library.
 
     **Response:** `204 No Content`, with an empty body.

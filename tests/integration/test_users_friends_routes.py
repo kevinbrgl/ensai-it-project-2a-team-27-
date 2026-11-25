@@ -21,7 +21,7 @@ REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 LIBRARY_BOOKS_URL = f"{settings.API_STR}/library/books"
 PLAYLISTS_URL = f"{settings.API_STR}/playlists"
-PASSWORD = "motdepasse123"
+PASSWORD = "readingpass123"
 UNKNOWN_ID = 999999999
 
 

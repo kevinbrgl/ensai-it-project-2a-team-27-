@@ -1,7 +1,7 @@
 """Pydantic models for user entities.
 
 Defines schemas for user registration, reading, creation, update,
-password change, settings, database representation, and user follows.
+password change, settings, search results, and database representation.
 """
 
 from datetime import datetime
@@ -177,10 +177,3 @@ class User(UserCreate, UserMe):
 
     is_banned: bool = False
     suspended_until: datetime | None = None
-
-
-class UserFollow(BaseModel):
-    """Schema representing a follow relationship between two users."""
-
-    follower_id: int
-    following_id: int

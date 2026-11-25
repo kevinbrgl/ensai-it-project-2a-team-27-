@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { firstAuthor } from '../../utils/format';
 import styles from './BookCover.module.css';
 
-// Muted cloth-binding colours for books Open Library has no cover for.
+// Muted cloth-binding colors for books Open Library has no cover for.
 const BINDINGS = ['#5b3a32', '#2f4a3f', '#33415c', '#6b4f2a', '#4a3b5c', '#7a2e2a', '#2e4f56'];
 const OPEN_LIBRARY_COVER = /^(https:\/\/covers\.openlibrary\.org\/b\/id\/\d+)-([SML])\.jpg$/;
 

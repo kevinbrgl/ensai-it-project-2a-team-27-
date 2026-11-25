@@ -200,9 +200,9 @@ class TestReviewsLibraryRule:
         assert resp.json()["detail"] == (
             "You can only review a book from your library."
         )
-        assert client.get(url, headers=auth_headers).json()[
-            "review_count"
-        ] == 0
+        assert (
+            client.get(url, headers=auth_headers).json()["review_count"] == 0
+        )
 
     def test_book_in_another_library_is_not_enough(
         self,

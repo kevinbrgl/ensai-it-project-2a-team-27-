@@ -49,7 +49,7 @@ def add_book(
     - 📖 `id_book`: database ID of the book (find it with the search)
     - 🚦 `state`: `WANT_TO_READ`, `READING`, `COMPLETED` or `ABANDONED`
 
-    **Behaviour:** the book starts **not liked** and **not favorite**.
+    **Behavior:** the book starts **not liked** and **not favorite**.
     A book can only be in your library **once**.
 
     **Example request:**
@@ -128,7 +128,7 @@ def remove_book(
 
     🔒 Authentication required
 
-    **Behaviour:** its reading status, like and favorite flag are
+    **Behavior:** its reading status, like and favorite flag are
     **lost**. The book itself stays in the catalog.
 
     **Response:** `204 No Content`, with an empty body.
@@ -187,7 +187,7 @@ def toggle_like(
 
     🔒 Authentication required
 
-    **Behaviour:** this route is a **toggle**.
+    **Behavior:** this route is a **toggle**.
 
     - Book not liked → it becomes **liked**
     - Book already liked → the like is **removed**
@@ -254,7 +254,7 @@ def toggle_favorite(
 
     🔒 Authentication required
 
-    **Behaviour:** this route is a **toggle**.
+    **Behavior:** this route is a **toggle**.
 
     - Book not in favorites → it is **added** to your favorites
     - Book already in favorites → it is **removed** from them
@@ -412,7 +412,7 @@ def update_book_dates(
     - 🟢 `started_at`: the day you started the book (`YYYY-MM-DD`)
     - 🏁 `finished_at`: the day you finished it (`YYYY-MM-DD`)
 
-    **Behaviour:** only the fields you send are changed, the others
+    **Behavior:** only the fields you send are changed, the others
     keep their current value. Send `null` to **erase** a date.
 
     **Rule:** the end date cannot be **before** the start date. When

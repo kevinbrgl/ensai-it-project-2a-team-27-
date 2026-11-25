@@ -6,7 +6,7 @@
   min-height: 56vh;
 }
 
-/* A catalogue card: ruled lines, a red header rule and a punched hole. */
+/* A catalog card: ruled lines, a red header rule and a punched hole. */
 .card {
   position: relative;
   display: flex;

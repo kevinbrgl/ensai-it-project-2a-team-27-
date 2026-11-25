@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { RequireAuth } from './components/layout/RequireAuth';
 import { AuthPage } from './pages/AuthPage';
@@ -13,13 +13,6 @@ import { SettingsPage } from './pages/SettingsPage';
 import { PlaylistPage } from './pages/PlaylistPage';
 import { PlaylistsPage } from './pages/PlaylistsPage';
 import { UserPage } from './pages/UserPage';
-
-function PlaylistRedirect() {
-  const { playlistId } = useParams();
-  const { search, hash } = useLocation();
-  const pathname = playlistId ? `/playlists/${encodeURIComponent(playlistId)}` : '/playlists';
-  return <Navigate replace to={{ pathname, search, hash }} />;
-}
 
 export default function App() {
   return (
@@ -39,7 +32,6 @@ export default function App() {
         <Route path="library" element={<LibraryPage />} />
         <Route path="playlists" element={<PlaylistsPage />} />
         <Route path="playlists/:playlistId" element={<PlaylistPage />} />
-        <Route path="shelves/:playlistId?" element={<PlaylistRedirect />} />
         <Route path="readers" element={<ReadersPage />} />
         <Route path="users/:userId" element={<UserPage />} />
         <Route path="progress" element={<ProgressPage />} />

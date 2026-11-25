@@ -26,7 +26,7 @@ REGISTER_URL = f"{settings.API_STR}/auth/register"
 PAYLOAD = {
     "username": "alice",
     "email": "alice@ensai.fr",
-    "password": "motdepasse123",
+    "password": "readingpass123",
 }
 
 

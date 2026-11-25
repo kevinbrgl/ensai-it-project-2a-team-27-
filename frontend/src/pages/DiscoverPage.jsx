@@ -179,7 +179,7 @@ function RecommendationBrowser() {
           <EmptyState icon="compass" title={genre ? `Nothing found in “${genre}”` : 'No suggestions yet'}>
             {genre
               ? 'Try a broader genre, such as “Fiction” or “History”.'
-              : 'Add books to your library and rate them; suggestions follow your favourite genres.'}
+              : 'Add books to your library and rate them; suggestions follow your favorite genres.'}
           </EmptyState>
         )}
         {!recs.loading && lead && (

@@ -62,7 +62,7 @@ def _first(values: object) -> object | None:
 
 
 class BookService:
-    """Manage the local catalogue and its Open Library integration.
+    """Manage the local catalog and its Open Library integration.
 
     Attributes
     ----------
@@ -181,7 +181,7 @@ class BookService:
         )
 
     def search_books(self, query: str, limit: int = 10) -> list[Book]:
-        """Search Open Library and save the results to the local catalogue.
+        """Search Open Library and save the results to the local catalog.
 
         Parameters
         ----------
@@ -193,7 +193,7 @@ class BookService:
         Returns
         -------
         list[Book]
-            Books saved in the local catalogue, or an empty list for a blank
+            Books saved in the local catalog, or an empty list for a blank
             query or no results.
 
         Notes
@@ -419,25 +419,3 @@ class BookService:
         if clean_author:
             return self.dao.find_by_author(clean_author)
         return self.dao.find_all()
-
-    def get_catalogue(
-        self,
-        category: str | None = None,
-        author: str | None = None,
-    ) -> list[Book]:
-        """List catalogue books with optional category and author filters.
-
-        Parameters
-        ----------
-        category : str | None, optional
-            Category filter string.
-        author : str | None, optional
-            Author filter string.
-
-        Returns
-        -------
-        list[Book]
-            List of matching Book objects.
-
-        """
-        return self.get_books(category=category, author=author)

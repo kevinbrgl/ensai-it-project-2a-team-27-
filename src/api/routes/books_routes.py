@@ -44,7 +44,7 @@ def search_books(
 
     🔒 Authentication required
 
-    **Behaviour:** the books found are **saved in the local catalog**,
+    **Behavior:** the books found are **saved in the local catalog**,
     so they get an ID you can use in the other routes (library,
     playlists, reviews).
 
@@ -130,7 +130,7 @@ def get_books(
     - 🏷️ `category`: keep only the books of this category
     - ✍️ `author`: keep only the books of this author
 
-    **Behaviour:** both filters can be combined. Without any filter,
+    **Behavior:** both filters can be combined. Without any filter,
     the **whole catalog** is returned.
     \f
 

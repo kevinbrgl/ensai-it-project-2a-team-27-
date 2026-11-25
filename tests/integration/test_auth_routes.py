@@ -21,11 +21,10 @@ from src.main import app
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 ME_URL = f"{settings.API_STR}/users/me"
-OLD_LOGIN_URL = f"{settings.API_STR}/login/access-token"
 LOGOUT_URL = f"{settings.API_STR}/auth/logout"
 
-PASSWORD = "motdepasse123"
-WRONG_PASSWORD = "mauvaismdp123"
+PASSWORD = "readingpass123"
+WRONG_PASSWORD = "wrongpass123"
 LONG_PASSWORD = "a" * 100
 
 
@@ -219,15 +218,6 @@ class TestLogin:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["username"] == username
-
-    def test_old_route_removed(self, client: TestClient) -> None:
-        """The template route /login/access-token no longer exists."""
-        response = client.post(
-            OLD_LOGIN_URL,
-            data={"username": "nobody", "password": PASSWORD},
-        )
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestLogout:

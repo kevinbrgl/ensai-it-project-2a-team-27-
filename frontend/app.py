@@ -1,7 +1,7 @@
 """Serve the compiled Ex-Libris frontend and forward API requests.
 
-Run ``python app.py`` from the frontend directory. The server works at
-the site root and behind the Onyxia or VS Code proxy.
+Run ``uv run python frontend/app.py`` from the repository root. The
+server works at the site root and behind the Onyxia or VS Code proxy.
 
 The ``BACKEND_URL`` environment variable defaults to
 ``http://127.0.0.1:8000``. ``FRONTEND_PORT`` defaults to ``5000``.
@@ -29,8 +29,16 @@ HOST = "0.0.0.0"  # ruff: ignore[hardcoded-bind-all-interfaces]
 PREFIX = re.compile(r"^/(?:abs)?proxy/\d+(?=/)")
 # Headers that must not be copied between connections.
 HOP_BY_HOP = {
-    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
-    "te", "trailers", "transfer-encoding", "upgrade", "host", "content-length",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+    "host",
+    "content-length",
 }
 
 

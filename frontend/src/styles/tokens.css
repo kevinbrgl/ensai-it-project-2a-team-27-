@@ -42,7 +42,7 @@
   --danger-50: #f5e2d9;
   --on-danger: #fffaf3;
   --star: #90611b;
-  /* Genre colours from the API are mixed toward this ink so they print like the rest of the page. */
+  /* Genre colors from the API are mixed toward this ink so they print like the rest of the page. */
   --wheel-ink: #173b30;
   --wheel-mix: 60%;
   --grain-opacity: .05;

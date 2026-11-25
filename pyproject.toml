@@ -12,15 +12,7 @@ dependencies = [
     "uvicorn>=0.35.0",
     "bcrypt==4.3.0",
     "pyjwt>=2.10.1",
-    "passlib[bcrypt]>=1.7.4",
     "python-multipart>=0.0.20",
-    "ruff>=0.12.12",
-    "mypy>=1.17.1",
-    "types-psycopg2>=2.9.21.20250809",
-    "types-passlib>=1.7.7.20250602",
-    "pytest>=8.4.2",
-    "pytest-mock>=3.15.0",
-    "pytest-coverage>=0.0",
     "email-validator>=2.3.0",
     "httpx2>=2.13.1",
 ]
@@ -65,5 +57,10 @@ pythonpath = ["."]
 
 [dependency-groups]
 dev = [
-    "httpx2>=2.13.1",
+    "ruff>=0.12.12",
+    "mypy>=1.17.1",
+    "types-psycopg2>=2.9.21.20250809",
+    "pytest>=8.4.2",
+    "pytest-mock>=3.15.0",
+    "pytest-cov>=7.1.0",
 ]

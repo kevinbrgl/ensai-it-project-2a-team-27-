@@ -455,7 +455,7 @@ class UserService:
     def ensure_profile_visible(user: User, viewer_id: int) -> None:
         """Check whether a viewer may see a user's library and activity.
 
-        A private profile only shows its library, shelves, statistics and
+        A private profile only shows its library, playlists, statistics and
         genre wheel to its owner. The username, bio and picture stay
         visible, so the user can still be found and followed.
 

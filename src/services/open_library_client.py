@@ -65,7 +65,12 @@ class OpenLibraryClient:
             If the request fails or the response is invalid.
 
         """
-        headers = {"User-Agent": "Ex-Libris/1.0 (contact@ex-libris.fr)"}
+        headers = {
+            "User-Agent": (
+                "Ex-Libris/1.0 "
+                "(+https://github.com/kevinbrgl/ensai-it-project-2a-team-27-)"
+            ),
+        }
 
         try:
             with httpx2.Client(timeout=self.timeout) as client:

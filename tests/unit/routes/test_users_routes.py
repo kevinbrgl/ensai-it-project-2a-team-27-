@@ -66,7 +66,7 @@ def fake_user() -> User:
         username="alice",
         email="alice@ensai.fr",
         password_hash="hashed_pw",
-        bio="Passionnée de lecture",
+        bio="Loves reading",
         profile_picture="https://example.com/avatar.png",
     )
 
@@ -744,7 +744,7 @@ class TestGetUserStatsUnitRoute:
             password_hash="hash",
         )
         mock_service.read.return_value = friend
-        # Simule que le fake_user (id=1) suit l'utilisateur 2
+        # fake_user (id=1) follows user 2
         mock_service.get_following.return_value = [friend]
 
         mock_stats_service.get_stats.return_value = UserStats(
@@ -777,7 +777,7 @@ class TestGetUserStatsUnitRoute:
             password_hash="hash",
         )
         mock_service.read.return_value = stranger
-        # Simule que le fake_user ne suit personne
+        # fake_user follows nobody
         mock_service.get_following.return_value = []
 
         response = client.get(f"{USERS_URL}/3/stats")

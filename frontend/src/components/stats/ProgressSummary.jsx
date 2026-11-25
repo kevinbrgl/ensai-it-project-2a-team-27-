@@ -7,7 +7,7 @@ const percent = (done, total) => (total ? Math.round((100 * done) / total) : 0);
  * done / total breakdown (by tier or category).
  *
  * figures: [{ key, value, total?, unit?, caption }]
- * breakdown: [{ key, label, done, total, tone? }]; `tone` picks a medal colour.
+ * breakdown: [{ key, label, done, total, tone? }]; `tone` picks a medal color.
  */
 export function ProgressSummary({ label, figures, share, breakdown }) {
   return (

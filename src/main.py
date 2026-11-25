@@ -10,7 +10,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 if __name__ == "__main__":
     root_dir = Path(__file__).parent.parent
@@ -54,17 +57,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
 
 app = FastAPI(
-    title="API Ex-Libris",
-    description="API REST de suivi de lecture",
+    title="Ex-Libris API",
+    description="REST API for tracking your reading",
     version="1.0.0",
-    docs_url="/",  # Swagger UI accessible directement à la racine
-    redoc_url=None,  # Désactive ReDoc
+    docs_url="/",  # Serve Swagger UI at the root URL
+    redoc_url=None,  # Disable ReDoc
     root_path=settings.ROOT_PATH,
     lifespan=lifespan,
 )
 
 app.include_router(api_router)
 
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """Keep field errors without echoing submitted request body values."""
+    errors = [
+        {key: value for key, value in error.items() if key != "input"}
+        if error["loc"] and error["loc"][0] == "body"
+        else error
+        for error in exc.errors()
+    ]
+    return await request_validation_exception_handler(
+        request,
+        RequestValidationError(errors),
+    )
+
+
 if __name__ == "__main__":
-    """Run the FastAPI application with Uvicorn when executed as a script."""
+    # Run the application with Uvicorn when executed as a script.
     uvicorn.run("src.main:app", host="127.0.0.1", port=8000, reload=True)

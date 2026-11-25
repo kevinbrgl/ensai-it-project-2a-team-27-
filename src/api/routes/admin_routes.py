@@ -76,7 +76,7 @@ def suspend_user(
     **Field:** `days`, the length of the suspension, from **1** to
     **365** days.
 
-    **Behaviour:** until the end of the suspension, the user cannot
+    **Behavior:** until the end of the suspension, the user cannot
     **log in** nor use their **existing tokens**.
 
     **Rules:**
@@ -155,7 +155,7 @@ def ban_user(
 
     🛡️ Admin only
 
-    **Behaviour:** the user can no longer **log in** nor use their
+    **Behavior:** the user can no longer **log in** nor use their
     **existing tokens**. Unlike a suspension, a ban has **no end
     date**.
 

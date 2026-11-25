@@ -87,8 +87,9 @@ class TestSuspendUser:
     def test_success(self, service: AdminService, user_dao: Mock) -> None:
         """The user is suspended for the given number of days."""
         user_dao.read.return_value = _user(TARGET_ID)
-        user_dao.set_suspended_until.side_effect = (
-            lambda uid, until: _user(uid, suspended_until=until)
+        user_dao.set_suspended_until.side_effect = lambda uid, until: _user(
+            uid,
+            suspended_until=until,
         )
         before = datetime.now(UTC)
 

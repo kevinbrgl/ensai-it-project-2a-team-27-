@@ -1,6 +1,8 @@
 """Custom exception classes for application errors.
 
-Defines exceptions for user, item, authentication, and DAO errors.
+Defines the domain errors raised by the services and DAOs (accounts,
+books, library, playlists, reviews, follows, moderation, Open Library).
+The routes translate them into HTTP responses.
 """
 
 from datetime import UTC, datetime

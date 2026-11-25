@@ -18,6 +18,10 @@ BEGIN
     SELECT id_user INTO STRICT jo_id FROM users
     WHERE username = 'demo_jo' AND email = 'demo_jo@example.com';
 
+    -- Jo is the demo administrator. Alex stays a regular reader.
+    -- An UPDATE, not the INSERT, so a database seeded earlier gets it too.
+    UPDATE users SET is_admin = TRUE WHERE id_user = jo_id AND NOT is_admin;
+
     -- Open Library work keys also identify these books when a reader searches for them.
     INSERT INTO books (id_book_api, title, author, category, publish_date, num_pages, cover_image)
     VALUES

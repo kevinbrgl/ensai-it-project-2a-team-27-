@@ -191,8 +191,8 @@ class TestSearchBooksRoute:
         assert response.json()["detail"] == expected_msg
 
 
-class TestGetBooksCatalogueRoute:
-    """Integration tests for GET /api/books (catalogue and filters)."""
+class TestGetBooksCatalogRoute:
+    """Integration tests for GET /api/books (catalog and filters)."""
 
     def test_get_books_unauthenticated(self, client: TestClient) -> None:
         """Route requires authentication: 401 or 403 without token."""

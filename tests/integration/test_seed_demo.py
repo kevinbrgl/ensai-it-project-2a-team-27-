@@ -28,8 +28,13 @@ def test_demo_can_be_loaded_twice(cursor: RealDictCursor) -> None:
         """,
     )
     assert cursor.fetchone() == {
-        "readers": 2, "books": 4, "activities": 5, "follows": 1,
-        "playlists": 1, "playlist_entries": 2, "reviews": 3,
+        "readers": 2,
+        "books": 4,
+        "activities": 5,
+        "follows": 1,
+        "playlists": 1,
+        "playlist_entries": 2,
+        "reviews": 3,
         "edited_review": "My own review",
     }
     cursor.execute("SELECT password_hash FROM users")
@@ -37,3 +42,5 @@ def test_demo_can_be_loaded_twice(cursor: RealDictCursor) -> None:
         verify_password("ExLibrisDemo27", reader["password_hash"])
         for reader in cursor.fetchall()
     )
+    cursor.execute("SELECT username FROM users WHERE is_admin")
+    assert cursor.fetchall() == [{"username": "demo_jo"}]

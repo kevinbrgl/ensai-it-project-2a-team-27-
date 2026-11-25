@@ -193,7 +193,7 @@ def logout(
 
     🔒 Authentication required
 
-    **Behaviour:** once revoked, the token is **rejected** on every
+    **Behavior:** once revoked, the token is **rejected** on every
     protected route. Log in again to get a new one.
 
     **Response:** `204 No Content`, with an empty body.

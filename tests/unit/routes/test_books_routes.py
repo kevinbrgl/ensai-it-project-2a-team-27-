@@ -302,8 +302,8 @@ class TestSearchBooksUnitRoute:
         assert response.json()["detail"] == expected
 
 
-class TestGetBooksCatalogueRoute:
-    """Unit tests for GET /api/books (catalogue & filtering)."""
+class TestGetBooksCatalogRoute:
+    """Unit tests for GET /api/books (catalog and filters)."""
 
     def test_get_books_unauthenticated(self, mock_service: Mock) -> None:
         """Endpoint rejects requests without a valid token."""

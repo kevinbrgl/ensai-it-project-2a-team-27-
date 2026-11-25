@@ -92,7 +92,11 @@ class RecommendationService:
 
         recommendations = (
             self._from_open_library(
-                id_user, genres, reason_template, sort, limit,
+                id_user,
+                genres,
+                reason_template,
+                sort,
+                limit,
             )
             if genres
             else []
@@ -132,9 +136,7 @@ class RecommendationService:
                 if genre_count.category and genre_count.category.strip():
                     counts[genre_count.category.strip()] += genre_count.count
 
-        return [
-            genre for genre, _ in counts.most_common(MAX_FAVORITE_GENRES)
-        ]
+        return [genre for genre, _ in counts.most_common(MAX_FAVORITE_GENRES)]
 
     def _from_open_library(
         self,

@@ -66,9 +66,7 @@ def client(
     fake_user: User,
 ) -> Generator[TestClient]:
     """Yield a TestClient with service and auth dependencies overridden."""
-    app.dependency_overrides[get_recommendation_service] = (
-        lambda: mock_service
-    )
+    app.dependency_overrides[get_recommendation_service] = lambda: mock_service
     app.dependency_overrides[get_user] = lambda: fake_user
     yield TestClient(app)
     app.dependency_overrides.clear()
@@ -85,8 +83,8 @@ class TestGetRecommendationsRoute:
             yield Mock()
 
         app.dependency_overrides[get_cursor] = dummy_cursor
-        app.dependency_overrides[get_recommendation_service] = (
-            lambda: mock_service
+        app.dependency_overrides[get_recommendation_service] = lambda: (
+            mock_service
         )
         try:
             response = TestClient(app).get(RECOMMENDATIONS_URL)

@@ -16,7 +16,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    PROJECT_NAME: str = "Ex-libris"
     API_STR: str = "/api"
     ROOT_PATH: str = "/proxy/8000"
 

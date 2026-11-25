@@ -318,7 +318,9 @@ class GenreWheelService:
         }
 
     def _build_wheel(
-        self, user_id: int, books: list[dict[str, Any]],
+        self,
+        user_id: int,
+        books: list[dict[str, Any]],
     ) -> GenreWheel:
         scores, counts, ratings = self._aggregate_books(books)
         segments = self._build_segments(scores, counts, ratings)

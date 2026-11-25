@@ -31,7 +31,7 @@ from src.utils.exceptions import (
 
 USERNAME = "johndoe"
 EMAIL = "john@ensai.fr"
-PASSWORD = "motdepasse123"
+PASSWORD = "readingpass123"
 FAKE_JWT = "fake.jwt.value"
 
 
@@ -108,7 +108,7 @@ class TestAuthenticate:
         )
 
         with pytest.raises(AuthError):
-            service.authenticate(USERNAME, "mauvaismdp")
+            service.authenticate(USERNAME, "wrongpass")
 
 
 class TestLogin:
@@ -203,7 +203,7 @@ class TestLogin:
         )
 
         with pytest.raises(AuthError):
-            service.login(USERNAME, "mauvaismdp")
+            service.login(USERNAME, "wrongpass")
 
         mock_create.assert_not_called()
 

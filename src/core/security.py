@@ -2,12 +2,10 @@
 
 from datetime import UTC, datetime, timedelta
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from src.core.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
 
@@ -49,7 +47,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         Whether the submitted password matches the stored hash.
 
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("ascii"),
+    )
 
 
 def get_password_hash(password: str) -> str:
@@ -66,4 +67,7 @@ def get_password_hash(password: str) -> str:
         Bcrypt hash suitable for storage.
 
     """
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("ascii")

@@ -18,7 +18,7 @@ PLAYLISTS_URL = f"{settings.API_STR}/playlists"
 REGISTER_URL = f"{settings.API_STR}/auth/register"
 LOGIN_URL = f"{settings.API_STR}/auth/login"
 ME_URL = f"{settings.API_STR}/users/me"
-PASSWORD = "motdepasse123"
+PASSWORD = "readingpass123"
 MAX_NAME_LENGTH = 100
 
 

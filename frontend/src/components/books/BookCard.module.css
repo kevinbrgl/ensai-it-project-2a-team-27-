@@ -5,7 +5,7 @@
 .card:focus-visible { box-shadow: none; }
 .card:focus-visible .coverWrap { box-shadow: var(--focus-ring); border-radius: var(--radius-cover); }
 
-/* Status as a library sticker on the jacket. Fixed colours: readable on any cover, in both themes. */
+/* Status as a library sticker on the jacket. Fixed colors: readable on any cover, in both themes. */
 .status {
   position: absolute;
   left: -4px;

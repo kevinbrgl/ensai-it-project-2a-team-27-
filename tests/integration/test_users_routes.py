@@ -23,8 +23,8 @@ ME_URL = f"{settings.API_STR}/users/me"
 SEARCH_URL = f"{settings.API_STR}/users/search"
 USERS_URL = f"{settings.API_STR}/users"
 PASSWORD_URL = f"{settings.API_STR}/users/me/password"
-PASSWORD = "motdepasse123"
-NEW_PASSWORD = "nouveaumdp456"
+PASSWORD = "readingpass123"
+NEW_PASSWORD = "newpass456"
 # Your own account (GET /users/me) includes your email address.
 OWN_FIELDS = {"id_user", "username", "email", "bio", "profile_picture"}
 # Other users' profiles never include the email address.
@@ -354,7 +354,8 @@ class TestSearchUsersRoute:
         result = client.get(SEARCH_URL, params=params, headers=auth_headers)
         preview = result.json()[0]["genre_wheel"]
         detail = client.get(
-            f"{USERS_URL}/{reader_id}/genre-wheel", headers=auth_headers,
+            f"{USERS_URL}/{reader_id}/genre-wheel",
+            headers=auth_headers,
         )
         assert preview == detail.json()
         assert [seg["genre"] for seg in preview["segments"]] == ["Fantasy"]
@@ -1119,7 +1120,7 @@ class TestUpdatePassword:
             PASSWORD_URL,
             headers=auth_headers,
             json={
-                "current_password": "mauvaismdp123",
+                "current_password": "wrongpass123",
                 "new_password": NEW_PASSWORD,
             },
         )
@@ -1164,6 +1165,10 @@ class TestUpdatePassword:
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        error = response.json()["detail"][0]
+        assert error["loc"] == ["body", "new_password"]
+        assert error["msg"]
+        assert "input" not in error
 
     def test_no_token(self, client: TestClient) -> None:
         """No token: 401."""
@@ -1371,6 +1376,10 @@ class TestPasswordBytes:
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        error = response.json()["detail"][0]
+        assert error["loc"] == ["body", "password"]
+        assert error["msg"]
+        assert "input" not in error
 
 
 class TestDeletedAccountToken:

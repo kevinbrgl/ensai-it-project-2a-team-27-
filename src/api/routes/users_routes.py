@@ -151,7 +151,7 @@ def update_my_settings(
 
     🔒 Authentication required
 
-    **Behaviour:** only the fields you send are changed, the others
+    **Behavior:** only the fields you send are changed, the others
     keep their current value.
 
     **Available settings:**
@@ -358,14 +358,18 @@ def get_my_achievements(
 
 
 def _reader_previews(
-    matches: list[User], viewer_id: int, wheel_service: GenreWheelServiceDep,
-    *, include: bool,
+    matches: list[User],
+    viewer_id: int,
+    wheel_service: GenreWheelServiceDep,
+    *,
+    include: bool,
 ) -> list[UserSearchResult]:
     """Attach genre wheels visible to the viewer when requested."""
     wheels = {}
     if include:
         visible_ids = [
-            user.id_user for user in matches
+            user.id_user
+            for user in matches
             if UserService.is_profile_visible(user, viewer_id)
         ]
         wheels = wheel_service.get_genre_wheels(visible_ids)
@@ -402,7 +406,7 @@ def search_users(
     - 🔢 `limit`: number of users to return, from 1 to 50 (default 10)
     - 🎨 `include_genre_wheel`: include the wheels visible to you
 
-    **Behaviour:** the search **ignores upper and lower case**, and
+    **Behavior:** the search **ignores upper and lower case**, and
     the results are sorted by username.
 
     **Use case:** find a friend in order to follow them.
@@ -432,15 +436,19 @@ def search_users(
     """
     try:
         matches = service.search_users(
-            username=query.username, limit=query.limit,
+            username=query.username,
+            limit=query.limit,
         )
         return _reader_previews(
-            matches, current_user.id_user, wheel_service,
+            matches,
+            current_user.id_user,
+            wheel_service,
             include=query.include_genre_wheel,
         )
     except DAOError:
         logger.exception(
-            "Failed to search users with query: %s", query.username,
+            "Failed to search users with query: %s",
+            query.username,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -687,7 +695,7 @@ def get_followers(
 
     🔒 Authentication required
 
-    **Behaviour:** the **most recent** followers come first.
+    **Behavior:** the **most recent** followers come first.
 
     **Good to know:** use your own user ID to see **your**
     followers. The list is **empty** when nobody follows the user.
@@ -759,7 +767,7 @@ def get_following(
 
     🔒 Authentication required
 
-    **Behaviour:** the **most recently followed** users come first.
+    **Behavior:** the **most recently followed** users come first.
 
     **Good to know:** use your own user ID to see who **you**
     follow. The list is **empty** when the user follows nobody.
@@ -829,7 +837,7 @@ def update_self(
 
     🔒 Authentication required
 
-    **Behaviour:** only the fields you send are changed, the others
+    **Behavior:** only the fields you send are changed, the others
     keep their current value.
 
     **Available fields:**

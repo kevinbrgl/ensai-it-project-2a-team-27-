@@ -1,4 +1,4 @@
-/* Index tags: square-cut labels like the tabs of a card catalogue. */
+/* Index tags: square-cut labels like the tabs of a card catalog. */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
   display: inline-flex;

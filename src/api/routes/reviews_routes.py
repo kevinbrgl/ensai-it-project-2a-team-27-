@@ -237,7 +237,7 @@ def update_review(
     - ⭐ `rating`: a whole number from **1** to **5** (required)
     - 💬 `comment`: optional text, up to 2000 characters
 
-    **Behaviour:** the review is **fully replaced**. If you do not
+    **Behavior:** the review is **fully replaced**. If you do not
     send `comment`, the old comment is erased.
 
     **Example request:**

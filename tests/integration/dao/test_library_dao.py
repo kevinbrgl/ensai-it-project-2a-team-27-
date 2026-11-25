@@ -130,7 +130,7 @@ class TestAddBook:
         book_in = LibraryBookAdd(id_book=id_book, state="READING")
         library_dao.add_book(id_user, book_in)
 
-        # La deuxième insertion doit échouer
+        # The second insert must fail
         with pytest.raises(BookAlreadyInLibraryError):
             library_dao.add_book(id_user, book_in)
 
